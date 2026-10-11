@@ -161,6 +161,48 @@ public class MinionRegistry {
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(80, 220, 230), new ItemStack(Material.DIAMOND_PICKAXE),
                 Material.DIAMOND_ORE, null, new ItemStack(Material.DIAMOND), 5, 14.0, 1));
 
+        DEFINITIONS.put("coal", new MinionDefinition("coal", ColorUtil.color("&8Coal"),
+                MinionArchetype.MINER,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWIzNTY3NWI5MmI0YmZkOTVhYjFiN2UyMDQyNTEwMzE4OGFlNjI2ZGUzY2Y0NDNmYzNjNjhmYjNmMDY3YWM4NyJ9fX0=",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(40, 40, 40), new ItemStack(Material.STONE_PICKAXE),
+                Material.COAL_ORE, null, new ItemStack(Material.COAL), 1, 15.0, 1));
+
+        DEFINITIONS.put("gold", new MinionDefinition("gold", ColorUtil.color("&6Gold"),
+                MinionArchetype.MINER,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmM4MDY0NWExY2UzYzI4NWMyODJhNmUxOTAzMDMzMjhkOTFmOTJlMTBiODRiY2Y3OTZkYmUzMjE0YzI1In19fQ==",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(255, 215, 0), new ItemStack(Material.IRON_PICKAXE),
+                Material.GOLD_ORE, null, new ItemStack(Material.RAW_GOLD), 3, 14.0, 1));
+
+        DEFINITIONS.put("emerald", new MinionDefinition("emerald", ColorUtil.color("&aEmerald"),
+                MinionArchetype.MINER,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzkxOTAzMGIyZjM0OTJmMTMwOWVmOGQ0YWRlODljNGU3MmY2NDkxMWMyYzYzOTRjYzBkOWQ2NzMwYzI0ZTMifX19",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(50, 205, 50), new ItemStack(Material.IRON_PICKAXE),
+                Material.EMERALD_ORE, null, new ItemStack(Material.EMERALD), 5, 14.0, 1));
+
+        DEFINITIONS.put("redstone", new MinionDefinition("redstone", ColorUtil.color("&cRedstone"),
+                MinionArchetype.MINER,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNWY3OGI2YzI3MmY5MTM0NGVkZTVjOTgyNjM3Nzg3ZjVlNDlhNDQ4ZTk0YTUxMmI4ZjJjODZmMzExN2RjNCJ9fX0=",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(220, 20, 60), new ItemStack(Material.IRON_PICKAXE),
+                Material.REDSTONE_ORE, null, new ItemStack(Material.REDSTONE, 4), 2, 14.0, 1));
+
+        DEFINITIONS.put("lapis", new MinionDefinition("lapis", ColorUtil.color("&9Lapis"),
+                MinionArchetype.MINER,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTI4ZmYyMTdmMzAwNWIxZjc2MmFiYjU2YTUyOGUxYjcxM2M5ZWFhYzU4OTFiY2VmZThmYTcwNjRjN2RkOCJ9fX0=",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(30, 60, 180), new ItemStack(Material.IRON_PICKAXE),
+                Material.LAPIS_ORE, null, new ItemStack(Material.LAPIS_LAZULI, 4), 2, 14.0, 1));
+
+        DEFINITIONS.put("obsidian", new MinionDefinition("obsidian", ColorUtil.color("&5Obsidian"),
+                MinionArchetype.MINER,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDdlYTYwOTQ1YmU3MTlmOWYxMTU4M2E0YjljNGVmZWEzOWZkMDFlMWE4ZmRkYmFmY2YxMjQyNThjMmRiOGEzIn19fQ==",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(30, 20, 45), new ItemStack(Material.DIAMOND_PICKAXE),
+                Material.OBSIDIAN, null, new ItemStack(Material.OBSIDIAN), 8, 24.0, 1));
+
+        DEFINITIONS.put("quartz", new MinionDefinition("quartz", ColorUtil.color("&fNether Quartz"),
+                MinionArchetype.MINER,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODdiN2YzNmQ2MWUxNDk5MmQ2YTU5YTAwYWYzZDJhYzA2YmUyNjljNDVhOTRiZDE0MjAyZjdhMDU0NzM5ZTgifX19",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(240, 235, 230), new ItemStack(Material.IRON_PICKAXE),
+                Material.NETHER_QUARTZ_ORE, null, new ItemStack(Material.QUARTZ), 3, 14.0, 1));
+
         // --- 2. FORAGING MINIONS ---
         DEFINITIONS.put("oak", new MinionDefinition("oak", ColorUtil.color("&aOak Wood"),
                 MinionArchetype.FORAGING,
@@ -201,7 +243,7 @@ public class MinionRegistry {
         // --- 3. FARMING MINIONS ---
         DEFINITIONS.put("wheat", new MinionDefinition("wheat", ColorUtil.color("&eWheat"),
                 MinionArchetype.FARMING,
-                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTZlOWFlMTVmNTRkOWI5ZTEyZGIzOWZhZTZlODlhMWY4MmU1YzlmOTBhOTRkZjljYzg0MjM1YWM3NzFmIn19fQ==",
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWJkM2I0NTU2NGJmMmJmMTQzYTU3MWRhNzYxYWExOGViNGViNmE5YWQ3ODcyZWU5Yzc4M2JmMjg5YjRmMDA5YiJ9fX0=",
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(220, 190, 80), new ItemStack(Material.IRON_HOE),
                 Material.WHEAT, null, new ItemStack(Material.WHEAT), new ItemStack(Material.WHEAT_SEEDS), 1.0, 1, 12.0, 1));
 
@@ -232,7 +274,7 @@ public class MinionRegistry {
         DEFINITIONS.put("sugar_cane", new MinionDefinition("sugar_cane", ColorUtil.color("&aSugar Cane"),
                 MinionArchetype.FARMING,
                 "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOGE5YjFmOGFkZDJjZTRiYjNmMDYyNDEzNGNmYTk2YWRjYjc1MDM3MmJmNzEyYzdiYzcwNGNhZTcwMDcxIn19fQ==",
-                Material.LEATHER_CHESTPLATE, Color.fromRGB(140, 210, 100), new ItemStack(Material.IRON_SWORD),
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(140, 210, 100), new ItemStack(Material.DIAMOND_HOE),
                 Material.SUGAR_CANE, null, new ItemStack(Material.SUGAR_CANE), null, 0.0, 1, 14.0, 1));
 
         DEFINITIONS.put("cactus", new MinionDefinition("cactus", ColorUtil.color("&2Cactus"),
@@ -272,9 +314,33 @@ public class MinionRegistry {
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(200, 200, 200), new ItemStack(Material.BOW),
                 null, "SKELETON", new ItemStack(Material.BONE), 5, 12.0, 1));
 
+        DEFINITIONS.put("spider", new MinionDefinition("spider", ColorUtil.color("&8Spider"),
+                MinionArchetype.COMBAT,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2Q1NDE1NDFkYWFmZjUwODk2Y2Y2ZTIzNjg4NTdhYmQ5MmJjZmVkZWMzZTNmODVhMzM1YTQ4NRjODg4YmNmIn19fQ==",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(50, 40, 40), new ItemStack(Material.IRON_SWORD),
+                null, "SPIDER", new ItemStack(Material.STRING), new ItemStack(Material.SPIDER_EYE), 0.5, 4, 13.0, 1));
+
+        DEFINITIONS.put("creeper", new MinionDefinition("creeper", ColorUtil.color("&aCreeper"),
+                MinionArchetype.COMBAT,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODlhNzdhODZmMmFkY2M5YTgzYzRhMmJmZTI1YmNjMTY5NmZlZTQ4NTVkNWQyYzgxY2U1NGY4YzA4ZjQ3In19fQ==",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(50, 180, 50), new ItemStack(Material.IRON_SWORD),
+                null, "CREEPER", new ItemStack(Material.GUNPOWDER), 5, 14.0, 1));
+
+        DEFINITIONS.put("enderman", new MinionDefinition("enderman", ColorUtil.color("&5Enderman"),
+                MinionArchetype.COMBAT,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvN2E1OWJiMGE3YTMyOTY1YjNkOTBkOGVhZmE4OTlkMTgzNWY0MjQ1NWFmMzg4ZmU1ODFhMzQ0MmNwNWVmM2EifX19",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(20, 20, 25), new ItemStack(Material.DIAMOND_SWORD),
+                null, "ENDERMAN", new ItemStack(Material.ENDER_PEARL), 6, 16.0, 1));
+
+        DEFINITIONS.put("blaze", new MinionDefinition("blaze", ColorUtil.color("&6Blaze"),
+                MinionArchetype.COMBAT,
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjc4ZWYyZVc4OTdhMmU1ZWY2M2U0NTc3OWFmNzExNGQ1MWNkNWJmODc4MjkxMzQzMjk1NDE0NzAwMWNkNmMifX19",
+                Material.LEATHER_CHESTPLATE, Color.fromRGB(255, 140, 0), new ItemStack(Material.DIAMOND_SWORD),
+                null, "BLAZE", new ItemStack(Material.BLAZE_ROD), 6, 16.0, 1));
+
         DEFINITIONS.put("cow", new MinionDefinition("cow", ColorUtil.color("&fCow"),
                 MinionArchetype.COMBAT,
-                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNWQ2YzZlZGE5NDJmN2Y1ZjcxYzMxNjFjNzMwNmY0YWVkMzA3ZDIwTRjNTNjMzk4ZGFjNzUxYTY4MmUwIn19fQ==",
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNWQ2YzZlZGE5NDJmN2Y1ZjcxYzMxNjFjNzMwNmY0YWVkMzA3ZDIwNmY1M2MzOThkYWM3NTFhNjgyZTAifX19",
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(90, 60, 40), new ItemStack(Material.IRON_SWORD),
                 null, "COW", new ItemStack(Material.BEEF), new ItemStack(Material.LEATHER), 0.5, 3, 15.0, 1));
 

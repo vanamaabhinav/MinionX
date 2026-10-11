@@ -117,7 +117,7 @@ public class MinionVisual {
 
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
         if (meta != null) {
-            PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
+            PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(base64Texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
             profile.setProperty(new ProfileProperty("textures", base64Texture));
             meta.setPlayerProfile(profile);
             skull.setItemMeta(meta);

@@ -19,13 +19,15 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 /**
  * Builds the authentic 54-slot Hypixel SkyBlock Minion chest interface.
- * All slots, materials, and items are customizable via config.yml.
+ * Faithfully formatted with dark gray glass panes, distinct upgrade/fuel sockets,
+ * and high-fidelity Hypixel-style status lores.
  */
 public class MinionGUI {
 
@@ -38,16 +40,16 @@ public class MinionGUI {
         String title = GUI_TITLE_PREFIX + minion.getDisplayName() + " " + MinionTier.toRoman(minion.getTier());
         Inventory inv = Bukkit.createInventory(new MinionHolder(minion), 54, title);
 
-        // Hypixel style: Sleek Black Stained Glass Pane borders
-        ItemStack filler = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
+        // Hypixel style: Sleek Gray Stained Glass Pane borders
+        ItemStack filler = createPane(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
             inv.setItem(i, filler);
         }
 
-        // 1. Minion Head
+        // 1. Minion Head (Row 0, Center: Slot 4)
         inv.setItem(MinionGUIConfig.getHeadSlot(), createHeadItem(minion));
 
-        // 2. Fuel Slot
+        // 2. Fuel Slot (Row 1, Column 0: Slot 9)
         int fuelSlot = MinionGUIConfig.getFuelSlot();
         if (minion.isFuelActive()) {
             inv.setItem(fuelSlot, createActiveFuelItem(minion));
@@ -55,19 +57,21 @@ public class MinionGUI {
             inv.setItem(fuelSlot, createEmptyFuelItem());
         }
 
-        // 3. Automated Shipping Slot
+        // 3. Automated Shipping Slot (Row 2, Column 0: Slot 18)
         inv.setItem(MinionGUIConfig.getAutomatedShippingSlot(), createNamedItem(Material.HOPPER, ColorUtil.color("&cAutomated Shipping &7(Locked)"),
-                List.of(ColorUtil.color("&7Automatically sells excess items"), ColorUtil.color("&7when storage fills."))));
+                List.of(ColorUtil.color("&7Automatically sells excess items"),
+                        ColorUtil.color("&7when minion storage fills."))));
 
-        // 4. Upgrade Slots
+        // 4. Upgrade Slots (Row 3, Column 0: Slot 27 & Row 4, Column 0: Slot 36)
         inv.setItem(MinionGUIConfig.getUpgrade1Slot(), createUpgradeSlotItem(minion.getCustomUpgrade1(), 1));
         inv.setItem(MinionGUIConfig.getUpgrade2Slot(), createUpgradeSlotItem(minion.getCustomUpgrade2(), 2));
 
-        // 5. Minion Skin Cosmetic Slot
+        // 5. Minion Skin Cosmetic Slot (Slot 37)
         inv.setItem(MinionGUIConfig.getSkinSlot(), createNamedItem(Material.LEATHER_CHESTPLATE, ColorUtil.color("&dMinion Skin &7(None)"),
-                List.of(ColorUtil.color("&7Customize your minion with"), ColorUtil.color("&7exclusive cosmetic skins!"))));
+                List.of(ColorUtil.color("&7Customize your minion with"),
+                        ColorUtil.color("&7exclusive cosmetic skins!"))));
 
-        // 6. Storage Slots
+        // 6. Storage Slots (Rows 1-3, Columns 3-7: Slots 12-16, 21-25, 30-34)
         int[] storageSlots = MinionGUIConfig.getStorageSlots();
         int unlockedSlots = MinionTier.getStorageSlots(minion.getTier());
         List<ItemStack> items = minion.getInventory();
@@ -78,16 +82,16 @@ public class MinionGUI {
                 if (i < items.size()) {
                     inv.setItem(slot, items.get(i).clone());
                 } else {
-                    inv.setItem(slot, new ItemStack(Material.AIR)); // Empty unlocked slot
+                    inv.setItem(slot, new ItemStack(Material.AIR)); // Empty unlocked storage slot
                 }
             } else {
                 inv.setItem(slot, createLockedStoragePane(i + 1));
             }
         }
 
-        // 7. Action Buttons
-        inv.setItem(MinionGUIConfig.getUpgradeTierSlot(), createUpgradeButtonItem(minion));
+        // 7. Action Buttons (Bottom Row)
         inv.setItem(MinionGUIConfig.getCollectAllSlot(), createCollectAllItem(minion));
+        inv.setItem(MinionGUIConfig.getUpgradeTierSlot(), createUpgradeButtonItem(minion));
         inv.setItem(MinionGUIConfig.getPickupSlot(), createPickupItem());
 
         player.openInventory(inv);
@@ -109,7 +113,7 @@ public class MinionGUI {
 
             if (texture != null && !texture.isEmpty()) {
                 try {
-                    PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
+                    PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(texture.getBytes(StandardCharsets.UTF_8)));
                     profile.setProperty(new ProfileProperty("textures", texture));
                     meta.setPlayerProfile(profile);
                 } catch (Exception ignored) {}
@@ -117,8 +121,8 @@ public class MinionGUI {
 
             meta.setDisplayName(ColorUtil.color("&a" + minion.getDisplayName() + " Minion " + MinionTier.toRoman(minion.getTier())));
 
-            FileConfiguration config = SkyBlockMinions.getInstance().getConfig();
-            List<String> configuredLore = config.getStringList("gui.head-lore");
+            FileConfiguration config = SkyBlockMinions.getInstance() != null ? SkyBlockMinions.getInstance().getConfig() : null;
+            List<String> configuredLore = config != null ? config.getStringList("gui.head-lore") : null;
 
             List<String> lore = new ArrayList<>();
             if (configuredLore != null && !configuredLore.isEmpty()) {
@@ -148,7 +152,7 @@ public class MinionGUI {
                 List.of(ColorUtil.color("&7Increase the speed of your"),
                         ColorUtil.color("&7minion by adding fuel!"),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick with fuel on cursor or shift-click!"),
+                        ColorUtil.color("&eClick or Shift-Click with fuel to insert!"),
                         ColorUtil.color("&7Stackable fuels (Coal, etc.) add all quantity duration.")));
     }
 
@@ -187,7 +191,7 @@ public class MinionGUI {
                             ColorUtil.color("&7like the Auto-Smelter, Compactor,"),
                             ColorUtil.color("&7or Diamond Spreading!"),
                             ColorUtil.color("&7"),
-                            ColorUtil.color("&eClick with an upgrade to insert!")));
+                            ColorUtil.color("&eClick or Shift-Click with an upgrade to insert!")));
         }
 
         return createNamedItem(upgrade.getMaterial(), ColorUtil.color("&a" + upgrade.getDisplayName()),
@@ -197,7 +201,8 @@ public class MinionGUI {
     }
 
     private static ItemStack createLockedStoragePane(int slotIndex) {
-        return createPane(Material.RED_STAINED_GLASS_PANE, ColorUtil.color("&cLocked Storage Slot &7(#" + slotIndex + ")"));
+        return createNamedItem(Material.RED_STAINED_GLASS_PANE, ColorUtil.color("&cLocked Storage Slot &7(#" + slotIndex + ")"),
+                List.of(ColorUtil.color("&7Upgrade your minion tier to unlock!")));
     }
 
     private static ItemStack createCollectAllItem(Minion minion) {
@@ -263,7 +268,9 @@ public class MinionGUI {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);
-            meta.setLore(lore);
+            if (lore != null) {
+                meta.setLore(lore);
+            }
             item.setItemMeta(meta);
         }
         return item;

@@ -1,14 +1,17 @@
 package com.skyblock.minions.gui;
 
 import com.skyblock.minions.SkyBlockMinions;
-import org.bukkit.configuration.file.FileConfiguration;
-
 import java.util.List;
 
 /**
  * Configuration holder for the 54-slot Minion chest menu.
- * Faithfully mirrors the authentic Hypixel SkyBlock layout by default,
- * while allowing server owners to customize every slot and item in config.yml.
+ * Faithfully mirrors the authentic Hypixel SkyBlock layout by default:
+ * - Row 0: Slot 4 = Minion Head
+ * - Row 1: Slot 9 = Fuel | Slots 12-16 = Storage (Row 1)
+ * - Row 2: Slot 18 = Automated Shipping | Slots 21-25 = Storage (Row 2)
+ * - Row 3: Slot 27 = Upgrade Slot 1 | Slots 30-34 = Storage (Row 3)
+ * - Row 4: Slot 36 = Upgrade Slot 2
+ * - Row 5: Slot 46 = Quick Collect | Slot 49 = Upgrade Tier | Slot 53 = Pickup Minion
  */
 public class MinionGUIConfig {
 
@@ -17,51 +20,51 @@ public class MinionGUIConfig {
     }
 
     public static int getFuelSlot() {
-        return getInt("gui.minion-menu.slots.fuel", 19);
+        return getInt("gui.minion-menu.slots.fuel", 9);
     }
 
     public static int getAutomatedShippingSlot() {
-        return getInt("gui.minion-menu.slots.automated-shipping", 20);
+        return getInt("gui.minion-menu.slots.automated-shipping", 18);
     }
 
     public static int getUpgrade1Slot() {
-        return getInt("gui.minion-menu.slots.upgrade-1", 28);
+        return getInt("gui.minion-menu.slots.upgrade-1", 27);
     }
 
     public static int getUpgrade2Slot() {
-        return getInt("gui.minion-menu.slots.upgrade-2", 29);
+        return getInt("gui.minion-menu.slots.upgrade-2", 36);
     }
 
     public static int getSkinSlot() {
         return getInt("gui.minion-menu.slots.skin", 37);
     }
 
-    public static int getUpgradeTierSlot() {
-        return getInt("gui.minion-menu.slots.upgrade-tier", 48);
+    public static int getCollectAllSlot() {
+        return getInt("gui.minion-menu.slots.collect-all", 46);
     }
 
-    public static int getCollectAllSlot() {
-        return getInt("gui.minion-menu.slots.collect-all", 49);
+    public static int getUpgradeTierSlot() {
+        return getInt("gui.minion-menu.slots.upgrade-tier", 49);
     }
 
     public static int getPickupSlot() {
-        return getInt("gui.minion-menu.slots.pickup", 51);
+        return getInt("gui.minion-menu.slots.pickup", 53);
     }
 
     public static int[] getStorageSlots() {
         if (SkyBlockMinions.getInstance() == null || SkyBlockMinions.getInstance().getConfig() == null) {
             return new int[]{
+                    12, 13, 14, 15, 16,
                     21, 22, 23, 24, 25,
-                    30, 31, 32, 33, 34,
-                    39, 40, 41, 42, 43
+                    30, 31, 32, 33, 34
             };
         }
         List<Integer> list = SkyBlockMinions.getInstance().getConfig().getIntegerList("gui.minion-menu.slots.storage");
         if (list == null || list.isEmpty()) {
             return new int[]{
+                    12, 13, 14, 15, 16,
                     21, 22, 23, 24, 25,
-                    30, 31, 32, 33, 34,
-                    39, 40, 41, 42, 43
+                    30, 31, 32, 33, 34
             };
         }
         int[] arr = new int[list.size()];

@@ -553,15 +553,20 @@ gui:
   minion-menu:
     slots:
       head: 4
-      fuel: 19
-      automated-shipping: 20
-      upgrade-1: 28
-      upgrade-2: 29
+      fuel: 9
+      automated-shipping: 18
+      upgrade-1: 27
+      upgrade-2: 36
       skin: 37
-      upgrade-tier: 48
-      collect-all: 49
-      pickup: 51
+      collect-all: 46
+      upgrade-tier: 49
+      pickup: 53
       storage:
+        - 12
+        - 13
+        - 14
+        - 15
+        - 16
         - 21
         - 22
         - 23
@@ -572,11 +577,6 @@ gui:
         - 32
         - 33
         - 34
-        - 39
-        - 40
-        - 41
-        - 42
-        - 43
 
 # ==============================================================================
 # CONFIGURABLE MESSAGES (Non-coders can easily customize all text here)

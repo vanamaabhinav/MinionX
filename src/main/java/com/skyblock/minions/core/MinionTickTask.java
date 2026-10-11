@@ -57,6 +57,11 @@ public class MinionTickTask extends BukkitRunnable {
             return;
         }
 
+        // Minion in not-working state (blocked or full) should not generate resources
+        if (minion.getState() == MinionState.NO_SPACE) {
+            return;
+        }
+
         MinionDefinition def = minion.getCustomDefinitionId() != null
                 ? MinionRegistry.get(minion.getCustomDefinitionId())
                 : (minion.getType() != null ? MinionRegistry.get(minion.getType().name().toLowerCase()) : null);
@@ -153,21 +158,21 @@ public class MinionTickTask extends BukkitRunnable {
         List<Block> logBlocks = new ArrayList<>();
         List<Block> plantableSpots = new ArrayList<>();
 
+        Location minionLoc = minion.getLocation();
         for (Block block : cropSpots) {
             Material mat = block.getType();
             Block ground = block.getRelative(BlockFace.DOWN); // Y - 1
+
+            // Outer perimeter check: |dx| == 2 || |dz| == 2 (edges of the 5x5 platform)
+            int dx = block.getX() - minionLoc.getBlockX();
+            int dz = block.getZ() - minionLoc.getBlockZ();
+            boolean isPerimeter = Math.abs(dx) == 2 || Math.abs(dz) == 2;
 
             if (mat == saplingMat) {
                 saplingBlocks.add(block);
             } else if (isWoodLog(mat, targetLog)) {
                 logBlocks.add(block);
-                for (int yOffset = 1; yOffset <= 2; yOffset++) {
-                    Block higher = block.getRelative(0, yOffset, 0);
-                    if (isWoodLog(higher.getType(), targetLog)) {
-                        logBlocks.add(higher);
-                    }
-                }
-            } else if (mat.isAir() || !mat.isSolid()) {
+            } else if ((mat.isAir() || !mat.isSolid()) && isPerimeter) {
                 if (isSoil(ground.getType())) {
                     plantableSpots.add(block);
                 }
@@ -245,18 +250,54 @@ public class MinionTickTask extends BukkitRunnable {
 
     private void executeChop(Minion minion, Block target, ItemStack dropItem, MinionDefinition def, Material leafMat) {
         MinionAnimation.playMineAnimation(minion, target);
-        target.setType(Material.AIR);
 
-        for (BlockFace face : new BlockFace[]{BlockFace.UP, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST}) {
-            Block relative = target.getRelative(face);
-            if (relative.getType() == leafMat) {
-                relative.setType(Material.AIR);
+        // Find base log at minion elevation Y
+        Block base = target;
+        while (base.getY() > minion.getLocation().getBlockY() && isWoodLog(base.getRelative(BlockFace.DOWN).getType(), def.getTargetBlock())) {
+            base = base.getRelative(BlockFace.DOWN);
+        }
+
+        // Trace the entire trunk upwards (up to 7 blocks tall)
+        List<Block> trunkLogs = new ArrayList<>();
+        Block curr = base;
+        while (curr.getY() <= minion.getLocation().getBlockY() + 7 && isWoodLog(curr.getType(), def.getTargetBlock())) {
+            trunkLogs.add(curr);
+            curr = curr.getRelative(BlockFace.UP);
+        }
+
+        // Collect all connected leaves in the canopy around this tree
+        List<Block> connectedLeaves = new ArrayList<>();
+        for (Block log : trunkLogs) {
+            for (int ox = -2; ox <= 2; ox++) {
+                for (int oz = -2; oz <= 2; oz++) {
+                    for (int oy = 0; oy <= 2; oy++) {
+                        Block nearby = log.getRelative(ox, oy, oz);
+                        if (nearby.getType() == leafMat) {
+                            connectedLeaves.add(nearby);
+                        }
+                    }
+                }
             }
         }
 
-        minion.addItem(dropItem.clone());
-        minion.incrementHarvested(1);
-        minion.addStoredXp(def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
+        // Cut the whole tree at once with the leaves!
+        int logsMined = Math.max(1, trunkLogs.size());
+        for (Block log : trunkLogs) {
+            log.getWorld().spawnParticle(Particle.BLOCK_CRACK, log.getLocation().add(0.5, 0.5, 0.5), 8, 0.3, 0.3, 0.3, log.getBlockData());
+            log.setType(Material.AIR);
+        }
+        for (Block leaf : connectedLeaves) {
+            leaf.setType(Material.AIR);
+        }
+
+        target.getWorld().playSound(target.getLocation(), Sound.BLOCK_WOOD_BREAK, 1.0f, 1.0f);
+
+        ItemStack reward = dropItem.clone();
+        reward.setAmount(dropItem.getAmount() * logsMined);
+        minion.addItem(reward);
+        minion.incrementHarvested(logsMined);
+        int xp = def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1;
+        minion.addStoredXp(xp * logsMined);
 
         if (def.hasSecondaryDrop() && Math.random() < def.getSecondaryDropChance()) {
             minion.addItem(def.getSecondaryDropItem().clone());
@@ -293,6 +334,7 @@ public class MinionTickTask extends BukkitRunnable {
         List<Block> matureCrops = new ArrayList<>();
         List<Block> growingCrops = new ArrayList<>();
         List<Block> plantableSpots = new ArrayList<>();
+        List<Block> untilledDirt = new ArrayList<>();
 
         boolean isNetherWart = cropMat == Material.NETHER_WART;
 
@@ -300,13 +342,19 @@ public class MinionTickTask extends BukkitRunnable {
             Block ground = cropBlock.getRelative(BlockFace.DOWN); // Y - 1
             Material groundType = ground.getType();
 
-            if (!isNetherWart && (groundType == Material.DIRT || groundType == Material.GRASS_BLOCK)) {
-                ground.setType(Material.FARMLAND);
-                groundType = Material.FARMLAND;
+            if (isNetherWart) {
+                if (groundType != Material.SOUL_SAND) continue;
+            } else {
+                if (groundType == Material.DIRT || groundType == Material.GRASS_BLOCK || groundType == Material.COARSE_DIRT || groundType == Material.ROOTED_DIRT) {
+                    if (cropBlock.getType().isAir()) {
+                        untilledDirt.add(cropBlock);
+                    }
+                    continue;
+                }
+                if (groundType != Material.FARMLAND) {
+                    continue;
+                }
             }
-
-            boolean validSoil = isNetherWart ? groundType == Material.SOUL_SAND : groundType == Material.FARMLAND;
-            if (!validSoil) continue;
 
             Material mat = cropBlock.getType();
             if (mat == cropMat) {
@@ -328,16 +376,22 @@ public class MinionTickTask extends BukkitRunnable {
             if (!matureCrops.isEmpty()) {
                 Collections.shuffle(matureCrops);
                 harvestSoilCrop(minion, matureCrops.getFirst(), dropItem, def);
-            } else if (!growingCrops.isEmpty()) {
-                advanceCropGrowth(minion, growingCrops.getFirst());
+            } else if (!untilledDirt.isEmpty()) {
+                Collections.shuffle(untilledDirt);
+                tillAndPlantSoilCrop(minion, untilledDirt.getFirst(), cropMat);
             } else if (!plantableSpots.isEmpty()) {
                 Collections.shuffle(plantableSpots);
                 plantSoilCrop(minion, plantableSpots.getFirst(), cropMat);
+            } else if (!growingCrops.isEmpty()) {
+                advanceCropGrowth(minion, growingCrops.getFirst());
             } else {
                 setNoSpaceState(minion);
             }
         } else {
-            if (!plantableSpots.isEmpty()) {
+            if (!untilledDirt.isEmpty()) {
+                Collections.shuffle(untilledDirt);
+                tillAndPlantSoilCrop(minion, untilledDirt.getFirst(), cropMat);
+            } else if (!plantableSpots.isEmpty()) {
                 Collections.shuffle(plantableSpots);
                 plantSoilCrop(minion, plantableSpots.getFirst(), cropMat);
             } else if (!matureCrops.isEmpty()) {
@@ -349,6 +403,22 @@ public class MinionTickTask extends BukkitRunnable {
                 setNoSpaceState(minion);
             }
         }
+    }
+
+    private void tillAndPlantSoilCrop(Minion minion, Block target, Material cropMat) {
+        Block ground = target.getRelative(BlockFace.DOWN);
+        ground.setType(Material.FARMLAND);
+        if (ground.getBlockData() instanceof org.bukkit.block.data.type.Farmland farmland) {
+            farmland.setMoisture(7);
+            ground.setBlockData(farmland);
+        }
+        target.setType(cropMat);
+        MinionAnimation.playPlaceAnimation(minion, target);
+        ground.getWorld().playSound(ground.getLocation(), Sound.ITEM_HOE_TILL, 1.0f, 1.0f);
+        minion.setLastActionWasPlace(true);
+        minion.setLastActionTime(System.currentTimeMillis());
+        minion.setState(MinionState.IDLE);
+        MinionHologram.updateHologram(minion);
     }
 
     private void plantSoilCrop(Minion minion, Block target, Material cropMat) {
@@ -406,10 +476,15 @@ public class MinionTickTask extends BukkitRunnable {
         List<Block> growingStems = new ArrayList<>();
         List<Block> openFarmland = new ArrayList<>();
 
+        List<Block> untilledStemSoil = new ArrayList<>();
+
         for (Block b : cropSpots) {
             Block ground = b.getRelative(BlockFace.DOWN);
-            if (ground.getType() == Material.DIRT || ground.getType() == Material.GRASS_BLOCK) {
-                ground.setType(Material.FARMLAND);
+            if (ground.getType() == Material.DIRT || ground.getType() == Material.GRASS_BLOCK || ground.getType() == Material.COARSE_DIRT) {
+                if (b.getType().isAir()) {
+                    untilledStemSoil.add(b);
+                }
+                continue;
             }
             if (ground.getType() != Material.FARMLAND) continue;
 
@@ -464,6 +539,25 @@ public class MinionTickTask extends BukkitRunnable {
                 target.getWorld().spawnParticle(Particle.VILLAGER_HAPPY, target.getLocation().add(0.5, 0.3, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
             }
             minion.setLastActionWasPlace(false);
+            minion.setLastActionTime(System.currentTimeMillis());
+            minion.setState(MinionState.IDLE);
+            MinionHologram.updateHologram(minion);
+            return;
+        }
+
+                if (!untilledStemSoil.isEmpty() && (matureStems.size() + growingStems.size()) < 6) {
+            Collections.shuffle(untilledStemSoil);
+            Block target = untilledStemSoil.getFirst();
+            Block ground = target.getRelative(BlockFace.DOWN);
+            ground.setType(Material.FARMLAND);
+            if (ground.getBlockData() instanceof org.bukkit.block.data.type.Farmland farmland) {
+                farmland.setMoisture(7);
+                ground.setBlockData(farmland);
+            }
+            target.setType(stemMat);
+            MinionAnimation.playPlaceAnimation(minion, target);
+            ground.getWorld().playSound(ground.getLocation(), Sound.ITEM_HOE_TILL, 1.0f, 1.0f);
+            minion.setLastActionWasPlace(true);
             minion.setLastActionTime(System.currentTimeMillis());
             minion.setState(MinionState.IDLE);
             MinionHologram.updateHologram(minion);

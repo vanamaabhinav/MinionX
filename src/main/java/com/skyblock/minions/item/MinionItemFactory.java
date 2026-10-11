@@ -47,7 +47,7 @@ public class MinionItemFactory {
             String texture = type.getSkullTexture();
             if (texture != null && !texture.isEmpty()) {
                 try {
-                    PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
+                    PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
                     profile.setProperty(new ProfileProperty("textures", texture));
                     meta.setPlayerProfile(profile);
                 } catch (Exception ignored) {}
@@ -108,7 +108,7 @@ public class MinionItemFactory {
             String texture = def.getSkullTexture(tier);
             if (texture != null && !texture.isEmpty()) {
                 try {
-                    PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
+                    PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
                     profile.setProperty(new ProfileProperty("textures", texture));
                     meta.setPlayerProfile(profile);
                 } catch (Exception ignored) {}

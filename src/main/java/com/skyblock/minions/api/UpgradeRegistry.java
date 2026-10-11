@@ -66,6 +66,14 @@ public class UpgradeRegistry {
                 CustomUpgrade.UpgradeBehavior.COMPACTOR, 0.0, 0.0,
                 ColorUtil.color(List.of("&7Automatically compacts resources into blocks.")), true, 0));
 
+        registerDefaultIfMissing("super_compactor", new CustomUpgrade("super_compactor", ColorUtil.color("&dSuper Compactor 3000"), Material.DISPENSER,
+                CustomUpgrade.UpgradeBehavior.SUPER_COMPACTOR, 0.0, 0.0,
+                ColorUtil.color(List.of("&7Automatically compresses items into their", "&7enchanted compressed forms.")), true, 0));
+
+        registerDefaultIfMissing("super_compactor_3000", new CustomUpgrade("super_compactor_3000", ColorUtil.color("&dSuper Compactor 3000"), Material.DISPENSER,
+                CustomUpgrade.UpgradeBehavior.SUPER_COMPACTOR, 0.0, 0.0,
+                ColorUtil.color(List.of("&7Automatically compresses items into their", "&7enchanted compressed forms.")), true, 0));
+
         registerDefaultIfMissing("diamond_spreading", new CustomUpgrade("diamond_spreading", ColorUtil.color("&bDiamond Spreading"), Material.DIAMOND,
                 CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING, 0.0, 0.10,
                 ColorUtil.color(List.of("&7Adds a 10% chance to generate diamonds", "&7when harvesting resources.")), true, 0));
@@ -102,7 +110,7 @@ public class UpgradeRegistry {
 
     /**
      * Resolves a CustomUpgrade from an item stack.
-     * Matches PDC key first, then meta display name. Plain vanilla materials never match.
+     * Matches PDC key first, then meta display name, then material-based fallback.
      */
     public static CustomUpgrade fromItemStack(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return null;
@@ -121,6 +129,13 @@ public class UpgradeRegistry {
                         return upgrade;
                     }
                 }
+            }
+        }
+
+        // Fallback: Check MinionUpgradeType by icon
+        for (MinionUpgradeType type : MinionUpgradeType.values()) {
+            if (item.getType() == type.getIcon()) {
+                return UPGRADES.get(type.name().toLowerCase());
             }
         }
 

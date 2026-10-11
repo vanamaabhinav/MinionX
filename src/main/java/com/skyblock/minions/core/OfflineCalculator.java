@@ -17,6 +17,11 @@ public class OfflineCalculator {
     public static int processOfflineCatchup(Minion minion) {
         if (minion == null) return 0;
 
+        // If minion is in not working state (full or blocked), do not generate resources
+        if (minion.getState() == MinionState.FULL || minion.getState() == MinionState.NO_SPACE) {
+            return 0;
+        }
+
         long now = System.currentTimeMillis();
         long elapsedMillis = now - minion.getLastActionTime();
         if (elapsedMillis <= 0) return 0;
