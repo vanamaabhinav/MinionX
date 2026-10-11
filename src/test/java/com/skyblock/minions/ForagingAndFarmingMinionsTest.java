@@ -2,7 +2,10 @@ package com.skyblock.minions;
 
 import com.skyblock.minions.api.*;
 import com.skyblock.minions.gui.MinionCreatorSession;
+import org.bukkit.Location;
+import org.bukkit.block.Block;
 import org.bukkit.Material;
+import java.util.UUID;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 
@@ -104,7 +107,7 @@ public class ForagingAndFarmingMinionsTest {
     public void testHusbandryAnimalDefinitions() {
         MinionDefinition cow = MinionRegistry.get("cow");
         assertNotNull(cow, "Cow minion must be registered");
-        assertEquals(MinionArchetype.COMBAT, cow.getArchetype());
+        assertEquals(MinionArchetype.FARMING, cow.getArchetype());
         assertEquals("COW", cow.getTargetMob());
         assertEquals(Material.BEEF, cow.getExactDropItem().getType());
         assertTrue(cow.hasSecondaryDrop());
@@ -113,13 +116,13 @@ public class ForagingAndFarmingMinionsTest {
 
         MinionDefinition pig = MinionRegistry.get("pig");
         assertNotNull(pig, "Pig minion must be registered");
-        assertEquals(MinionArchetype.COMBAT, pig.getArchetype());
+        assertEquals(MinionArchetype.FARMING, pig.getArchetype());
         assertEquals("PIG", pig.getTargetMob());
         assertEquals(Material.PORKCHOP, pig.getExactDropItem().getType());
 
         MinionDefinition chicken = MinionRegistry.get("chicken");
         assertNotNull(chicken, "Chicken minion must be registered");
-        assertEquals(MinionArchetype.COMBAT, chicken.getArchetype());
+        assertEquals(MinionArchetype.FARMING, chicken.getArchetype());
         assertEquals("CHICKEN", chicken.getTargetMob());
         assertEquals(Material.CHICKEN, chicken.getExactDropItem().getType());
         assertTrue(chicken.hasSecondaryDrop());
@@ -127,7 +130,7 @@ public class ForagingAndFarmingMinionsTest {
 
         MinionDefinition sheep = MinionRegistry.get("sheep");
         assertNotNull(sheep, "Sheep minion must be registered");
-        assertEquals(MinionArchetype.COMBAT, sheep.getArchetype());
+        assertEquals(MinionArchetype.FARMING, sheep.getArchetype());
         assertEquals("SHEEP", sheep.getTargetMob());
         assertEquals(Material.MUTTON, sheep.getExactDropItem().getType());
         assertTrue(sheep.hasSecondaryDrop());
@@ -135,7 +138,7 @@ public class ForagingAndFarmingMinionsTest {
 
         MinionDefinition rabbit = MinionRegistry.get("rabbit");
         assertNotNull(rabbit, "Rabbit minion must be registered");
-        assertEquals(MinionArchetype.COMBAT, rabbit.getArchetype());
+        assertEquals(MinionArchetype.FARMING, rabbit.getArchetype());
         assertEquals("RABBIT", rabbit.getTargetMob());
         assertEquals(Material.RABBIT, rabbit.getExactDropItem().getType());
         assertTrue(rabbit.hasSecondaryDrop());
@@ -168,5 +171,60 @@ public class ForagingAndFarmingMinionsTest {
         assertFalse(MinionRegistry.isCustom("cow"));
         assertFalse(MinionRegistry.isCustom("cobblestone"));
         assertTrue(MinionRegistry.isCustom("mystic_cherry_tree"));
+    }
+
+    @Test
+    public void testCreatorSessionFromDefinition() {
+        MinionDefinition def = MinionRegistry.get("oak");
+        assertNotNull(def);
+        com.skyblock.minions.gui.MinionCreatorSession session = com.skyblock.minions.gui.MinionCreatorSession.fromDefinition(def);
+        assertEquals(def.getId(), session.getId());
+        assertEquals(def.getDisplayName(), session.getDisplayName());
+        assertEquals(def.getArchetype(), session.getArchetype());
+        assertEquals(def.getTargetBlock(), session.getTargetBlock());
+        assertEquals(def.getDefaultActionDelay(), session.getActionDelay(), 0.001);
+        assertEquals(def.getDefaultStorageSlots(), session.getStorageSlots());
+    }
+
+    @Test
+    public void testKillAndPurgeAllManager() {
+        com.skyblock.minions.core.MinionManager manager = new com.skyblock.minions.core.MinionManager();
+        Location loc = new Location(null, 10, 60, 20);
+        com.skyblock.minions.core.Minion m1 = new com.skyblock.minions.core.Minion(UUID.randomUUID(), UUID.randomUUID(), com.skyblock.minions.api.MinionType.COBBLESTONE, 1, loc);
+        manager.register(m1);
+        assertEquals(1, manager.getAllMinions().size());
+
+        int purged = manager.killAndPurgeAll();
+        assertEquals(1, purged);
+        assertEquals(0, manager.getAllMinions().size());
+        assertNull(manager.getMinionAt(loc));
+    }
+
+    private Block createMockBlock(int x, int z) {
+        return (Block) java.lang.reflect.Proxy.newProxyInstance(
+                Block.class.getClassLoader(),
+                new Class<?>[]{Block.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("getX")) return x;
+                    if (method.getName().equals("getZ")) return z;
+                    if (method.getName().equals("getWorld")) return null;
+                    return null;
+                }
+        );
+    }
+
+    @Test
+    public void testSaplingNonAdjacentSpacing() {
+        Block center = createMockBlock(0, 0);
+        Block adjacentOrthogonal = createMockBlock(0, 1);
+        Block adjacentDiagonal = createMockBlock(1, 1);
+        Block nonAdjacent = createMockBlock(0, 2);
+        Block farDiagonal = createMockBlock(2, 2);
+
+        assertTrue(com.skyblock.minions.core.MinionTickTask.isAdjacentToTreeOrSapling(center, java.util.List.of(adjacentOrthogonal), java.util.List.of()));
+        assertTrue(com.skyblock.minions.core.MinionTickTask.isAdjacentToTreeOrSapling(center, java.util.List.of(), java.util.List.of(adjacentDiagonal)));
+        assertFalse(com.skyblock.minions.core.MinionTickTask.isAdjacentToTreeOrSapling(center, java.util.List.of(nonAdjacent), java.util.List.of()));
+        assertFalse(com.skyblock.minions.core.MinionTickTask.isAdjacentToTreeOrSapling(center, java.util.List.of(), java.util.List.of(farDiagonal)));
+        assertFalse(com.skyblock.minions.core.MinionTickTask.isAdjacentToTreeOrSapling(center, java.util.List.of(), java.util.List.of()));
     }
 }

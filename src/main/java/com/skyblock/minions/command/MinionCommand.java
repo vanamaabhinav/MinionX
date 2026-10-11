@@ -232,6 +232,16 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void handleKillAll(CommandSender sender) {
+        if (!sender.hasPermission("skyblockminions.admin")) {
+            sender.sendMessage(ColorUtil.color("&cYou do not have permission to kill all minions."));
+            return;
+        }
+
+        int count = plugin.getMinionManager().killAndPurgeAll();
+        sender.sendMessage(ColorUtil.color("&6[MinionX] &aSuccessfully killed and purged &e" + count + " &aactive minions, holograms, and ticking tasks!"));
+    }
+
     private void handleReload(CommandSender sender) {
         if (!sender.hasPermission("skyblockminions.admin")) {
             sender.sendMessage(ColorUtil.color("&cYou do not have permission to reload the plugin."));
@@ -251,13 +261,14 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ColorUtil.color("&e/minion give <player> <type|fuel|upgrade> [tier] &7- Give a minion or item"));
         sender.sendMessage(ColorUtil.color("&e/minion limit <check|add|remove|set> <player> [amount] &7- Manage player limits"));
         sender.sendMessage(ColorUtil.color("&e/minion list &7- View your placed minions"));
+        sender.sendMessage(ColorUtil.color("&e/minion killall &7- Kill and purge all active minions and holograms"));
         sender.sendMessage(ColorUtil.color("&e/minion reload &7- Reload configuration"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(List.of("create", "give", "limit", "list", "reload"), args[0]);
+            return filter(List.of("create", "give", "limit", "list", "killall", "purge", "reload"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("give")) {

@@ -70,6 +70,12 @@ public class OperatorGUI {
         inv.setItem(45, createNamedItem(Material.BARRIER, ColorUtil.color("&cClose"),
                 List.of(ColorUtil.color("&7Close the operator interface."))));
 
+        inv.setItem(48, createNamedItem(Material.TNT, ColorUtil.color("&cPurge All Active Minions"),
+                List.of(ColorUtil.color("&7Despawn and remove all active minions,"),
+                        ColorUtil.color("&7holograms, and ticking tasks in the world."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&cClick to kill and purge all minions"))));
+
         inv.setItem(53, createNamedItem(Material.REPEATER, ColorUtil.color("&eReload Plugin"),
                 List.of(ColorUtil.color("&7Hot-reload config.yml and minion registries."))));
 
@@ -134,6 +140,7 @@ public class OperatorGUI {
                 lore.add(ColorUtil.color("&aLeft-Click: &fGet Tier XI (Maxed)"));
                 lore.add(ColorUtil.color("&eRight-Click: &fBrowse Tiers I to XI"));
                 lore.add(ColorUtil.color("&bShift-Click: &fGet Tier I (Starter)"));
+                lore.add(ColorUtil.color("&dMiddle-Click / Drop: &fEdit Properties in Studio"));
                 meta.setLore(lore);
                 item.setItemMeta(meta);
             }
@@ -176,6 +183,10 @@ public class OperatorGUI {
         inv.setItem(49, createNamedItem(Material.ARROW, ColorUtil.color("&cBack to Minions Catalog"),
                 List.of(ColorUtil.color("&7Return to the minions catalog."))));
 
+        inv.setItem(50, createNamedItem(Material.ANVIL, ColorUtil.color("&dEdit Properties in Studio"),
+                List.of(ColorUtil.color("&7Open Minion Creator Studio to modify"),
+                        ColorUtil.color("&7speed, drops, archetype, head, and styling."))));
+
         player.openInventory(inv);
     }
 
@@ -202,6 +213,10 @@ public class OperatorGUI {
 
         inv.setItem(49, createNamedItem(Material.ARROW, ColorUtil.color("&cBack to Minions Catalog"),
                 List.of(ColorUtil.color("&7Return to the minions catalog."))));
+
+        inv.setItem(50, createNamedItem(Material.ANVIL, ColorUtil.color("&dEdit Properties in Studio"),
+                List.of(ColorUtil.color("&7Open Minion Creator Studio to modify"),
+                        ColorUtil.color("&7speed, drops, archetype, head, and styling."))));
 
         player.openInventory(inv);
     }

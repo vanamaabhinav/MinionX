@@ -160,6 +160,22 @@ public class MinionDefinition {
         return xpPerHarvest;
     }
 
+    public String getDefaultSkullTexture() {
+        return defaultSkullTexture;
+    }
+
+    public Material getDefaultArmorMaterial() {
+        return defaultArmorMaterial;
+    }
+
+    public Color getDefaultArmorColor() {
+        return defaultArmorColor;
+    }
+
+    public ItemStack getDefaultHandItem() {
+        return defaultHandItem != null ? defaultHandItem.clone() : new ItemStack(Material.STONE_PICKAXE);
+    }
+
     public double getDefaultActionDelay() {
         return defaultActionDelay;
     }

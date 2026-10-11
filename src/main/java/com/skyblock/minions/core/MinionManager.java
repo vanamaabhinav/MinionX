@@ -118,6 +118,52 @@ public class MinionManager {
         }
     }
 
+    /**
+     * Completely despawns, unregisters, and purges all active minions, holograms,
+     * and ticking tasks across all loaded worlds and saves state to storage.
+     *
+     * @return count of minions purged
+     */
+    public int killAndPurgeAll() {
+        int count = minionsById.size();
+
+        // 1. Unregister all minions from memory and remove tracked visuals
+        List<Minion> all = new ArrayList<>(minionsById.values());
+        for (Minion minion : all) {
+            unregister(minion);
+        }
+        minionsById.clear();
+        minionsByEntityId.clear();
+        minionsByChunk.clear();
+
+        // 2. Persist empty state to storage so they don't reload on restart
+        if (com.skyblock.minions.SkyBlockMinions.getInstance() != null &&
+                com.skyblock.minions.SkyBlockMinions.getInstance().getMinionStorage() != null) {
+            com.skyblock.minions.SkyBlockMinions.getInstance().getMinionStorage().saveAll(this);
+        }
+
+        // 3. World sweep: aggressively search every loaded world for any entity with MINION_ENTITY_KEY, HOLOGRAM_KEY,
+        // or metadata and remove them so ZERO orphan armor stands or holograms remain.
+        try {
+            for (org.bukkit.World world : org.bukkit.Bukkit.getWorlds()) {
+                if (world == null) continue;
+                for (org.bukkit.entity.Entity entity : world.getEntities()) {
+                    if (entity == null) continue;
+                    org.bukkit.persistence.PersistentDataContainer pdc = entity.getPersistentDataContainer();
+                    if (pdc.has(MinionVisual.MINION_ENTITY_KEY, org.bukkit.persistence.PersistentDataType.STRING) ||
+                            pdc.has(MinionHologram.HOLOGRAM_KEY, org.bukkit.persistence.PersistentDataType.STRING) ||
+                            entity.hasMetadata("minion_hologram") ||
+                            entity.hasMetadata("skyblock_minion")) {
+                        entity.remove();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        return count;
+    }
+
     private long getChunkKey(int x, int z) {
         return ((long) x << 32) | (z & 0xFFFFFFFFL);
     }

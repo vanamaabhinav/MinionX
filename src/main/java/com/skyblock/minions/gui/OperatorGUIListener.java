@@ -85,6 +85,11 @@ public class OperatorGUIListener implements Listener {
             OperatorGUI.openKitsCatalog(player);
         } else if (slot == 32) {
             MinionCreatorGUI.open(player, null);
+        } else if (slot == 48 && clicked.getType() == Material.TNT) {
+            int count = SkyBlockMinions.getInstance().getMinionManager().killAndPurgeAll();
+            player.sendMessage(ColorUtil.color("&6[MinionX] &aSuccessfully killed and purged " + count + " active minions, holograms, and tasks!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.2f);
+            OperatorGUI.openMain(player);
         } else if (slot == 45 && clicked.getType() == Material.BARRIER) {
             player.closeInventory();
         } else if (slot == 53 && clicked.getType() == Material.REPEATER) {
@@ -123,6 +128,14 @@ public class OperatorGUIListener implements Listener {
         }
 
         if (def != null) {
+            if (event.getClick() == org.bukkit.event.inventory.ClickType.MIDDLE ||
+                    event.getClick() == org.bukkit.event.inventory.ClickType.DROP ||
+                    event.getClick() == org.bukkit.event.inventory.ClickType.CONTROL_DROP ||
+                    (event.isShiftClick() && event.isRightClick())) {
+                MinionCreatorGUI.open(player, MinionCreatorSession.fromDefinition(def));
+                return;
+            }
+
             if (com.skyblock.minions.hook.GeyserHook.isBedrockPlayer(player) || event.isRightClick()) {
                 OperatorGUI.openTierBrowser(player, def);
             } else {
@@ -136,6 +149,23 @@ public class OperatorGUIListener implements Listener {
         if (slot == 49 && clicked.getType() == Material.ARROW) {
             OperatorGUI.openMinionsCatalog(player);
             return;
+        }
+
+        if (slot == 50 && clicked.getType() == Material.ANVIL) {
+            OperatorHolder holder = (OperatorHolder) event.getInventory().getHolder();
+            if (holder != null) {
+                Object ctx = holder.getContext();
+                MinionDefinition d = null;
+                if (ctx instanceof MinionDefinition md) {
+                    d = md;
+                } else if (ctx instanceof com.skyblock.minions.api.MinionType mt) {
+                    d = MinionRegistry.get(mt.name().toLowerCase());
+                }
+                if (d != null) {
+                    MinionCreatorGUI.open(player, MinionCreatorSession.fromDefinition(d));
+                    return;
+                }
+            }
         }
 
         if (clicked.getType() == Material.CHEST || clicked.getType() == Material.BLACK_STAINED_GLASS_PANE) {

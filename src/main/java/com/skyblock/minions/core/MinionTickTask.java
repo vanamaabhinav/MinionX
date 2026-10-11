@@ -44,6 +44,17 @@ public class MinionTickTask extends BukkitRunnable {
             return;
         }
 
+        // If the chunk is loaded and the visual armor stand was killed or despawned,
+        // automatically resynchronize the visual stand and hologram so it is never an invisible ghost minion!
+        if (minion.getLocation().isChunkLoaded()) {
+            java.util.UUID standId = minion.getArmorStandId();
+            Entity stand = standId != null ? org.bukkit.Bukkit.getEntity(standId) : null;
+            if (stand == null || !stand.isValid() || stand.isDead()) {
+                com.skyblock.minions.visual.MinionVisual.spawnOrUpdate(minion);
+                MinionHologram.updateHologram(minion);
+            }
+        }
+
         // Check fuel expiration
         if (minion.getFuelId() != null && !minion.isFuelActive()) {
             minion.setFuel((CustomFuel) null);
@@ -135,6 +146,34 @@ public class MinionTickTask extends BukkitRunnable {
         setNoSpaceState(minion);
     }
 
+    public static boolean isAdjacentToTreeOrSapling(Block block, List<Block> saplings, List<Block> logs) {
+        if (block == null) return false;
+        int bx = block.getX();
+        int bz = block.getZ();
+
+        if (saplings != null) {
+            for (Block s : saplings) {
+                if (s == null) continue;
+                if (s.getWorld() != null && !s.getWorld().equals(block.getWorld())) continue;
+                if (Math.abs(s.getX() - bx) <= 1 && Math.abs(s.getZ() - bz) <= 1) {
+                    return true;
+                }
+            }
+        }
+
+        if (logs != null) {
+            for (Block l : logs) {
+                if (l == null) continue;
+                if (l.getWorld() != null && !l.getWorld().equals(block.getWorld())) continue;
+                if (Math.abs(l.getX() - bx) <= 1 && Math.abs(l.getZ() - bz) <= 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     // =========================================================================
     // 2. FORAGING MINION (Saplings -> Basic Trees -> Chopping)
     // =========================================================================
@@ -169,6 +208,14 @@ public class MinionTickTask extends BukkitRunnable {
             }
         }
 
+        // Filter plantable spots to ensure no two saplings or trees are adjacent (<= 1 block apart)
+        List<Block> nonAdjacentPlantable = new ArrayList<>();
+        for (Block spot : plantableSpots) {
+            if (!isAdjacentToTreeOrSapling(spot, saplingBlocks, logBlocks)) {
+                nonAdjacentPlantable.add(spot);
+            }
+        }
+
         if (minion.wasLastActionPlace()) {
             if (!logBlocks.isEmpty()) {
                 Collections.shuffle(logBlocks);
@@ -178,17 +225,17 @@ public class MinionTickTask extends BukkitRunnable {
                 Collections.shuffle(saplingBlocks);
                 Block target = saplingBlocks.getFirst();
                 growTree(minion, target, targetLog, leafMat);
-            } else if (!plantableSpots.isEmpty()) {
-                Collections.shuffle(plantableSpots);
-                Block target = plantableSpots.getFirst();
+            } else if (!nonAdjacentPlantable.isEmpty()) {
+                Collections.shuffle(nonAdjacentPlantable);
+                Block target = nonAdjacentPlantable.getFirst();
                 executePlantSapling(minion, target, saplingMat);
             } else {
                 setNoSpaceState(minion);
             }
         } else {
-            if (!plantableSpots.isEmpty() && (saplingBlocks.size() + logBlocks.size()) < 5) {
-                Collections.shuffle(plantableSpots);
-                Block target = plantableSpots.getFirst();
+            if (!nonAdjacentPlantable.isEmpty() && (saplingBlocks.size() + logBlocks.size()) < 5) {
+                Collections.shuffle(nonAdjacentPlantable);
+                Block target = nonAdjacentPlantable.getFirst();
                 executePlantSapling(minion, target, saplingMat);
             } else if (!saplingBlocks.isEmpty()) {
                 Collections.shuffle(saplingBlocks);
@@ -303,6 +350,12 @@ public class MinionTickTask extends BukkitRunnable {
     // 3. FARMING MINION (Crops, Stems, Sugar Cane, Cactus, Mushrooms)
     // =========================================================================
     private void tickFarmingMinion(Minion minion, MinionDefinition def, ItemStack dropItem) {
+        // Animal Husbandry Farming minions (Cow, Pig, Chicken, Sheep, Rabbit) spawn and harvest mobs
+        if (def.getTargetMob() != null && !def.getTargetMob().isEmpty()) {
+            tickCombatMinion(minion, def, dropItem);
+            return;
+        }
+
         Material targetMat = def.getTargetBlock();
         if (targetMat == null) targetMat = Material.WHEAT;
 

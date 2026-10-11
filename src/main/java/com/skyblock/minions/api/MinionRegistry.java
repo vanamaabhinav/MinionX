@@ -339,31 +339,31 @@ public class MinionRegistry {
                 null, "BLAZE", new ItemStack(Material.BLAZE_ROD), 6, 16.0, 1));
 
         DEFINITIONS.put("cow", new MinionDefinition("cow", ColorUtil.color("&fCow"),
-                MinionArchetype.COMBAT,
+                MinionArchetype.FARMING,
                 "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNWQ2YzZlZGE5NDJmN2Y1ZjcxYzMxNjFjNzMwNmY0YWVkMzA3ZDIwNmY1M2MzOThkYWM3NTFhNjgyZTAifX19",
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(90, 60, 40), new ItemStack(Material.IRON_SWORD),
                 null, "COW", new ItemStack(Material.BEEF), new ItemStack(Material.LEATHER), 0.5, 3, 15.0, 1));
 
         DEFINITIONS.put("pig", new MinionDefinition("pig", ColorUtil.color("&dPig"),
-                MinionArchetype.COMBAT,
+                MinionArchetype.FARMING,
                 "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNjIxNjY4ZWY3Y2I3OWRkOWMyMmNlM2QxZjNmNGNiNmE2MWU5ODFkZTZkYTE2ZGU4YzU0N2IzOWFjOTMifX19",
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(240, 150, 160), new ItemStack(Material.IRON_SWORD),
                 null, "PIG", new ItemStack(Material.PORKCHOP), null, 0.0, 3, 15.0, 1));
 
         DEFINITIONS.put("chicken", new MinionDefinition("chicken", ColorUtil.color("&fChicken"),
-                MinionArchetype.COMBAT,
+                MinionArchetype.FARMING,
                 "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTYzODQ2OWE1OTlkZWVmNzJlNzExNDQzNjc1MmZlNDJhNTFkMTJmOWExNzQzNTQ2NWFjNjc3YmU5N2Y1ZDYifX19",
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(230, 230, 230), new ItemStack(Material.IRON_SWORD),
                 null, "CHICKEN", new ItemStack(Material.CHICKEN), new ItemStack(Material.FEATHER), 0.5, 2, 14.0, 1));
 
         DEFINITIONS.put("sheep", new MinionDefinition("sheep", ColorUtil.color("&fSheep"),
-                MinionArchetype.COMBAT,
+                MinionArchetype.FARMING,
                 "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmIzZjEzZTZkMzg2OGRiZWExMmE2ZWVjMmM4Yzg4NmZhMmQ1OWM0MmRhMWYxNWZhMmY2ODVkM2YyYTVmMyJ9fX0=",
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(220, 220, 220), new ItemStack(Material.SHEARS),
                 null, "SHEEP", new ItemStack(Material.MUTTON), new ItemStack(Material.WHITE_WOOL), 1.0, 3, 14.0, 1));
 
         DEFINITIONS.put("rabbit", new MinionDefinition("rabbit", ColorUtil.color("&6Rabbit"),
-                MinionArchetype.COMBAT,
+                MinionArchetype.FARMING,
                 "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvN2QxYzg5N2U5NGQ4ZjA3OTQ4NWU4OWQ1ZjM4MDliZDNkZTAyYmRhNGE5OWMyOTBlMzc3MzliYmY4N2E2In19fQ==",
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(180, 130, 90), new ItemStack(Material.IRON_SWORD),
                 null, "RABBIT", new ItemStack(Material.RABBIT), new ItemStack(Material.RABBIT_HIDE), 0.5, 3, 14.0, 1));

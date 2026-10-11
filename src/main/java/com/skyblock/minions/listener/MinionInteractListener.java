@@ -17,6 +17,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -74,6 +75,25 @@ public class MinionInteractListener implements Listener {
             event.setCancelled(true);
         }
     }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onEntityDeath(EntityDeathEvent event) {
+        Entity entity = event.getEntity();
+        if (entity instanceof ArmorStand as) {
+            String minionIdStr = as.getPersistentDataContainer().get(MinionVisual.MINION_ENTITY_KEY, PersistentDataType.STRING);
+            if (minionIdStr != null) {
+                try {
+                    UUID id = UUID.fromString(minionIdStr);
+                    Minion m = SkyBlockMinions.getInstance().getMinionManager().getMinionById(id);
+                    if (m != null) {
+                        SkyBlockMinions.getInstance().getMinionManager().unregister(m);
+                    }
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        }
+    }
+
 
     private Minion getMinionFromEntity(Entity entity) {
         if (!(entity instanceof ArmorStand as)) return null;

@@ -115,6 +115,30 @@ public class MinionCreatorSession {
 
     public Map<Integer, MinionDefinition.TierStyle> getTierStyles() { return tierStyles; }
 
+    public static MinionCreatorSession fromDefinition(MinionDefinition def) {
+        if (def == null) return new MinionCreatorSession("custom_minion");
+        MinionCreatorSession session = new MinionCreatorSession(def.getId());
+        session.setDisplayName(def.getDisplayName());
+        session.setArchetype(def.getArchetype());
+        session.setSkullTexture(def.getDefaultSkullTexture());
+        session.setArmorMaterial(def.getDefaultArmorMaterial());
+        session.setArmorColor(def.getDefaultArmorColor());
+        session.setHandItem(def.getDefaultHandItem());
+        session.setTargetBlock(def.getTargetBlock());
+        session.setTargetMob(def.getTargetMob());
+        session.setExactDropItem(def.getExactDropItem());
+        session.setSecondaryDropItem(def.getSecondaryDropItem());
+        session.setSecondaryDropChance(def.getSecondaryDropChance());
+        session.setXpPerHarvest(def.getXpPerHarvest());
+        session.setActionDelay(def.getDefaultActionDelay());
+        session.setStorageSlots(def.getDefaultStorageSlots());
+        if (def.getTierStyles() != null && !def.getTierStyles().isEmpty()) {
+            session.setPerTierMode(true);
+            session.getTierStyles().putAll(def.getTierStyles());
+        }
+        return session;
+    }
+
     public MinionDefinition buildDefinition() {
         MinionDefinition def = new MinionDefinition(id, displayName, archetype,
                 skullTexture, armorMaterial, armorColor, handItem,
