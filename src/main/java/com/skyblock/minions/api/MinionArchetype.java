@@ -5,5 +5,7 @@ package com.skyblock.minions.api;
  */
 public enum MinionArchetype {
     MINER,
-    COMBAT
+    COMBAT,
+    FORAGING,
+    FARMING
 }

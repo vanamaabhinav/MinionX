@@ -346,6 +346,28 @@ public class Minion {
     /**
      * Returns the 24 perimeter blocks in the 5x5 working radius around the minion at its elevation.
      */
+    public List<Block> getWorkingGroundBlocks() {
+        return getWorkingAreaBlocks();
+    }
+
+    public List<Block> getWorkingCropBlocks() {
+        List<Block> blocks = new ArrayList<>();
+        if (location == null || location.getWorld() == null) return blocks;
+
+        int centerX = location.getBlockX();
+        int cropY = location.getBlockY();
+        int centerZ = location.getBlockZ();
+
+        for (int x = -2; x <= 2; x++) {
+            for (int z = -2; z <= 2; z++) {
+                if (x == 0 && z == 0) continue;
+                Block block = location.getWorld().getBlockAt(centerX + x, cropY, centerZ + z);
+                blocks.add(block);
+            }
+        }
+        return blocks;
+    }
+
     public List<Block> getWorkingAreaBlocks() {
         List<Block> blocks = new ArrayList<>();
         if (location == null || location.getWorld() == null) return blocks;

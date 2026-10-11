@@ -26,6 +26,8 @@ public class MinionCreatorSession {
     private Material targetBlock;
     private String targetMob;
     private ItemStack exactDropItem;
+    private ItemStack secondaryDropItem;
+    private double secondaryDropChance;
     private int xpPerHarvest;
 
     private double actionDelay;
@@ -48,6 +50,8 @@ public class MinionCreatorSession {
         this.targetBlock = Material.COBBLESTONE;
         this.targetMob = "ZOMBIE";
         this.exactDropItem = new ItemStack(Material.COBBLESTONE);
+        this.secondaryDropItem = null;
+        this.secondaryDropChance = 0.0;
         this.xpPerHarvest = 2;
 
         this.actionDelay = 14.0;
@@ -88,6 +92,12 @@ public class MinionCreatorSession {
     public ItemStack getExactDropItem() { return exactDropItem; }
     public void setExactDropItem(ItemStack exactDropItem) { this.exactDropItem = exactDropItem != null ? exactDropItem.clone() : new ItemStack(Material.COBBLESTONE); }
 
+    public ItemStack getSecondaryDropItem() { return secondaryDropItem; }
+    public void setSecondaryDropItem(ItemStack secondaryDropItem) { this.secondaryDropItem = secondaryDropItem != null ? secondaryDropItem.clone() : null; }
+
+    public double getSecondaryDropChance() { return secondaryDropChance; }
+    public void setSecondaryDropChance(double secondaryDropChance) { this.secondaryDropChance = Math.max(0.0, Math.min(1.0, secondaryDropChance)); }
+
     public int getXpPerHarvest() { return xpPerHarvest; }
     public void setXpPerHarvest(int xpPerHarvest) { this.xpPerHarvest = Math.max(0, xpPerHarvest); }
 
@@ -108,8 +118,9 @@ public class MinionCreatorSession {
     public MinionDefinition buildDefinition() {
         MinionDefinition def = new MinionDefinition(id, displayName, archetype,
                 skullTexture, armorMaterial, armorColor, handItem,
-                targetBlock, targetMob, exactDropItem, xpPerHarvest,
-                actionDelay, storageSlots);
+                targetBlock, targetMob, exactDropItem,
+                secondaryDropItem, secondaryDropChance,
+                xpPerHarvest, actionDelay, storageSlots);
 
         if (perTierMode) {
             for (Map.Entry<Integer, MinionDefinition.TierStyle> entry : tierStyles.entrySet()) {

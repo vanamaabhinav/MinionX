@@ -277,6 +277,174 @@ compression-recipes:
       material: BONE_BLOCK
       display-name: "&aEnchanted Bone"
       glow: true
+  oak_log:
+    input: OAK_LOG
+    input-amount: 160
+    output:
+      material: OAK_LOG
+      display-name: "&aEnchanted Oak Wood"
+      glow: true
+  birch_log:
+    input: BIRCH_LOG
+    input-amount: 160
+    output:
+      material: BIRCH_LOG
+      display-name: "&aEnchanted Birch Wood"
+      glow: true
+  spruce_log:
+    input: SPRUCE_LOG
+    input-amount: 160
+    output:
+      material: SPRUCE_LOG
+      display-name: "&aEnchanted Spruce Wood"
+      glow: true
+  dark_oak_log:
+    input: DARK_OAK_LOG
+    input-amount: 160
+    output:
+      material: DARK_OAK_LOG
+      display-name: "&aEnchanted Dark Oak Wood"
+      glow: true
+  acacia_log:
+    input: ACACIA_LOG
+    input-amount: 160
+    output:
+      material: ACACIA_LOG
+      display-name: "&aEnchanted Acacia Wood"
+      glow: true
+  jungle_log:
+    input: JUNGLE_LOG
+    input-amount: 160
+    output:
+      material: JUNGLE_LOG
+      display-name: "&aEnchanted Jungle Wood"
+      glow: true
+  wheat:
+    input: WHEAT
+    input-amount: 160
+    output:
+      material: HAY_BLOCK
+      display-name: "&aEnchanted Hay Block"
+      glow: true
+  wheat_seeds:
+    input: WHEAT_SEEDS
+    input-amount: 160
+    output:
+      material: WHEAT_SEEDS
+      display-name: "&aEnchanted Seeds"
+      glow: true
+  carrot:
+    input: CARROT
+    input-amount: 160
+    output:
+      material: CARROT
+      display-name: "&aEnchanted Carrot"
+      glow: true
+  potato:
+    input: POTATO
+    input-amount: 160
+    output:
+      material: POTATO
+      display-name: "&aEnchanted Potato"
+      glow: true
+  pumpkin:
+    input: PUMPKIN
+    input-amount: 160
+    output:
+      material: PUMPKIN
+      display-name: "&aEnchanted Pumpkin"
+      glow: true
+  melon:
+    input: MELON_SLICE
+    input-amount: 160
+    output:
+      material: MELON_SLICE
+      display-name: "&aEnchanted Melon"
+      glow: true
+  sugar_cane:
+    input: SUGAR_CANE
+    input-amount: 160
+    output:
+      material: SUGAR
+      display-name: "&aEnchanted Sugar"
+      glow: true
+  cactus:
+    input: CACTUS
+    input-amount: 160
+    output:
+      material: GREEN_DYE
+      display-name: "&aEnchanted Cactus Green"
+      glow: true
+  nether_wart:
+    input: NETHER_WART
+    input-amount: 160
+    output:
+      material: NETHER_WART
+      display-name: "&aEnchanted Nether Wart"
+      glow: true
+  red_mushroom:
+    input: RED_MUSHROOM
+    input-amount: 160
+    output:
+      material: RED_MUSHROOM_BLOCK
+      display-name: "&aEnchanted Red Mushroom"
+      glow: true
+  brown_mushroom:
+    input: BROWN_MUSHROOM
+    input-amount: 160
+    output:
+      material: BROWN_MUSHROOM_BLOCK
+      display-name: "&aEnchanted Brown Mushroom"
+      glow: true
+  beef:
+    input: BEEF
+    input-amount: 160
+    output:
+      material: COOKED_BEEF
+      display-name: "&aEnchanted Cooked Beef"
+      glow: true
+  leather:
+    input: LEATHER
+    input-amount: 160
+    output:
+      material: LEATHER
+      display-name: "&aEnchanted Leather"
+      glow: true
+  porkchop:
+    input: PORKCHOP
+    input-amount: 160
+    output:
+      material: COOKED_PORKCHOP
+      display-name: "&aEnchanted Grilled Pork"
+      glow: true
+  chicken:
+    input: CHICKEN
+    input-amount: 160
+    output:
+      material: COOKED_CHICKEN
+      display-name: "&aEnchanted Cooked Chicken"
+      glow: true
+  feather:
+    input: FEATHER
+    input-amount: 160
+    output:
+      material: FEATHER
+      display-name: "&aEnchanted Feather"
+      glow: true
+  mutton:
+    input: MUTTON
+    input-amount: 160
+    output:
+      material: COOKED_MUTTON
+      display-name: "&aEnchanted Cooked Mutton"
+      glow: true
+  rabbit:
+    input: RABBIT
+    input-amount: 160
+    output:
+      material: COOKED_RABBIT
+      display-name: "&aEnchanted Cooked Rabbit"
+      glow: true
 
 # ==============================================================================
 # RPG SKILL REWARDS (AuraSkills & EcoSkills)
@@ -298,6 +466,69 @@ skill-rewards:
     skeleton:
       skill: "combat"
       xp-per-item: 4.0
+    oak:
+      skill: "foraging"
+      xp-per-item: 3.0
+    birch:
+      skill: "foraging"
+      xp-per-item: 3.0
+    spruce:
+      skill: "foraging"
+      xp-per-item: 3.0
+    dark_oak:
+      skill: "foraging"
+      xp-per-item: 3.0
+    acacia:
+      skill: "foraging"
+      xp-per-item: 3.0
+    jungle:
+      skill: "foraging"
+      xp-per-item: 3.0
+    wheat:
+      skill: "farming"
+      xp-per-item: 2.0
+    carrot:
+      skill: "farming"
+      xp-per-item: 2.0
+    potato:
+      skill: "farming"
+      xp-per-item: 2.0
+    pumpkin:
+      skill: "farming"
+      xp-per-item: 4.5
+    melon:
+      skill: "farming"
+      xp-per-item: 1.5
+    sugar_cane:
+      skill: "farming"
+      xp-per-item: 2.0
+    cactus:
+      skill: "farming"
+      xp-per-item: 2.0
+    nether_wart:
+      skill: "farming"
+      xp-per-item: 4.0
+    red_mushroom:
+      skill: "farming"
+      xp-per-item: 4.0
+    brown_mushroom:
+      skill: "farming"
+      xp-per-item: 4.0
+    cow:
+      skill: "farming"
+      xp-per-item: 5.0
+    pig:
+      skill: "farming"
+      xp-per-item: 5.0
+    chicken:
+      skill: "farming"
+      xp-per-item: 4.0
+    sheep:
+      skill: "farming"
+      xp-per-item: 4.5
+    rabbit:
+      skill: "farming"
+      xp-per-item: 5.0
 
 # ==============================================================================
 # COLLECTION COMMANDS

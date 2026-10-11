@@ -102,17 +102,32 @@ public class OperatorGUIListener implements Listener {
             return;
         }
 
-        MinionType type = null;
-        if (slot == 20) type = MinionType.COBBLESTONE;
-        else if (slot == 22) type = MinionType.IRON;
-        else if (slot == 24) type = MinionType.DIAMOND;
+        // Category tabs
+        if (slot == 1) { OperatorGUI.openMinionsCatalog(player, null); return; }
+        if (slot == 2) { OperatorGUI.openMinionsCatalog(player, "MINER"); return; }
+        if (slot == 3) { OperatorGUI.openMinionsCatalog(player, "FORAGING"); return; }
+        if (slot == 4) { OperatorGUI.openMinionsCatalog(player, "FARMING"); return; }
+        if (slot == 5) { OperatorGUI.openMinionsCatalog(player, "COMBAT"); return; }
+        if (slot == 6) { OperatorGUI.openMinionsCatalog(player, "CUSTOM"); return; }
 
-        if (type != null) {
+        String customId = MinionItemFactory.getCustomMinionId(clicked);
+        MinionDefinition def = customId != null ? MinionRegistry.get(customId) : null;
+        if (def == null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() != null) {
+            String name = clicked.getItemMeta().getDisplayName();
+            for (MinionDefinition d : MinionRegistry.getAll()) {
+                if (name.contains(d.getDisplayName()) || name.toLowerCase().contains(d.getId().toLowerCase())) {
+                    def = d;
+                    break;
+                }
+            }
+        }
+
+        if (def != null) {
             if (event.isRightClick()) {
-                OperatorGUI.openTierBrowser(player, type);
+                OperatorGUI.openTierBrowser(player, def);
             } else {
-                int amount = event.isShiftClick() ? 16 : 1;
-                giveItem(player, MinionItemFactory.createMinionItem(type, 11, 0), amount);
+                int tier = event.isShiftClick() ? 1 : 11;
+                giveItem(player, MinionItemFactory.createCustomMinionItem(def, tier, 0), 1);
             }
         }
     }
@@ -123,7 +138,7 @@ public class OperatorGUIListener implements Listener {
             return;
         }
 
-        if (clicked.getType() == Material.CHEST) {
+        if (clicked.getType() == Material.CHEST || clicked.getType() == Material.BLACK_STAINED_GLASS_PANE) {
             return;
         }
 
@@ -169,19 +184,22 @@ public class OperatorGUIListener implements Listener {
             giveItem(player, MinionItemFactory.createMinionItem(MinionType.COBBLESTONE, 1, 0), 1);
             giveItem(player, MinionItemFactory.createFuelItem(FuelRegistry.get("coal")), 1);
             giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("auto_smelter")), 1);
-            player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived: &fCobblestone Starter Kit&a."));
+            player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived Cobblestone Starter Kit!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
         } else if (slot == 22) {
             giveItem(player, MinionItemFactory.createMinionItem(MinionType.IRON, 5, 0), 1);
             giveItem(player, MinionItemFactory.createFuelItem(FuelRegistry.get("enchanted_charcoal")), 1);
             giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("auto_smelter")), 1);
             giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("compactor")), 1);
-            player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived: &fIron Automaton Kit&a."));
+            player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived Iron Automaton Kit!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
         } else if (slot == 24) {
             giveItem(player, MinionItemFactory.createMinionItem(MinionType.DIAMOND, 11, 0), 1);
             giveItem(player, MinionItemFactory.createFuelItem(FuelRegistry.get("enchanted_lava_bucket")), 1);
             giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("auto_smelter")), 1);
             giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("diamond_spreading")), 1);
-            player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived: &fDiamond Maxed Producer Kit&a."));
+            player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived Diamond Maxed Producer Kit!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
         }
     }
 
@@ -190,16 +208,11 @@ public class OperatorGUIListener implements Listener {
         ItemStack toGive = item.clone();
         toGive.setAmount(amount);
 
-        HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(toGive);
-        for (ItemStack extra : leftover.values()) {
-            player.getWorld().dropItemNaturally(player.getLocation(), extra);
+        HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toGive);
+        if (!overflow.isEmpty()) {
+            overflow.values().forEach(drop -> player.getWorld().dropItemNaturally(player.getLocation(), drop));
         }
 
-        String displayName = toGive.hasItemMeta() && toGive.getItemMeta().hasDisplayName()
-                ? toGive.getItemMeta().getDisplayName()
-                : toGive.getType().name();
-
-        player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived: &f" + displayName + " &7(x" + amount + ")&a."));
-        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.2f);
     }
 }

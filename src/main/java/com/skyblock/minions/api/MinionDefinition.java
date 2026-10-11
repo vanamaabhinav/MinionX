@@ -9,7 +9,8 @@ import java.util.Map;
 
 /**
  * Data model for dynamically created or configured minions.
- * Supports exact copy drop items, per-tier appearance overrides, and MythicMobs.
+ * Supports exact copy drop items, secondary drops (seeds/apples/leather),
+ * per-tier appearance overrides, and MythicMobs.
  */
 public class MinionDefinition {
 
@@ -55,6 +56,8 @@ public class MinionDefinition {
     private final Material targetBlock;
     private final String targetMob; // Vanilla EntityType or MythicMob ID
     private final ItemStack exactDropItem; // Exact copy of custom drop item
+    private final ItemStack secondaryDropItem; // Secondary drop (Seeds, Leather, Apples)
+    private final double secondaryDropChance; // 0.0 to 1.0
     private final int xpPerHarvest;
 
     private final double defaultActionDelay;
@@ -66,6 +69,15 @@ public class MinionDefinition {
                             String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor, ItemStack defaultHandItem,
                             Material targetBlock, String targetMob, ItemStack exactDropItem, int xpPerHarvest,
                             double defaultActionDelay, int defaultStorageSlots) {
+        this(id, displayName, archetype, defaultSkullTexture, defaultArmorMaterial, defaultArmorColor, defaultHandItem,
+                targetBlock, targetMob, exactDropItem, null, 0.0, xpPerHarvest, defaultActionDelay, defaultStorageSlots);
+    }
+
+    public MinionDefinition(String id, String displayName, MinionArchetype archetype,
+                            String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor, ItemStack defaultHandItem,
+                            Material targetBlock, String targetMob, ItemStack exactDropItem,
+                            ItemStack secondaryDropItem, double secondaryDropChance,
+                            int xpPerHarvest, double defaultActionDelay, int defaultStorageSlots) {
         this.id = id.toLowerCase();
         this.displayName = displayName;
         this.archetype = archetype != null ? archetype : MinionArchetype.MINER;
@@ -76,6 +88,8 @@ public class MinionDefinition {
         this.targetBlock = targetBlock != null ? targetBlock : Material.COBBLESTONE;
         this.targetMob = targetMob;
         this.exactDropItem = exactDropItem != null ? exactDropItem.clone() : new ItemStack(Material.COBBLESTONE);
+        this.secondaryDropItem = secondaryDropItem != null ? secondaryDropItem.clone() : null;
+        this.secondaryDropChance = secondaryDropChance;
         this.xpPerHarvest = xpPerHarvest;
         this.defaultActionDelay = defaultActionDelay > 0 ? defaultActionDelay : 14.0;
         this.defaultStorageSlots = defaultStorageSlots > 0 ? defaultStorageSlots : 1;
@@ -130,6 +144,18 @@ public class MinionDefinition {
         return exactDropItem != null ? exactDropItem.clone() : new ItemStack(Material.AIR);
     }
 
+    public ItemStack getSecondaryDropItem() {
+        return secondaryDropItem != null ? secondaryDropItem.clone() : null;
+    }
+
+    public double getSecondaryDropChance() {
+        return secondaryDropChance;
+    }
+
+    public boolean hasSecondaryDrop() {
+        return secondaryDropItem != null && secondaryDropChance > 0;
+    }
+
     public int getXpPerHarvest() {
         return xpPerHarvest;
     }
@@ -148,5 +174,37 @@ public class MinionDefinition {
 
     public void addTierStyle(int tier, TierStyle style) {
         tierStyles.put(tier, style);
+    }
+
+    public Material getSaplingMaterial() {
+        if (targetBlock == null) return Material.OAK_SAPLING;
+        return switch (targetBlock) {
+            case SPRUCE_LOG, SPRUCE_WOOD -> Material.SPRUCE_SAPLING;
+            case BIRCH_LOG, BIRCH_WOOD -> Material.BIRCH_SAPLING;
+            case JUNGLE_LOG, JUNGLE_WOOD -> Material.JUNGLE_SAPLING;
+            case ACACIA_LOG, ACACIA_WOOD -> Material.ACACIA_SAPLING;
+            case DARK_OAK_LOG, DARK_OAK_WOOD -> Material.DARK_OAK_SAPLING;
+            case MANGROVE_LOG, MANGROVE_WOOD -> Material.MANGROVE_PROPAGULE;
+            case CHERRY_LOG, CHERRY_WOOD -> Material.CHERRY_SAPLING;
+            case CRIMSON_STEM -> Material.CRIMSON_FUNGUS;
+            case WARPED_STEM -> Material.WARPED_FUNGUS;
+            default -> Material.OAK_SAPLING;
+        };
+    }
+
+    public Material getLeafMaterial() {
+        if (targetBlock == null) return Material.OAK_LEAVES;
+        return switch (targetBlock) {
+            case SPRUCE_LOG, SPRUCE_WOOD -> Material.SPRUCE_LEAVES;
+            case BIRCH_LOG, BIRCH_WOOD -> Material.BIRCH_LEAVES;
+            case JUNGLE_LOG, JUNGLE_WOOD -> Material.JUNGLE_LEAVES;
+            case ACACIA_LOG, ACACIA_WOOD -> Material.ACACIA_LEAVES;
+            case DARK_OAK_LOG, DARK_OAK_WOOD -> Material.DARK_OAK_LEAVES;
+            case MANGROVE_LOG, MANGROVE_WOOD -> Material.MANGROVE_LEAVES;
+            case CHERRY_LOG, CHERRY_WOOD -> Material.CHERRY_LEAVES;
+            case CRIMSON_STEM -> Material.NETHER_WART_BLOCK;
+            case WARPED_STEM -> Material.WARPED_WART_BLOCK;
+            default -> Material.OAK_LEAVES;
+        };
     }
 }

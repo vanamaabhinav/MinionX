@@ -60,7 +60,8 @@ public class MinionCreatorListener implements Listener {
             Material.LAPIS_ORE,
             Material.NETHER_QUARTZ_ORE,
             Material.ANCIENT_DEBRIS,
-            Material.OAK_LOG
+            Material.OBSIDIAN,
+            Material.GLOWSTONE
     };
 
     private static final String[] COMBAT_MOBS = {
@@ -68,20 +69,58 @@ public class MinionCreatorListener implements Listener {
             "SKELETON",
             "SPIDER",
             "CAVE_SPIDER",
-            "BLAZE",
             "CREEPER",
             "ENDERMAN",
+            "BLAZE",
             "SLIME",
-            "MAGMA_CUBE"
+            "MAGMA_CUBE",
+            "GHAST",
+            "WITCH",
+            "WITHER_SKELETON"
+    };
+
+    private static final Material[] FORAGING_LOGS = {
+            Material.OAK_LOG,
+            Material.BIRCH_LOG,
+            Material.SPRUCE_LOG,
+            Material.DARK_OAK_LOG,
+            Material.ACACIA_LOG,
+            Material.JUNGLE_LOG,
+            Material.MANGROVE_LOG,
+            Material.CHERRY_LOG
+    };
+
+    private static final Material[] FARMING_CROPS = {
+            Material.WHEAT,
+            Material.CARROT,
+            Material.POTATO,
+            Material.PUMPKIN,
+            Material.MELON,
+            Material.SUGAR_CANE,
+            Material.CACTUS,
+            Material.NETHER_WART,
+            Material.RED_MUSHROOM,
+            Material.BROWN_MUSHROOM
+    };
+
+    private static final String[] FARMING_ANIMALS = {
+            "COW",
+            "PIG",
+            "CHICKEN",
+            "SHEEP",
+            "RABBIT"
     };
 
     private static final String[] SKULL_PRESETS = {
             "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTRhMjQzZTU1OWU5OWExMGJmMWFlNGU2YmFmYmY0MTA1ODhhMTVhM2Q2YzVjOGVmMjljMWE4YmRiNWYzMWFjYyJ9fX0=", // Cobble
-            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTZlOWFlMTVmNTRkOWI5ZTEyZGIzOWZhZTZlODlhMWY4MmU1YzlmOTBhOTRkZjljYzg0MjM1YWM3NzFmIn19fQ==", // Iron
-            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTRmODcxMThjZGEyMmQ0OWU4OTU1ZTZiYWY4Nzg2MzIxMzAxYWI5N2M3YjU3Mzg4YTFhMjAxYjU2YTUxZiJ9fX0=", // Diamond
-            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTZmYzg1NGJiODRjZjRiNDcxN2UxNTQ4MDU1NmU3NzM4ZTExYzcxM2NkMzlmYTkyOTAyMTUzNzYzMTIzMzEifX19", // Zombie
-            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvM2JmNTM0ZWRhNTJlMzEwODk0ZWVhNzU1ZThkYWE2MWRmZDdhODFjNmUxYWRlZmYzYjVjODhhYmFiZDA5OSJ9fX0="  // Skeleton
+            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWY1ODMwNDk0YjI2YjhhOGFmNmYwMmQ2OTM4YzA1Y2JiZWIzNTViNmY4YjY5MWQxODliZjc2MmFiNDY2OWZkIn19fQ==", // Diamond
+            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTE0ZWU1NmY3YmU0ZjY4NmJmODQ4NTVmNmU0OTZlNDllNDBiNDM2NWY4NmY4NmZkYmVjYjE0YWY5ZjhiMmU1In19fQ==", // Iron
+            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTY1N2NkNWMyOTg5ZmExNjU3ZjEsNWQ5NDY5OWM3ZjkzNmJjNDUxNzFhMTVlYTc4MDQ5MDEwMWVlODc0OWQifX19", // Zombie
+            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTRiZTZkMDg4MTY5YmVhOGVhNTI5MmcxODlmNTRiNDY0MmE2MTM5MDQ1YzUxNWNmYmM1NzYxODFiNWFhIn19fQ==", // Oak
+            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTlhZGNlOWViYjE2ZTY2MTRmMTQ2YzA4NzM5N2E2ZTU5Y2Y4NDM1YWU4NzMzODIxNjhkOTc3Y2RjZTkxZCJ9fX0="  // Wheat
     };
+
+    private static final double[] CHANCE_PRESETS = {0.05, 0.10, 0.25, 0.50, 1.00};
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
@@ -95,37 +134,69 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        MinionCreatorSession session = holder.getSession();
         int slot = event.getRawSlot();
-        ItemStack cursor = player.getItemOnCursor();
+        if (slot < 0 || slot >= 54) return;
 
-        // 1. Minion Identity
+        MinionCreatorSession session = holder.getSession();
+        ItemStack cursor = event.getCursor();
+
+        // 1. Minion Identity (Name & ID)
         if (slot == 2) {
-            promptChat(player, session, "Enter new minion ID and Display Name (e.g. 'ruby &dRuby Minion'):", input -> {
-                String[] parts = input.split(" ", 2);
-                if (parts.length >= 1 && !parts[0].isBlank()) {
-                    session.setId(parts[0].trim().toLowerCase());
+            promptChat(player, session, "Enter minion ID & Display Name format: 'minion_id &aMy Minion' (or 'cancel'):", input -> {
+                String[] parts = input.trim().split(" ", 2);
+                if (parts.length > 0 && !parts[0].isEmpty()) {
+                    session.setId(parts[0].toLowerCase());
                 }
-                if (parts.length >= 2 && !parts[1].isBlank()) {
-                    session.setDisplayName(ColorUtil.color(parts[1].trim()));
-                } else {
-                    session.setDisplayName(ColorUtil.color("&a" + session.getId() + " Minion"));
+                if (parts.length > 1 && !parts[1].isEmpty()) {
+                    session.setDisplayName(ColorUtil.color(parts[1]));
                 }
             });
             return;
         }
 
-        // 2. Archetype Toggle
+        // 2. Archetype Cycle (MINER -> COMBAT -> FORAGING -> FARMING -> MINER)
         if (slot == 10) {
-            if (session.getArchetype() == MinionArchetype.MINER) {
-                session.setArchetype(MinionArchetype.COMBAT);
-                session.setHandItem(new ItemStack(Material.IRON_SWORD));
-                session.setExactDropItem(new ItemStack(Material.ROTTEN_FLESH));
-            } else {
-                session.setArchetype(MinionArchetype.MINER);
-                session.setHandItem(new ItemStack(Material.STONE_PICKAXE));
-                session.setExactDropItem(new ItemStack(Material.COBBLESTONE));
+            MinionArchetype next;
+            switch (session.getArchetype()) {
+                case MINER -> {
+                    next = MinionArchetype.COMBAT;
+                    session.setHandItem(new ItemStack(Material.IRON_SWORD));
+                    session.setTargetMob("ZOMBIE");
+                    session.setTargetBlock(null);
+                    session.setExactDropItem(new ItemStack(Material.ROTTEN_FLESH));
+                    session.setSecondaryDropItem(null);
+                    session.setSecondaryDropChance(0.0);
+                }
+                case COMBAT -> {
+                    next = MinionArchetype.FORAGING;
+                    session.setHandItem(new ItemStack(Material.IRON_AXE));
+                    session.setTargetBlock(Material.OAK_LOG);
+                    session.setTargetMob(null);
+                    session.setExactDropItem(new ItemStack(Material.OAK_LOG));
+                    session.setSecondaryDropItem(new ItemStack(Material.APPLE));
+                    session.setSecondaryDropChance(0.05);
+                }
+                case FORAGING -> {
+                    next = MinionArchetype.FARMING;
+                    session.setHandItem(new ItemStack(Material.DIAMOND_HOE));
+                    session.setTargetBlock(Material.WHEAT);
+                    session.setTargetMob(null);
+                    session.setExactDropItem(new ItemStack(Material.WHEAT));
+                    session.setSecondaryDropItem(new ItemStack(Material.WHEAT_SEEDS));
+                    session.setSecondaryDropChance(1.0);
+                }
+                case FARMING -> {
+                    next = MinionArchetype.MINER;
+                    session.setHandItem(new ItemStack(Material.STONE_PICKAXE));
+                    session.setTargetBlock(Material.COBBLESTONE);
+                    session.setTargetMob(null);
+                    session.setExactDropItem(new ItemStack(Material.COBBLESTONE));
+                    session.setSecondaryDropItem(null);
+                    session.setSecondaryDropChance(0.0);
+                }
+                default -> next = MinionArchetype.MINER;
             }
+            session.setArchetype(next);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
             MinionCreatorGUI.open(player, session);
             return;
@@ -218,11 +289,12 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 6. Target (Block / Mob)
+        // 6. Target (Block, Mob, Wood, Crop, Animal)
         if (slot == 28) {
             if (session.getArchetype() == MinionArchetype.MINER) {
                 if (cursor != null && cursor.getType().isBlock() && cursor.getType().isSolid()) {
                     session.setTargetBlock(cursor.getType());
+                    session.setTargetMob(null);
                     session.setExactDropItem(new ItemStack(cursor.getType()));
                     player.sendMessage(ColorUtil.color("&6[MinionX] &aSet mining target to " + cursor.getType().name() + "."));
                     player.playSound(player.getLocation(), Sound.BLOCK_STONE_PLACE, 1.0f, 1.2f);
@@ -238,13 +310,15 @@ public class MinionCreatorListener implements Listener {
                 }
                 int next = (cur + 1) % MINER_ORES.length;
                 session.setTargetBlock(MINER_ORES[next]);
+                session.setTargetMob(null);
                 session.setExactDropItem(new ItemStack(MINER_ORES[next]));
                 player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
                 MinionCreatorGUI.open(player, session);
-            } else {
+            } else if (session.getArchetype() == MinionArchetype.COMBAT) {
                 if (event.isRightClick()) {
                     promptChat(player, session, "Enter MythicMob ID or custom EntityType (e.g. 'SkeletalKnight' or 'WITHER_SKELETON'):", input -> {
                         session.setTargetMob(input.trim());
+                        session.setTargetBlock(null);
                     });
                 } else {
                     int cur = 0;
@@ -256,6 +330,110 @@ public class MinionCreatorListener implements Listener {
                     }
                     int next = (cur + 1) % COMBAT_MOBS.length;
                     session.setTargetMob(COMBAT_MOBS[next]);
+                    session.setTargetBlock(null);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
+                    MinionCreatorGUI.open(player, session);
+                }
+            } else if (session.getArchetype() == MinionArchetype.FORAGING) {
+                if (cursor != null && cursor.getType().isBlock()) {
+                    session.setTargetBlock(cursor.getType());
+                    session.setTargetMob(null);
+                    session.setExactDropItem(cursor.clone());
+                    player.sendMessage(ColorUtil.color("&6[MinionX] &aSet foraging wood target to " + cursor.getType().name() + "."));
+                    player.playSound(player.getLocation(), Sound.BLOCK_WOOD_PLACE, 1.0f, 1.2f);
+                    MinionCreatorGUI.open(player, session);
+                    return;
+                }
+                int cur = 0;
+                for (int i = 0; i < FORAGING_LOGS.length; i++) {
+                    if (FORAGING_LOGS[i] == session.getTargetBlock()) {
+                        cur = i;
+                        break;
+                    }
+                }
+                int next = (cur + 1) % FORAGING_LOGS.length;
+                session.setTargetBlock(FORAGING_LOGS[next]);
+                session.setTargetMob(null);
+                session.setExactDropItem(new ItemStack(FORAGING_LOGS[next]));
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
+                MinionCreatorGUI.open(player, session);
+            } else {
+                // FARMING & HUSBANDRY
+                if (cursor != null && cursor.getType() != Material.AIR) {
+                    session.setTargetBlock(cursor.getType());
+                    session.setTargetMob(null);
+                    session.setExactDropItem(cursor.clone());
+                    player.sendMessage(ColorUtil.color("&6[MinionX] &aSet farming target to " + cursor.getType().name() + "."));
+                    player.playSound(player.getLocation(), Sound.BLOCK_GRASS_PLACE, 1.0f, 1.2f);
+                    MinionCreatorGUI.open(player, session);
+                    return;
+                }
+                if (event.isRightClick()) {
+                    promptChat(player, session, "Enter custom Animal EntityType (e.g. 'COW', 'SHEEP', 'PIG') or 'cancel':", input -> {
+                        session.setTargetMob(input.trim().toUpperCase());
+                        session.setTargetBlock(null);
+                    });
+                } else {
+                    // Cycle through crops, then animals
+                    int totalOptions = FARMING_CROPS.length + FARMING_ANIMALS.length;
+                    int curIdx = 0;
+                    if (session.getTargetMob() != null) {
+                        for (int i = 0; i < FARMING_ANIMALS.length; i++) {
+                            if (FARMING_ANIMALS[i].equalsIgnoreCase(session.getTargetMob())) {
+                                curIdx = FARMING_CROPS.length + i;
+                                break;
+                            }
+                        }
+                    } else if (session.getTargetBlock() != null) {
+                        for (int i = 0; i < FARMING_CROPS.length; i++) {
+                            if (FARMING_CROPS[i] == session.getTargetBlock()) {
+                                curIdx = i;
+                                break;
+                            }
+                        }
+                    }
+                    int nextIdx = (curIdx + 1) % totalOptions;
+                    if (nextIdx < FARMING_CROPS.length) {
+                        Material crop = FARMING_CROPS[nextIdx];
+                        session.setTargetBlock(crop);
+                        session.setTargetMob(null);
+                        session.setExactDropItem(new ItemStack(crop));
+                        if (crop == Material.WHEAT) {
+                            session.setSecondaryDropItem(new ItemStack(Material.WHEAT_SEEDS));
+                            session.setSecondaryDropChance(1.0);
+                        } else if (crop == Material.POTATO) {
+                            session.setSecondaryDropItem(new ItemStack(Material.POISONOUS_POTATO));
+                            session.setSecondaryDropChance(0.02);
+                        } else {
+                            session.setSecondaryDropItem(null);
+                            session.setSecondaryDropChance(0.0);
+                        }
+                    } else {
+                        String anim = FARMING_ANIMALS[nextIdx - FARMING_CROPS.length];
+                        session.setTargetMob(anim);
+                        session.setTargetBlock(null);
+                        if ("COW".equalsIgnoreCase(anim)) {
+                            session.setExactDropItem(new ItemStack(Material.BEEF));
+                            session.setSecondaryDropItem(new ItemStack(Material.LEATHER));
+                            session.setSecondaryDropChance(0.5);
+                        } else if ("PIG".equalsIgnoreCase(anim)) {
+                            session.setExactDropItem(new ItemStack(Material.PORKCHOP));
+                            session.setSecondaryDropItem(null);
+                            session.setSecondaryDropChance(0.0);
+                        } else if ("CHICKEN".equalsIgnoreCase(anim)) {
+                            session.setExactDropItem(new ItemStack(Material.CHICKEN));
+                            session.setSecondaryDropItem(new ItemStack(Material.FEATHER));
+                            session.setSecondaryDropChance(0.5);
+                        } else if ("SHEEP".equalsIgnoreCase(anim)) {
+                            session.setExactDropItem(new ItemStack(Material.MUTTON));
+                            session.setSecondaryDropItem(new ItemStack(Material.WHITE_WOOL));
+                            session.setSecondaryDropChance(1.0);
+                        } else if ("RABBIT".equalsIgnoreCase(anim)) {
+                            session.setExactDropItem(new ItemStack(Material.RABBIT));
+                            session.setSecondaryDropItem(new ItemStack(Material.RABBIT_HIDE));
+                            session.setSecondaryDropChance(0.5);
+                        }
+                    }
                     player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
                     MinionCreatorGUI.open(player, session);
                 }
@@ -263,18 +441,54 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 7. Exact Drop Item
+        // 7. Exact Primary Drop Item
         if (slot == 30) {
             if (cursor != null && cursor.getType() != Material.AIR) {
                 session.setExactDropItem(cursor.clone());
-                player.sendMessage(ColorUtil.color("&6[MinionX] &aSet exact drop item clone with all custom attributes!"));
+                player.sendMessage(ColorUtil.color("&6[MinionX] &aSet exact primary drop item clone with all custom attributes!"));
                 player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.4f);
                 MinionCreatorGUI.open(player, session);
             }
             return;
         }
 
-        // 8. Speed, Storage & XP Tuning
+        // 8. Secondary Drop Item & Probability
+        if (slot == 31) {
+            if (cursor != null && cursor.getType() != Material.AIR) {
+                session.setSecondaryDropItem(cursor.clone());
+                if (session.getSecondaryDropChance() <= 0.0) {
+                    session.setSecondaryDropChance(0.10);
+                }
+                player.sendMessage(ColorUtil.color("&6[MinionX] &aSet secondary drop item with " + (int) Math.round(session.getSecondaryDropChance() * 100) + "% chance!"));
+                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.4f);
+                MinionCreatorGUI.open(player, session);
+                return;
+            }
+
+            if (session.getSecondaryDropItem() != null) {
+                if (event.isRightClick()) {
+                    session.setSecondaryDropItem(null);
+                    session.setSecondaryDropChance(0.0);
+                    player.sendMessage(ColorUtil.color("&6[MinionX] &eRemoved secondary drop item."));
+                    player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_DISPENSE, 1.0f, 1.2f);
+                } else {
+                    int curIdx = 0;
+                    for (int i = 0; i < CHANCE_PRESETS.length; i++) {
+                        if (Math.abs(CHANCE_PRESETS[i] - session.getSecondaryDropChance()) < 0.01) {
+                            curIdx = i;
+                            break;
+                        }
+                    }
+                    int nextIdx = (curIdx + 1) % CHANCE_PRESETS.length;
+                    session.setSecondaryDropChance(CHANCE_PRESETS[nextIdx]);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.5f);
+                }
+                MinionCreatorGUI.open(player, session);
+            }
+            return;
+        }
+
+        // 9. Speed, Storage & XP Tuning
         if (slot == 32) {
             if (event.isShiftClick()) {
                 if (event.isLeftClick()) {
@@ -294,7 +508,7 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 9. Tier Customization Mode
+        // 10. Tier Customization Mode
         if (slot == 34) {
             if (event.isRightClick()) {
                 session.setSelectedTier(session.getSelectedTier() >= 11 ? 1 : session.getSelectedTier() + 1);
@@ -306,20 +520,20 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 10. Cancel & Return
+        // 11. Cancel & Return
         if (slot == 48) {
             player.closeInventory();
             OperatorGUI.openMain(player);
             return;
         }
 
-        // 11. Save & Deploy (Tier I)
+        // 12. Save & Deploy (Tier I)
         if (slot == 49) {
             saveAndDeploy(player, session, 1);
             return;
         }
 
-        // 12. Deploy Maxed (Tier XI)
+        // 13. Deploy Maxed (Tier XI)
         if (slot == 50) {
             saveAndDeploy(player, session, 11);
         }

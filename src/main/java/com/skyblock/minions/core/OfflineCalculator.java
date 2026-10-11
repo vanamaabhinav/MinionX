@@ -121,6 +121,14 @@ public class OfflineCalculator {
         minion.incrementHarvested(actualAdded);
         minion.addStoredXp(actualAdded * xpPerHarvest);
 
+        // Secondary drop in O(1) (Apples, Saplings, Seeds, Leather, etc.)
+        if (def != null && def.hasSecondaryDrop() && def.getSecondaryDropChance() > 0 && def.getSecondaryDropItem() != null) {
+            int secCount = (int) (actualAdded * def.getSecondaryDropChance());
+            if (secCount > 0) {
+                batchAddItems(minion, def.getSecondaryDropItem(), secCount, unlockedSlots);
+            }
+        }
+
         // Diamond Spreading 10% perk in O(1)
         boolean hasSpreading = minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
                 || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING);

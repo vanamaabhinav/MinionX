@@ -37,7 +37,7 @@ public class OperatorGUI {
         // Center Category Cards
         inv.setItem(20, createNamedItem(Material.DIAMOND_PICKAXE, ColorUtil.color("&bMinions Catalog"),
                 List.of(ColorUtil.color("&7Browse and obtain all minion types"),
-                        ColorUtil.color("&7from Tier I through Tier XI."),
+                        ColorUtil.color("&7(Mining, Foraging, Farming, Combat, Custom)."),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to open catalog"))));
 
@@ -60,9 +60,9 @@ public class OperatorGUI {
                         ColorUtil.color("&eClick to open kits"))));
 
         inv.setItem(32, createNamedItem(Material.ANVIL, ColorUtil.color("&eMinion Creator Studio"),
-                List.of(ColorUtil.color("&7Design and deploy custom Miner or Combat"),
-                        ColorUtil.color("&7minions with custom heads, armor, tools,"),
-                        ColorUtil.color("&7exact drop item clones, and MythicMobs!"),
+                List.of(ColorUtil.color("&7Design and deploy custom Miner, Combat,"),
+                        ColorUtil.color("&7Foraging, or Farming minions with custom heads,"),
+                        ColorUtil.color("&7tools, exact drop item clones, and MythicMobs!"),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to open Creator Studio"))));
 
@@ -80,27 +80,60 @@ public class OperatorGUI {
      * Opens the Minions Catalog category.
      */
     public static void openMinionsCatalog(Player player) {
-        OperatorHolder holder = new OperatorHolder(OperatorHolder.ViewType.MINIONS_CATALOG);
+        openMinionsCatalog(player, null);
+    }
+
+    /**
+     * Opens the Minions Catalog with an optional category filter.
+     */
+    public static void openMinionsCatalog(Player player, String categoryFilter) {
+        OperatorHolder holder = new OperatorHolder(OperatorHolder.ViewType.MINIONS_CATALOG, categoryFilter);
         Inventory inv = Bukkit.createInventory(holder, 54, MINIONS_TITLE);
 
         ItemStack border = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) inv.setItem(i, border);
 
-        inv.setItem(4, createNamedItem(Material.DIAMOND_PICKAXE, ColorUtil.color("&bMinions Catalog"),
-                List.of(ColorUtil.color("&7Left-Click any minion to receive Tier XI (Maxed)."),
-                        ColorUtil.color("&7Right-Click to browse and choose any tier (I to XI)."))));
+        // Top Row: Category Filter Tabs
+        inv.setItem(1, createNamedItem(Material.NETHER_STAR, ColorUtil.color((categoryFilter == null ? "&a▶ " : "&7") + "All Minions"),
+                List.of(ColorUtil.color("&7Browse all registered minions."))));
+        inv.setItem(2, createNamedItem(Material.DIAMOND_PICKAXE, ColorUtil.color(("MINER".equalsIgnoreCase(categoryFilter) ? "&a▶ " : "&6") + "Mining"),
+                List.of(ColorUtil.color("&7Cobblestone, Coal, Iron, Gold, Diamond, etc."))));
+        inv.setItem(3, createNamedItem(Material.IRON_AXE, ColorUtil.color(("FORAGING".equalsIgnoreCase(categoryFilter) ? "&a▶ " : "&2") + "Foraging"),
+                List.of(ColorUtil.color("&7Oak, Birch, Spruce, Dark Oak, Acacia, Jungle."))));
+        inv.setItem(4, createNamedItem(Material.DIAMOND_HOE, ColorUtil.color(("FARMING".equalsIgnoreCase(categoryFilter) ? "&a▶ " : "&e") + "Farming & Animals"),
+                List.of(ColorUtil.color("&7Crops, Stems, Canes, Cactus, Mushrooms, Animals."))));
+        inv.setItem(5, createNamedItem(Material.IRON_SWORD, ColorUtil.color(("COMBAT".equalsIgnoreCase(categoryFilter) ? "&a▶ " : "&c") + "Combat"),
+                List.of(ColorUtil.color("&7Zombie, Skeleton, Spider, Creeper, etc."))));
+        inv.setItem(6, createNamedItem(Material.WRITABLE_BOOK, ColorUtil.color(("CUSTOM".equalsIgnoreCase(categoryFilter) ? "&a▶ " : "&d") + "Custom Minions"),
+                List.of(ColorUtil.color("&7Minions created via Creator Studio."))));
 
-        int[] slots = {20, 22, 24};
-        MinionType[] types = MinionType.values();
-        for (int i = 0; i < types.length && i < slots.length; i++) {
-            MinionType type = types[i];
-            ItemStack item = MinionItemFactory.createMinionItem(type, 11, 0);
+        // Center Catalog
+        List<MinionDefinition> defs = new ArrayList<>(MinionRegistry.getAll());
+        if (categoryFilter != null) {
+            if ("CUSTOM".equalsIgnoreCase(categoryFilter)) {
+                defs.removeIf(d -> !MinionRegistry.isCustom(d.getId()));
+            } else {
+                defs.removeIf(d -> !d.getArchetype().name().equalsIgnoreCase(categoryFilter));
+            }
+        }
+
+        int[] slots = {
+                10, 11, 12, 13, 14, 15, 16,
+                19, 20, 21, 22, 23, 24, 25,
+                28, 29, 30, 31, 32, 33, 34,
+                37, 38, 39, 40, 41, 42, 43
+        };
+
+        for (int i = 0; i < defs.size() && i < slots.length; i++) {
+            MinionDefinition def = defs.get(i);
+            ItemStack item = MinionItemFactory.createCustomMinionItem(def, 11, 0);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
                 List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
                 lore.add(ColorUtil.color("&8------------------------"));
                 lore.add(ColorUtil.color("&aLeft-Click: &fGet Tier XI (Maxed)"));
                 lore.add(ColorUtil.color("&eRight-Click: &fBrowse Tiers I to XI"));
+                lore.add(ColorUtil.color("&bShift-Click: &fGet Tier I (Starter)"));
                 meta.setLore(lore);
                 item.setItemMeta(meta);
             }
@@ -114,9 +147,15 @@ public class OperatorGUI {
     }
 
     /**
-     * Opens the Tier Browser for a specific minion type.
+     * Opens the Tier Browser for a MinionType.
      */
     public static void openTierBrowser(Player player, MinionType type) {
+        MinionDefinition def = MinionRegistry.get(type.name().toLowerCase());
+        if (def != null) {
+            openTierBrowser(player, def);
+            return;
+        }
+
         OperatorHolder holder = new OperatorHolder(OperatorHolder.ViewType.MINION_TIERS, type);
         Inventory inv = Bukkit.createInventory(holder, 54, ColorUtil.color("&8MinionX - " + type.getDisplayName() + " Tiers"));
 
@@ -131,6 +170,33 @@ public class OperatorGUI {
         int max = Math.min(MinionTier.getMaxTier(), tierSlots.length);
         for (int tier = 1; tier <= max; tier++) {
             ItemStack minionItem = MinionItemFactory.createMinionItem(type, tier, 0);
+            inv.setItem(tierSlots[tier - 1], minionItem);
+        }
+
+        inv.setItem(49, createNamedItem(Material.ARROW, ColorUtil.color("&cBack to Minions Catalog"),
+                List.of(ColorUtil.color("&7Return to the minions catalog."))));
+
+        player.openInventory(inv);
+    }
+
+    /**
+     * Opens the Tier Browser for a MinionDefinition.
+     */
+    public static void openTierBrowser(Player player, MinionDefinition def) {
+        OperatorHolder holder = new OperatorHolder(OperatorHolder.ViewType.MINION_TIERS, def);
+        Inventory inv = Bukkit.createInventory(holder, 54, ColorUtil.color("&8MinionX - " + def.getDisplayName() + " Tiers"));
+
+        ItemStack border = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 54; i++) inv.setItem(i, border);
+
+        inv.setItem(4, createNamedItem(Material.CHEST, ColorUtil.color("&b" + def.getDisplayName() + " Minion Tiers (I to XI)"),
+                List.of(ColorUtil.color("&7Click any tier to receive that minion item."),
+                        ColorUtil.color("&7Shift-Click to receive a full stack."))));
+
+        int[] tierSlots = {19, 20, 21, 22, 23, 24, 25, 29, 30, 31, 32};
+        int max = Math.min(MinionTier.getMaxTier(), tierSlots.length);
+        for (int tier = 1; tier <= max; tier++) {
+            ItemStack minionItem = MinionItemFactory.createCustomMinionItem(def, tier, 0);
             inv.setItem(tierSlots[tier - 1], minionItem);
         }
 
@@ -168,7 +234,7 @@ public class OperatorGUI {
     }
 
     /**
-     * Opens the Upgrades & Accessories category.
+     * Opens the Upgrades category.
      */
     public static void openUpgradesCatalog(Player player) {
         OperatorHolder holder = new OperatorHolder(OperatorHolder.ViewType.UPGRADES_CATALOG);
