@@ -3,9 +3,11 @@ package com.skyblock.minions;
 import com.skyblock.minions.api.FuelRegistry;
 import com.skyblock.minions.api.UpgradeRegistry;
 import com.skyblock.minions.command.MinionCommand;
+import com.skyblock.minions.command.OperatorCommand;
 import com.skyblock.minions.core.MinionManager;
 import com.skyblock.minions.core.MinionTickTask;
 import com.skyblock.minions.gui.MinionGUIListener;
+import com.skyblock.minions.gui.OperatorGUIListener;
 import com.skyblock.minions.listener.ChunkLifecycleListener;
 import com.skyblock.minions.listener.MinionInteractListener;
 import com.skyblock.minions.listener.MinionPlaceListener;
@@ -41,6 +43,7 @@ public class SkyBlockMinions extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new MinionPlaceListener(), this);
         getServer().getPluginManager().registerEvents(new MinionInteractListener(), this);
         getServer().getPluginManager().registerEvents(new MinionGUIListener(), this);
+        getServer().getPluginManager().registerEvents(new OperatorGUIListener(), this);
         getServer().getPluginManager().registerEvents(new ChunkLifecycleListener(), this);
 
         // Register Commands
@@ -49,6 +52,13 @@ public class SkyBlockMinions extends JavaPlugin {
         if (cmd != null) {
             cmd.setExecutor(minionCommand);
             cmd.setTabCompleter(minionCommand);
+        }
+
+        // Register Operator Command (/minionsx and /minionx)
+        OperatorCommand operatorCommand = new OperatorCommand();
+        PluginCommand opCmd = getCommand("minionsx");
+        if (opCmd != null) {
+            opCmd.setExecutor(operatorCommand);
         }
 
         // Start repeating tick task (every 20 ticks = 1s)

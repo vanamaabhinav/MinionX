@@ -1,4 +1,4 @@
-name: SkyBlockMinions
+﻿name: SkyBlockMinions
 version: 1.0.0
 main: com.skyblock.minions.SkyBlockMinions
 api-version: '1.20'
@@ -12,13 +12,18 @@ commands:
     aliases: [minions, sbminion]
     usage: |
       §6SkyBlock Minions Commands:
-      §e/minion give <player> <cobblestone|iron|diamond> [tier] §7- Give a minion item
+      §e/minion give <player> <type> [tier] §7- Give a minion item
       §e/minion list §7- List your placed minions
       §e/minion reload §7- Reload configuration
+  minionsx:
+    description: Opens the MinionX Operator interface
+    permission: skyblockminions.admin
+    aliases: [minionx]
+    usage: /minionsx
 
 permissions:
   skyblockminions.admin:
-    description: Allows administrative access to give minions and reload plugin
+    description: Allows administrative access to give minions, reload plugin, and open the operator interface
     default: op
   skyblockminions.use:
     description: Allows players to interact with, place, and view minions

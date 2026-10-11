@@ -1,4 +1,4 @@
-﻿# MinionX
+# MinionX
 
 MinionX is a high-performance Minecraft Java plugin inspired by Hypixel SkyBlock. It introduces autonomous, customizable minions featuring authentic visual animations, interactive chest interfaces, dynamic fuels, accessories, and command execution pipelines.
 
@@ -52,6 +52,7 @@ The shaded production artifact will be generated at 	arget/SkyBlockMinions-1.0.0
 | /minion give <player> <fuel_id> | skyblockminions.admin | Gives a configured fuel item |
 | /minion give <player> <upgrade_id> | skyblockminions.admin | Gives a configured upgrade/accessory item |
 | /minion list | Default | Lists player-owned minions and coordinates |
+| /minionsx / /minionx | skyblockminions.admin | Opens the interactive MinionX Operator Panel GUI |
 | /minion reload | skyblockminions.admin | Hot-reloads configuration and registries |
 
 ---
