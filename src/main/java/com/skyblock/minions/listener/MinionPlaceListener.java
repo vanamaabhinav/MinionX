@@ -68,6 +68,28 @@ public class MinionPlaceListener implements Listener {
             return;
         }
 
+        // Prevent placing multiple minions in the same block/slot
+        Location targetLoc = placeBlock.getLocation();
+        if (SkyBlockMinions.getInstance().getMinionManager().getMinionAt(targetLoc) != null) {
+            String occupiedMsg = config.getString("messages.minion-already-exists", "&cThere is already a minion here! Only one minion may occupy a block.");
+            player.sendMessage(ColorUtil.color(occupiedMsg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
+        if (targetLoc.getWorld() != null) {
+            for (org.bukkit.entity.Entity nearby : targetLoc.getWorld().getNearbyEntities(targetLoc.clone().add(0.5, 0.5, 0.5), 0.6, 0.6, 0.6)) {
+                if (nearby instanceof org.bukkit.entity.ArmorStand as) {
+                    if (as.getPersistentDataContainer().has(MinionVisual.MINION_ENTITY_KEY, org.bukkit.persistence.PersistentDataType.STRING)) {
+                        String occupiedMsg = config.getString("messages.minion-already-exists", "&cThere is already a minion here! Only one minion may occupy a block.");
+                        player.sendMessage(ColorUtil.color(occupiedMsg));
+                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                        return;
+                    }
+                }
+            }
+        }
+
         // 2. Check Land & Claim Permissions (GriefPrevention, BentoBox, SuperiorSkyblock2, WorldGuard, Towny, Lands)
         if (!ProtectionHookManager.canPlaceMinion(player, placeBlock.getLocation())) {
             String noPermMsg = config.getString("messages.no-island-place-permission", "&cYou do not have permission to place minions here!");

@@ -9,6 +9,7 @@ import com.skyblock.minions.hook.SkillHook;
 import com.skyblock.minions.item.MinionItemFactory;
 import com.skyblock.minions.util.ColorUtil;
 import com.skyblock.minions.visual.MinionHologram;
+import com.skyblock.minions.visual.MinionVisual;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -169,6 +170,7 @@ public class MinionGUIListener implements Listener {
             minion.setState(MinionState.IDLE);
         }
         MinionHologram.updateHologram(minion);
+        MinionVisual.spawnOrUpdate(minion);
 
         int xp = minion.claimStoredXp();
         if (xp > 0) {
@@ -217,6 +219,7 @@ public class MinionGUIListener implements Listener {
         minion.setTier(currentTier + 1);
 
         MinionHologram.updateHologram(minion);
+        MinionVisual.spawnOrUpdate(minion);
 
         String template = SkyBlockMinions.getInstance().getConfig().getString("messages.upgraded", "&aUpgraded to %minion% %tier%!");
         String msg = template.replace("%minion%", minion.getDisplayName())

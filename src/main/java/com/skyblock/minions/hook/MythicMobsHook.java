@@ -55,9 +55,10 @@ public class MythicMobsHook {
             } catch (IllegalArgumentException ignored) {}
         }
 
-        // 3. Apply tag and optional AI disabling
+        // 3. Apply tag, gravity, and optional AI disabling
         if (spawnedEntity != null) {
             spawnedEntity.getPersistentDataContainer().set(MINION_MOB_KEY, PersistentDataType.BYTE, (byte) 1);
+            spawnedEntity.setGravity(true);
             if (disableAi && spawnedEntity instanceof LivingEntity living) {
                 living.setAI(false);
             }

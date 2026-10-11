@@ -68,14 +68,8 @@ public class MinionVisual {
             // Skull
             as.getEquipment().setHelmet(createCustomSkull(skullTexture));
 
-            // Armor
-            if (armorMat == Material.LEATHER_CHESTPLATE || armorMat == Material.LEATHER_LEGGINGS || armorMat == Material.LEATHER_BOOTS) {
-                as.getEquipment().setChestplate(createDyedArmor(Material.LEATHER_CHESTPLATE, armorColor));
-                as.getEquipment().setLeggings(createDyedArmor(Material.LEATHER_LEGGINGS, armorColor));
-                as.getEquipment().setBoots(createDyedArmor(Material.LEATHER_BOOTS, armorColor));
-            } else {
-                as.getEquipment().setChestplate(new ItemStack(armorMat));
-            }
+            // Armor (full set: chestplate, leggings, boots)
+            equipMinionArmor(as, armorMat, armorColor);
 
             // Hand Tool / Weapon
             as.getEquipment().setItemInMainHand(handItem);
@@ -83,6 +77,100 @@ public class MinionVisual {
 
         minion.setArmorStandId(stand.getUniqueId());
         return stand;
+    }
+
+    /**
+     * Resolves the matching chestplate material for a given armor material or preset.
+     */
+    public static Material getMatchingChestplate(Material armorMat) {
+        if (armorMat == null || armorMat.isAir()) return null;
+        String name = armorMat.name();
+        if (name.startsWith("LEATHER_")) {
+            return Material.LEATHER_CHESTPLATE;
+        }
+        String prefix = name.contains("_") ? name.substring(0, name.lastIndexOf('_')) : name;
+        if (prefix.equalsIgnoreCase("GOLD")) {
+            prefix = "GOLDEN";
+        }
+        Material match = Material.matchMaterial(prefix + "_CHESTPLATE");
+        if (match != null) return match;
+        if (name.endsWith("_CHESTPLATE")) return armorMat;
+        return armorMat;
+    }
+
+    /**
+     * Resolves the matching leggings material for a given armor material or preset.
+     */
+    public static Material getMatchingLeggings(Material armorMat) {
+        if (armorMat == null || armorMat.isAir()) return null;
+        String name = armorMat.name();
+        if (name.startsWith("LEATHER_")) {
+            return Material.LEATHER_LEGGINGS;
+        }
+        String prefix = name.contains("_") ? name.substring(0, name.lastIndexOf('_')) : name;
+        if (prefix.equalsIgnoreCase("GOLD")) {
+            prefix = "GOLDEN";
+        }
+        Material match = Material.matchMaterial(prefix + "_LEGGINGS");
+        if (match != null) return match;
+        if (name.endsWith("_LEGGINGS")) return armorMat;
+        return null;
+    }
+
+    /**
+     * Resolves the matching boots material for a given armor material or preset.
+     */
+    public static Material getMatchingBoots(Material armorMat) {
+        if (armorMat == null || armorMat.isAir()) return null;
+        String name = armorMat.name();
+        if (name.startsWith("LEATHER_")) {
+            return Material.LEATHER_BOOTS;
+        }
+        String prefix = name.contains("_") ? name.substring(0, name.lastIndexOf('_')) : name;
+        if (prefix.equalsIgnoreCase("GOLD")) {
+            prefix = "GOLDEN";
+        }
+        Material match = Material.matchMaterial(prefix + "_BOOTS");
+        if (match != null) return match;
+        if (name.endsWith("_BOOTS")) return armorMat;
+        return null;
+    }
+
+    /**
+     * Equips full armor (chestplate, leggings, boots) on the visual ArmorStand.
+     * For leather, dyes the armor with the specified color.
+     * For non-leather, equips matching chestplate, leggings, and boots.
+     */
+    public static void equipMinionArmor(ArmorStand as, Material armorMat, Color armorColor) {
+        if (as == null || as.getEquipment() == null || armorMat == null || armorMat.isAir()) {
+            return;
+        }
+
+        String matName = armorMat.name();
+        if (matName.startsWith("LEATHER_")) {
+            as.getEquipment().setChestplate(createDyedArmor(Material.LEATHER_CHESTPLATE, armorColor));
+            as.getEquipment().setLeggings(createDyedArmor(Material.LEATHER_LEGGINGS, armorColor));
+            as.getEquipment().setBoots(createDyedArmor(Material.LEATHER_BOOTS, armorColor));
+            return;
+        }
+
+        Material chestMat = getMatchingChestplate(armorMat);
+        Material legMat = getMatchingLeggings(armorMat);
+        Material bootMat = getMatchingBoots(armorMat);
+
+        if (chestMat != null) {
+            as.getEquipment().setChestplate(new ItemStack(chestMat));
+        } else {
+            as.getEquipment().setChestplate(new ItemStack(armorMat));
+        }
+
+        if (legMat != null) {
+            as.getEquipment().setLeggings(new ItemStack(legMat));
+        }
+
+        if (bootMat != null) {
+            as.getEquipment().setBoots(new ItemStack(bootMat));
+        }
     }
 
     /**

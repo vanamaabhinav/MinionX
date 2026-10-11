@@ -114,35 +114,25 @@ public class MinionTickTask extends BukkitRunnable {
 
         boolean isPartiallyObstructed = foreignObstructions > 0 && (!emptySpots.isEmpty() || !resourceBlocks.isEmpty());
 
-        if (minion.wasLastActionPlace()) {
-            if (!resourceBlocks.isEmpty()) {
-                updateObstructionState(minion, isPartiallyObstructed);
-                Collections.shuffle(resourceBlocks);
-                Block target = resourceBlocks.getFirst();
-                executeMine(minion, target, dropItem, def.getXpPerHarvest());
-            } else if (!emptySpots.isEmpty()) {
-                updateObstructionState(minion, isPartiallyObstructed);
-                Collections.shuffle(emptySpots);
-                Block target = emptySpots.getFirst();
-                executePlace(minion, target, targetBlock);
-            } else {
-                setNoSpaceState(minion);
-            }
-        } else {
-            if (!emptySpots.isEmpty()) {
-                updateObstructionState(minion, isPartiallyObstructed);
-                Collections.shuffle(emptySpots);
-                Block target = emptySpots.getFirst();
-                executePlace(minion, target, targetBlock);
-            } else if (!resourceBlocks.isEmpty()) {
-                updateObstructionState(minion, isPartiallyObstructed);
-                Collections.shuffle(resourceBlocks);
-                Block target = resourceBlocks.getFirst();
-                executeMine(minion, target, dropItem, def.getXpPerHarvest());
-            } else {
-                setNoSpaceState(minion);
-            }
+        // Fill all empty spots in the 5x5 working ground first before mining!
+        if (!emptySpots.isEmpty()) {
+            updateObstructionState(minion, isPartiallyObstructed);
+            Collections.shuffle(emptySpots);
+            Block target = emptySpots.getFirst();
+            executePlace(minion, target, targetBlock);
+            return;
         }
+
+        // Once the entire area is filled with resource blocks, mine them
+        if (!resourceBlocks.isEmpty()) {
+            updateObstructionState(minion, isPartiallyObstructed);
+            Collections.shuffle(resourceBlocks);
+            Block target = resourceBlocks.getFirst();
+            executeMine(minion, target, dropItem, def.getXpPerHarvest());
+            return;
+        }
+
+        setNoSpaceState(minion);
     }
 
     // =========================================================================
@@ -372,37 +362,34 @@ public class MinionTickTask extends BukkitRunnable {
             }
         }
 
-        if (minion.wasLastActionPlace()) {
-            if (!matureCrops.isEmpty()) {
-                Collections.shuffle(matureCrops);
-                harvestSoilCrop(minion, matureCrops.getFirst(), dropItem, def);
-            } else if (!untilledDirt.isEmpty()) {
-                Collections.shuffle(untilledDirt);
-                tillAndPlantSoilCrop(minion, untilledDirt.getFirst(), cropMat);
-            } else if (!plantableSpots.isEmpty()) {
-                Collections.shuffle(plantableSpots);
-                plantSoilCrop(minion, plantableSpots.getFirst(), cropMat);
-            } else if (!growingCrops.isEmpty()) {
-                advanceCropGrowth(minion, growingCrops.getFirst());
-            } else {
-                setNoSpaceState(minion);
-            }
-        } else {
-            if (!untilledDirt.isEmpty()) {
-                Collections.shuffle(untilledDirt);
-                tillAndPlantSoilCrop(minion, untilledDirt.getFirst(), cropMat);
-            } else if (!plantableSpots.isEmpty()) {
-                Collections.shuffle(plantableSpots);
-                plantSoilCrop(minion, plantableSpots.getFirst(), cropMat);
-            } else if (!matureCrops.isEmpty()) {
-                Collections.shuffle(matureCrops);
-                harvestSoilCrop(minion, matureCrops.getFirst(), dropItem, def);
-            } else if (!growingCrops.isEmpty()) {
-                advanceCropGrowth(minion, growingCrops.getFirst());
-            } else {
-                setNoSpaceState(minion);
-            }
+        // 1. Till untilled dirt in the grid first
+        if (!untilledDirt.isEmpty()) {
+            Collections.shuffle(untilledDirt);
+            tillAndPlantSoilCrop(minion, untilledDirt.getFirst(), cropMat);
+            return;
         }
+
+        // 2. Plant empty spots across the field
+        if (!plantableSpots.isEmpty()) {
+            Collections.shuffle(plantableSpots);
+            plantSoilCrop(minion, plantableSpots.getFirst(), cropMat);
+            return;
+        }
+
+        // 3. Harvest mature crops
+        if (!matureCrops.isEmpty()) {
+            Collections.shuffle(matureCrops);
+            harvestSoilCrop(minion, matureCrops.getFirst(), dropItem, def);
+            return;
+        }
+
+        // 4. Advance growth of growing crops
+        if (!growingCrops.isEmpty()) {
+            advanceCropGrowth(minion, growingCrops.getFirst());
+            return;
+        }
+
+        setNoSpaceState(minion);
     }
 
     private void tillAndPlantSoilCrop(Minion minion, Block target, Material cropMat) {
@@ -610,7 +597,23 @@ public class MinionTickTask extends BukkitRunnable {
             }
         }
 
+        // 1. Plant sugar cane bases on all valid ground spots in the grid first!
+        if (!plantableSpots.isEmpty()) {
+            Collections.shuffle(plantableSpots);
+            Block target = plantableSpots.getFirst();
+            target.setType(Material.SUGAR_CANE);
+            MinionAnimation.playPlaceAnimation(minion, target);
+
+            minion.setLastActionWasPlace(true);
+            minion.setLastActionTime(System.currentTimeMillis());
+            minion.setState(MinionState.IDLE);
+            MinionHologram.updateHologram(minion);
+            return;
+        }
+
+        // 2. Once the grid is planted with cane bases, harvest mature tops (height 2 or 3)
         if (!harvestableTops.isEmpty()) {
+            Collections.shuffle(harvestableTops);
             Block target = harvestableTops.getFirst();
             MinionAnimation.playMineAnimation(minion, target);
             target.setType(Material.AIR);
@@ -623,7 +626,12 @@ public class MinionTickTask extends BukkitRunnable {
             minion.setLastActionTime(System.currentTimeMillis());
             minion.setState(MinionState.IDLE);
             MinionHologram.updateHologram(minion);
-        } else if (!growableBases.isEmpty()) {
+            return;
+        }
+
+        // 3. Advance growth of bases to height 2
+        if (!growableBases.isEmpty()) {
+            Collections.shuffle(growableBases);
             Block base = growableBases.getFirst();
             Block top1 = base.getRelative(0, 1, 0);
             top1.setType(Material.SUGAR_CANE);
@@ -633,18 +641,10 @@ public class MinionTickTask extends BukkitRunnable {
             minion.setLastActionTime(System.currentTimeMillis());
             minion.setState(MinionState.IDLE);
             MinionHologram.updateHologram(minion);
-        } else if (!plantableSpots.isEmpty()) {
-            Block target = plantableSpots.getFirst();
-            target.setType(Material.SUGAR_CANE);
-            MinionAnimation.playPlaceAnimation(minion, target);
-
-            minion.setLastActionWasPlace(true);
-            minion.setLastActionTime(System.currentTimeMillis());
-            minion.setState(MinionState.IDLE);
-            MinionHologram.updateHologram(minion);
-        } else {
-            setNoSpaceState(minion);
+            return;
         }
+
+        setNoSpaceState(minion);
     }
 
     private void tickCactusMinion(Minion minion, MinionDefinition def, ItemStack dropItem) {
@@ -679,7 +679,23 @@ public class MinionTickTask extends BukkitRunnable {
             }
         }
 
+        // 1. Plant cactus bases on all valid checkered sand spots in the grid first!
+        if (!plantableSpots.isEmpty()) {
+            Collections.shuffle(plantableSpots);
+            Block target = plantableSpots.getFirst();
+            target.setType(Material.CACTUS);
+            MinionAnimation.playPlaceAnimation(minion, target);
+
+            minion.setLastActionWasPlace(true);
+            minion.setLastActionTime(System.currentTimeMillis());
+            minion.setState(MinionState.IDLE);
+            MinionHologram.updateHologram(minion);
+            return;
+        }
+
+        // 2. Once bases are planted, harvest mature tops (height 2 or 3)
         if (!harvestableTops.isEmpty()) {
+            Collections.shuffle(harvestableTops);
             Block target = harvestableTops.getFirst();
             MinionAnimation.playMineAnimation(minion, target);
             target.setType(Material.AIR);
@@ -692,7 +708,12 @@ public class MinionTickTask extends BukkitRunnable {
             minion.setLastActionTime(System.currentTimeMillis());
             minion.setState(MinionState.IDLE);
             MinionHologram.updateHologram(minion);
-        } else if (!growableBases.isEmpty()) {
+            return;
+        }
+
+        // 3. Advance growth of cactus base
+        if (!growableBases.isEmpty()) {
+            Collections.shuffle(growableBases);
             Block base = growableBases.getFirst();
             Block top1 = base.getRelative(0, 1, 0);
             top1.setType(Material.CACTUS);
@@ -702,18 +723,10 @@ public class MinionTickTask extends BukkitRunnable {
             minion.setLastActionTime(System.currentTimeMillis());
             minion.setState(MinionState.IDLE);
             MinionHologram.updateHologram(minion);
-        } else if (!plantableSpots.isEmpty()) {
-            Block target = plantableSpots.getFirst();
-            target.setType(Material.CACTUS);
-            MinionAnimation.playPlaceAnimation(minion, target);
-
-            minion.setLastActionWasPlace(true);
-            minion.setLastActionTime(System.currentTimeMillis());
-            minion.setState(MinionState.IDLE);
-            MinionHologram.updateHologram(minion);
-        } else {
-            setNoSpaceState(minion);
+            return;
         }
+
+        setNoSpaceState(minion);
     }
 
     private void tickMushroomMinion(Minion minion, MinionDefinition def, ItemStack dropItem, Material mushroomMat) {
@@ -782,7 +795,7 @@ public class MinionTickTask extends BukkitRunnable {
         if (loc.getWorld() == null) return;
 
         int cap = SkyBlockMinions.getInstance().getConfig().getInt("settings.combat.max-mobs-per-minion", 5);
-        boolean disableAi = SkyBlockMinions.getInstance().getConfig().getBoolean("settings.combat.disable-mob-wandering", true);
+        boolean disableAi = SkyBlockMinions.getInstance().getConfig().getBoolean("settings.combat.disable-mob-wandering", false);
 
         List<Entity> taggedMobs = new ArrayList<>();
         for (Entity e : loc.getWorld().getNearbyEntities(loc, 3.5, 2.0, 3.5)) {

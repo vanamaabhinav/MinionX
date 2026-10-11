@@ -29,7 +29,8 @@ settings:
     max-mobs-per-minion: 5
     # Disable natural mob wandering (set AI false) for maximum server performance.
     # Set to false if you prefer mobs to wander naturally inside a 6x6 fenced area.
-    disable-mob-wandering: true
+    # Set to true if you prefer mobs to stay still without AI wandering.
+    disable-mob-wandering: false
 
 # ==============================================================================
 # STORAGE ENGINE (YAML, SQLITE, or MYSQL)
@@ -598,6 +599,7 @@ messages:
 
   # Security & Limits Messages
   minion-limit-reached: "&cYou have reached your maximum minion limit of %limit%!"
+  minion-already-exists: "&cThere is already a minion here! Only one minion may occupy a block."
   cannot-place-fuel-or-upgrade: "&cYou cannot place minion items or fuels in the world!"
   cannot-craft-with-minion-item: "&cYou cannot use minion items or upgrades in crafting recipes!"
   no-island-place-permission: "&cYou do not have permission to place minions here!"

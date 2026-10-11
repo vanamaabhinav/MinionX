@@ -69,8 +69,13 @@ public class MinionManager {
         if (loc == null) return null;
         for (Minion minion : minionsById.values()) {
             Location mLoc = minion.getLocation();
-            if (mLoc != null && mLoc.getWorld().equals(loc.getWorld()) &&
-                    mLoc.getBlockX() == loc.getBlockX() &&
+            if (mLoc == null) continue;
+            if (mLoc.getWorld() != null && loc.getWorld() != null) {
+                if (!mLoc.getWorld().equals(loc.getWorld())) continue;
+            } else if (mLoc.getWorld() != loc.getWorld()) {
+                continue;
+            }
+            if (mLoc.getBlockX() == loc.getBlockX() &&
                     mLoc.getBlockY() == loc.getBlockY() &&
                     mLoc.getBlockZ() == loc.getBlockZ()) {
                 return minion;
