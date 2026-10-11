@@ -44,6 +44,10 @@ public class CompressionManager {
 
     private static final Map<Material, CompressionRecipe> RECIPES = new HashMap<>();
 
+    public static CompressionRecipe getRecipe(Material material) {
+        return RECIPES.get(material);
+    }
+
     static {
         loadRecipes();
     }

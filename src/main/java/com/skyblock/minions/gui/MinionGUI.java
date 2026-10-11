@@ -25,28 +25,11 @@ import java.util.UUID;
 
 /**
  * Builds the authentic 54-slot Hypixel SkyBlock Minion chest interface.
+ * All slots, materials, and items are customizable via config.yml.
  */
 public class MinionGUI {
 
     public static final String GUI_TITLE_PREFIX = "Minion: ";
-
-    // Slot definitions
-    public static final int HEAD_SLOT = 4;
-    public static final int FUEL_SLOT = 9;
-    public static final int SHIPPING_SLOT = 18;
-    public static final int UPGRADE_SLOT_1 = 27;
-    public static final int UPGRADE_SLOT_2 = 36;
-
-    public static final int COLLECT_ALL_SLOT = 45;
-    public static final int UPGRADE_MINION_SLOT = 49;
-    public static final int PICKUP_SLOT = 53;
-
-    // 15 Storage slots arranged in three rows (Hypixel layout)
-    public static final int[] STORAGE_SLOTS = {
-            12, 13, 14, 15, 16,
-            21, 22, 23, 24, 25,
-            30, 31, 32, 33, 34
-    };
 
     /**
      * Creates and opens the Minion GUI for the player.
@@ -61,30 +44,36 @@ public class MinionGUI {
             inv.setItem(i, filler);
         }
 
-        // 1. Minion Head (Slot 4)
-        inv.setItem(HEAD_SLOT, createHeadItem(minion));
+        // 1. Minion Head
+        inv.setItem(MinionGUIConfig.getHeadSlot(), createHeadItem(minion));
 
-        // 2. Fuel Slot (Slot 9)
+        // 2. Fuel Slot
+        int fuelSlot = MinionGUIConfig.getFuelSlot();
         if (minion.isFuelActive()) {
-            inv.setItem(FUEL_SLOT, createActiveFuelItem(minion));
+            inv.setItem(fuelSlot, createActiveFuelItem(minion));
         } else {
-            inv.setItem(FUEL_SLOT, createEmptyFuelItem());
+            inv.setItem(fuelSlot, createEmptyFuelItem());
         }
 
-        // 3. Automated Shipping (Slot 18 - Aesthetic placeholder)
-        inv.setItem(SHIPPING_SLOT, createNamedItem(Material.HOPPER, ColorUtil.color("&cAutomated Shipping &7(Locked)"),
+        // 3. Automated Shipping Slot
+        inv.setItem(MinionGUIConfig.getAutomatedShippingSlot(), createNamedItem(Material.HOPPER, ColorUtil.color("&cAutomated Shipping &7(Locked)"),
                 List.of(ColorUtil.color("&7Automatically sells excess items"), ColorUtil.color("&7when storage fills."))));
 
-        // 4. Upgrade Slots (Slots 27 & 36)
-        inv.setItem(UPGRADE_SLOT_1, createUpgradeSlotItem(minion.getCustomUpgrade1(), 1));
-        inv.setItem(UPGRADE_SLOT_2, createUpgradeSlotItem(minion.getCustomUpgrade2(), 2));
+        // 4. Upgrade Slots
+        inv.setItem(MinionGUIConfig.getUpgrade1Slot(), createUpgradeSlotItem(minion.getCustomUpgrade1(), 1));
+        inv.setItem(MinionGUIConfig.getUpgrade2Slot(), createUpgradeSlotItem(minion.getCustomUpgrade2(), 2));
 
-        // 5. Storage Slots
+        // 5. Minion Skin Cosmetic Slot
+        inv.setItem(MinionGUIConfig.getSkinSlot(), createNamedItem(Material.LEATHER_CHESTPLATE, ColorUtil.color("&dMinion Skin &7(None)"),
+                List.of(ColorUtil.color("&7Customize your minion with"), ColorUtil.color("&7exclusive cosmetic skins!"))));
+
+        // 6. Storage Slots
+        int[] storageSlots = MinionGUIConfig.getStorageSlots();
         int unlockedSlots = MinionTier.getStorageSlots(minion.getTier());
         List<ItemStack> items = minion.getInventory();
 
-        for (int i = 0; i < STORAGE_SLOTS.length; i++) {
-            int slot = STORAGE_SLOTS[i];
+        for (int i = 0; i < storageSlots.length; i++) {
+            int slot = storageSlots[i];
             if (i < unlockedSlots) {
                 if (i < items.size()) {
                     inv.setItem(slot, items.get(i).clone());
@@ -96,10 +85,10 @@ public class MinionGUI {
             }
         }
 
-        // 6. Action Buttons
-        inv.setItem(COLLECT_ALL_SLOT, createCollectAllItem(minion));
-        inv.setItem(UPGRADE_MINION_SLOT, createUpgradeButtonItem(minion));
-        inv.setItem(PICKUP_SLOT, createPickupItem());
+        // 7. Action Buttons
+        inv.setItem(MinionGUIConfig.getUpgradeTierSlot(), createUpgradeButtonItem(minion));
+        inv.setItem(MinionGUIConfig.getCollectAllSlot(), createCollectAllItem(minion));
+        inv.setItem(MinionGUIConfig.getPickupSlot(), createPickupItem());
 
         player.openInventory(inv);
     }
@@ -258,9 +247,7 @@ public class MinionGUI {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);
-            if (lore != null) {
-                meta.setLore(lore);
-            }
+            meta.setLore(lore);
             item.setItemMeta(meta);
         }
         return item;

@@ -1,5 +1,6 @@
 package com.skyblock.minions.core;
 
+import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.MinionTier;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -10,6 +11,7 @@ import java.util.regex.Pattern;
 
 /**
  * Utility for parsing placeholders and evaluating mathematical expressions in minion commands.
+ * Supports player placement limits, available slots, and minion statistics.
  */
 public class PlaceholderUtil {
 
@@ -24,12 +26,35 @@ public class PlaceholderUtil {
         if (player != null) {
             result = result.replace("%player%", player.getName())
                            .replace("%player_uuid%", player.getUniqueId().toString());
+
+            PlayerLimitManager limitManager = SkyBlockMinions.getInstance() != null
+                    ? SkyBlockMinions.getInstance().getPlayerLimitManager()
+                    : null;
+
+            if (limitManager != null) {
+                int limit = limitManager.getEffectiveLimit(player);
+                int placed = limitManager.getPlacedCount(player.getUniqueId());
+                int available = limitManager.getAvailableSlots(player);
+                int bonus = limitManager.getBonusSlots(player.getUniqueId());
+
+                String limitStr = limit < 0 ? "Unlimited" : String.valueOf(limit);
+                String availStr = available < 0 ? "Unlimited" : String.valueOf(available);
+
+                result = result.replace("%minions_placed%", String.valueOf(placed))
+                               .replace("%minionx_placed%", String.valueOf(placed))
+                               .replace("%minions_limit%", limitStr)
+                               .replace("%minionx_limit%", limitStr)
+                               .replace("%minions_available%", availStr)
+                               .replace("%minionx_available%", availStr)
+                               .replace("%minions_bonus%", String.valueOf(bonus))
+                               .replace("%minionx_bonus%", String.valueOf(bonus));
+            }
         }
 
         // Minion placeholders
         if (minion != null) {
-            result = result.replace("%minion_type%", minion.getType().getDisplayName())
-                           .replace("%minion_type_id%", minion.getType().name().toLowerCase())
+            result = result.replace("%minion_type%", minion.getDisplayName())
+                           .replace("%minion_type_id%", minion.getCustomDefinitionId() != null ? minion.getCustomDefinitionId() : (minion.getType() != null ? minion.getType().name().toLowerCase() : "minion"))
                            .replace("%minion_tier%", String.valueOf(minion.getTier()))
                            .replace("%minion_tier_roman%", MinionTier.toRoman(minion.getTier()))
                            .replace("%total_harvested%", String.valueOf(minion.getTotalHarvested()))

@@ -1,7 +1,7 @@
 package com.skyblock.minions.storage;
 
 import com.skyblock.minions.SkyBlockMinions;
-import com.skyblock.minions.api.*;
+import com.skyblock.minions.api.MinionType;
 import com.skyblock.minions.core.Minion;
 import com.skyblock.minions.core.MinionManager;
 import com.skyblock.minions.visual.MinionHologram;
@@ -15,25 +15,40 @@ import org.bukkit.inventory.ItemStack;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 
 /**
- * Handles YAML serialization and persistence for active minions.
+ * Handles persistence for active minions.
+ * Supports YAML by default, and optional SQLite/MySQL database storage.
  */
 public class MinionStorage {
 
     private final SkyBlockMinions plugin;
     private final File dataFile;
+    private DatabaseStorage databaseStorage;
 
     public MinionStorage(SkyBlockMinions plugin) {
         this.plugin = plugin;
         this.dataFile = new File(plugin.getDataFolder(), "data/minions.yml");
+
+        String type = plugin.getConfig().getString("storage.type", "YAML").toUpperCase();
+        if ("SQLITE".equals(type) || "MYSQL".equals(type)) {
+            this.databaseStorage = new DatabaseStorage(plugin);
+            if (!this.databaseStorage.init()) {
+                plugin.getLogger().warning("Failed to initialize database storage, falling back to YAML.");
+                this.databaseStorage = null;
+            }
+        }
     }
 
     public void saveAll(MinionManager manager) {
+        if (databaseStorage != null) {
+            databaseStorage.saveAll(manager);
+            return;
+        }
+
         if (!dataFile.getParentFile().exists()) {
             dataFile.getParentFile().mkdirs();
         }
@@ -79,6 +94,11 @@ public class MinionStorage {
     }
 
     public void loadAll(MinionManager manager) {
+        if (databaseStorage != null) {
+            databaseStorage.loadAll(manager);
+            return;
+        }
+
         if (!dataFile.exists()) return;
 
         YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
@@ -133,6 +153,12 @@ public class MinionStorage {
                 minion.setLastActionTime(section.getLong(idStr + ".last-action", System.currentTimeMillis()));
                 minion.setLastActionWasPlace(section.getBoolean(idStr + ".last-was-place", false));
                 minion.setTotalHarvested(section.getInt(idStr + ".harvested", 0));
+                minion.setStoredXp(section.getInt(idStr + ".xp", 0));
+
+                String customId = section.getString(idStr + ".custom_id");
+                if (customId != null && !customId.isBlank()) {
+                    minion.setCustomDefinitionId(customId);
+                }
 
                 List<?> rawItems = section.getList(idStr + ".items");
                 if (rawItems != null) {
@@ -158,5 +184,11 @@ public class MinionStorage {
         }
 
         plugin.getLogger().info("Successfully loaded " + loadedCount + " minions.");
+    }
+
+    public void close() {
+        if (databaseStorage != null) {
+            databaseStorage.close();
+        }
     }
 }

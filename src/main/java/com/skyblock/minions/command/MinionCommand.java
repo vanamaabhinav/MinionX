@@ -3,6 +3,7 @@ package com.skyblock.minions.command;
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
 import com.skyblock.minions.core.Minion;
+import com.skyblock.minions.core.PlayerLimitManager;
 import com.skyblock.minions.gui.MinionCreatorGUI;
 import com.skyblock.minions.item.MinionItemFactory;
 import com.skyblock.minions.util.ColorUtil;
@@ -43,6 +44,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             case "create" -> handleCreate(sender);
             case "give" -> handleGive(sender, args);
             case "list" -> handleList(sender);
+            case "limit" -> handleLimit(sender, args);
             case "reload" -> handleReload(sender);
             default -> sendHelp(sender);
         }
@@ -136,6 +138,79 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         target.sendMessage(ColorUtil.color("&6[Minions] &aYou received a " + type.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + "!"));
     }
 
+    private void handleLimit(CommandSender sender, String[] args) {
+        PlayerLimitManager limitManager = plugin.getPlayerLimitManager();
+        if (limitManager == null) {
+            sender.sendMessage(ColorUtil.color("&cPlayer limit manager is not loaded."));
+            return;
+        }
+
+        if (args.length == 1 || args[1].equalsIgnoreCase("check")) {
+            Player target = (args.length >= 3) ? Bukkit.getPlayer(args[2]) : (sender instanceof Player p ? p : null);
+            if (target == null) {
+                sender.sendMessage(ColorUtil.color("&cUsage: /minion limit check [player]"));
+                return;
+            }
+
+            int limit = limitManager.getEffectiveLimit(target);
+            int placed = limitManager.getPlacedCount(target.getUniqueId());
+            int available = limitManager.getAvailableSlots(target);
+            int bonus = limitManager.getBonusSlots(target.getUniqueId());
+
+            String limitStr = limit < 0 ? "&aUnlimited" : "&e" + limit;
+            String availStr = available < 0 ? "&aUnlimited" : "&b" + available;
+
+            sender.sendMessage(ColorUtil.color("&6=== Minion Limit: &e" + target.getName() + " &6==="));
+            sender.sendMessage(ColorUtil.color("&7Placed Minions: &f" + placed));
+            sender.sendMessage(ColorUtil.color("&7Max Limit: " + limitStr));
+            sender.sendMessage(ColorUtil.color("&7Available Slots: " + availStr));
+            sender.sendMessage(ColorUtil.color("&7Bonus Purchased Slots: &d+" + bonus));
+            return;
+        }
+
+        if (!sender.hasPermission("skyblockminions.admin")) {
+            sender.sendMessage(ColorUtil.color("&cYou do not have permission to modify player limits."));
+            return;
+        }
+
+        if (args.length < 4) {
+            sender.sendMessage(ColorUtil.color("&cUsage: /minion limit <add|remove|set> <player> <amount>"));
+            return;
+        }
+
+        Player target = Bukkit.getPlayer(args[2]);
+        if (target == null) {
+            sender.sendMessage(ColorUtil.color("&cPlayer '" + args[2] + "' not found."));
+            return;
+        }
+
+        int amount;
+        try {
+            amount = Integer.parseInt(args[3]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(ColorUtil.color("&cInvalid number: " + args[3]));
+            return;
+        }
+
+        String action = args[1].toLowerCase();
+        switch (action) {
+            case "add" -> {
+                limitManager.addBonusSlots(target.getUniqueId(), amount);
+                sender.sendMessage(ColorUtil.color("&aAdded &e+" + amount + " &abonus minion slots to &f" + target.getName() + "&a. Total bonus: &e" + limitManager.getBonusSlots(target.getUniqueId())));
+                target.sendMessage(ColorUtil.color("&6[Minions] &aYou received &e+" + amount + " &abonus minion slots!"));
+            }
+            case "remove" -> {
+                limitManager.removeBonusSlots(target.getUniqueId(), amount);
+                sender.sendMessage(ColorUtil.color("&cRemoved &e" + amount + " &cbonus minion slots from &f" + target.getName() + "&c. Total bonus: &e" + limitManager.getBonusSlots(target.getUniqueId())));
+            }
+            case "set" -> {
+                limitManager.setBonusSlots(target.getUniqueId(), amount);
+                sender.sendMessage(ColorUtil.color("&aSet bonus minion slots for &f" + target.getName() + " &ato &e" + amount + "&a."));
+            }
+            default -> sender.sendMessage(ColorUtil.color("&cUsage: /minion limit <add|remove|set|check> <player> <amount>"));
+        }
+    }
+
     private void handleList(CommandSender sender) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(ColorUtil.color("&cOnly players can list their minions."));
@@ -174,6 +249,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ColorUtil.color("&6=== SkyBlock Minions Commands ==="));
         sender.sendMessage(ColorUtil.color("&e/minion create &7- Open In-Game Minion Creator Studio"));
         sender.sendMessage(ColorUtil.color("&e/minion give <player> <type|fuel|upgrade> [tier] &7- Give a minion or item"));
+        sender.sendMessage(ColorUtil.color("&e/minion limit <check|add|remove|set> <player> [amount] &7- Manage player limits"));
         sender.sendMessage(ColorUtil.color("&e/minion list &7- View your placed minions"));
         sender.sendMessage(ColorUtil.color("&e/minion reload &7- Reload configuration"));
     }
@@ -181,7 +257,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(List.of("create", "give", "list", "reload"), args[0]);
+            return filter(List.of("create", "give", "limit", "list", "reload"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
@@ -209,6 +285,18 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 tiers.add(String.valueOf(i));
             }
             return filter(tiers, args[3]);
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("limit")) {
+            return filter(List.of("check", "add", "remove", "set"), args[1]);
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("limit")) {
+            List<String> names = new ArrayList<>();
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                names.add(p.getName());
+            }
+            return filter(names, args[2]);
         }
 
         return Collections.emptyList();

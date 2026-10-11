@@ -9,9 +9,13 @@ import com.skyblock.minions.command.OperatorCommand;
 import com.skyblock.minions.core.CompressionManager;
 import com.skyblock.minions.core.MinionManager;
 import com.skyblock.minions.core.MinionTickTask;
+import com.skyblock.minions.core.PlayerLimitManager;
 import com.skyblock.minions.gui.MinionCreatorListener;
 import com.skyblock.minions.gui.MinionGUIListener;
 import com.skyblock.minions.gui.OperatorGUIListener;
+import com.skyblock.minions.hook.EconomyHook;
+import com.skyblock.minions.hook.ProtectionHookManager;
+import com.skyblock.minions.hook.SkillHook;
 import com.skyblock.minions.listener.ChunkLifecycleListener;
 import com.skyblock.minions.listener.CustomItemProtectionListener;
 import com.skyblock.minions.listener.MinionInteractListener;
@@ -26,6 +30,7 @@ public class SkyBlockMinions extends JavaPlugin {
     private MinionManager minionManager;
     private MinionStorage minionStorage;
     private MinionTickTask minionTickTask;
+    private PlayerLimitManager playerLimitManager;
 
     @Override
     public void onEnable() {
@@ -34,14 +39,20 @@ public class SkyBlockMinions extends JavaPlugin {
         // Save default config
         saveDefaultConfig();
 
+        // Check external hooks
+        ProtectionHookManager.checkHooks();
+        EconomyHook.setupEconomy();
+        SkillHook.checkHooks();
+
         // Load dynamic custom tiers, fuels, upgrades, compression recipes, and custom minions
         loadRegistries();
 
         // Initialize Managers
         this.minionManager = new MinionManager();
+        this.playerLimitManager = new PlayerLimitManager(this);
         this.minionStorage = new MinionStorage(this);
 
-        // Load all saved minions from disk
+        // Load all saved minions from disk / database
         this.minionStorage.loadAll(this.minionManager);
 
         // Register Listeners
@@ -89,9 +100,15 @@ public class SkyBlockMinions extends JavaPlugin {
             minionTickTask.cancel();
         }
 
-        // Save all minion states to disk
+        // Save player limits
+        if (playerLimitManager != null) {
+            playerLimitManager.save();
+        }
+
+        // Save all minion states to disk / database
         if (minionStorage != null && minionManager != null) {
             minionStorage.saveAll(minionManager);
+            minionStorage.close();
             // Cleanly despawn all visual entities to prevent duplicates on restart
             minionManager.removeAllVisuals();
         }
@@ -109,6 +126,10 @@ public class SkyBlockMinions extends JavaPlugin {
 
     public MinionStorage getMinionStorage() {
         return minionStorage;
+    }
+
+    public PlayerLimitManager getPlayerLimitManager() {
+        return playerLimitManager;
     }
 
     public void loadRegistries() {

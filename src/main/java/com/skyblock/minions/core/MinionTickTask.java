@@ -3,6 +3,7 @@ package com.skyblock.minions.core;
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
 import com.skyblock.minions.hook.MythicMobsHook;
+import com.skyblock.minions.hook.SkillHook;
 import com.skyblock.minions.visual.MinionAnimation;
 import com.skyblock.minions.visual.MinionHologram;
 import org.bukkit.Location;
@@ -18,7 +19,7 @@ import java.util.List;
 
 /**
  * Global repeating task executing the autonomous action cycle for all active minions.
- * Supports MINER (5x5 non-destructive fill-before-mine with partial obstruction tolerance)
+ * Supports MINER (flexible 5x5 natural block, generator & placed harvesting)
  * and COMBAT (vanilla & MythicMobs spawning and harvesting with Super Compaction).
  */
 public class MinionTickTask extends BukkitRunnable {
@@ -92,38 +93,85 @@ public class MinionTickTask extends BukkitRunnable {
 
         for (Block block : workingBlocks) {
             Material type = block.getType();
-            if (type == targetBlock || (minion.getType() != null && (type == minion.getType().getTargetMaterial() || type == minion.getType().getPlacedMaterial()))) {
+            if (isMatchingTargetBlock(type, targetBlock, minion)) {
                 resourceBlocks.add(block);
             } else if (type.isAir() || !type.isSolid()) {
                 emptySpots.add(block);
             } else {
-                // Foreign block placed by player (chest, torch, fence, wall) - DO NOT DESTROY OR REPLACE!
+                // Foreign block placed by player (chest, torch, fence, generator frame)
                 foreignObstructions++;
             }
         }
 
-        // Non-destructive action cycle with partial obstruction tolerance
-        if (!emptySpots.isEmpty()) {
-            if (foreignObstructions > 0) {
-                minion.setState(MinionState.PARTIALLY_OBSTRUCTED);
+        // Determine if partially obstructed
+        boolean isPartiallyObstructed = foreignObstructions > 0 && (!emptySpots.isEmpty() || !resourceBlocks.isEmpty());
+
+        // Hypixel Two-Action Cycle with generator & natural block harvesting:
+        // If last action was Place -> prioritize Mining any existing designated target block!
+        if (minion.wasLastActionPlace()) {
+            if (!resourceBlocks.isEmpty()) {
+                updateObstructionState(minion, isPartiallyObstructed);
+                Collections.shuffle(resourceBlocks);
+                Block target = resourceBlocks.getFirst();
+                executeMine(minion, target, dropItem, def.getXpPerHarvest());
+            } else if (!emptySpots.isEmpty()) {
+                // Target block wasn't there (maybe broken by player), so place if space exists
+                updateObstructionState(minion, isPartiallyObstructed);
+                Collections.shuffle(emptySpots);
+                Block target = emptySpots.getFirst();
+                executePlace(minion, target, targetBlock);
             } else {
-                minion.setState(MinionState.IDLE);
+                setNoSpaceState(minion);
             }
-            Collections.shuffle(emptySpots);
-            Block target = emptySpots.getFirst();
-            executePlace(minion, target, targetBlock);
-        } else if (!resourceBlocks.isEmpty()) {
-            if (foreignObstructions > 0) {
-                minion.setState(MinionState.PARTIALLY_OBSTRUCTED);
-            } else {
-                minion.setState(MinionState.IDLE);
-            }
-            Collections.shuffle(resourceBlocks);
-            Block target = resourceBlocks.getFirst();
-            executeMine(minion, target, dropItem, def.getXpPerHarvest());
         } else {
-            // Entire 5x5 platform is blocked with foreign blocks
-            setNoSpaceState(minion);
+            // Last action was Mine (or initial cycle)
+            if (!emptySpots.isEmpty()) {
+                // Standard generation: place designated block on an open spot
+                updateObstructionState(minion, isPartiallyObstructed);
+                Collections.shuffle(emptySpots);
+                Block target = emptySpots.getFirst();
+                executePlace(minion, target, targetBlock);
+            } else if (!resourceBlocks.isEmpty()) {
+                // No open spots (all spots occupied by generator or player-placed ores) -> mine directly!
+                updateObstructionState(minion, isPartiallyObstructed);
+                Collections.shuffle(resourceBlocks);
+                Block target = resourceBlocks.getFirst();
+                executeMine(minion, target, dropItem, def.getXpPerHarvest());
+            } else {
+                // No open spots and no resource blocks
+                setNoSpaceState(minion);
+            }
+        }
+    }
+
+    private boolean isMatchingTargetBlock(Material type, Material targetBlock, Minion minion) {
+        if (type == targetBlock) return true;
+        if (minion.getType() != null) {
+            if (type == minion.getType().getTargetMaterial() || type == minion.getType().getPlacedMaterial()) {
+                return true;
+            }
+            // Cobblestone generator tolerance (Stone or Cobblestone)
+            if (minion.getType() == MinionType.COBBLESTONE && (type == Material.COBBLESTONE || type == Material.STONE)) {
+                return true;
+            }
+            // Deepslate ore variants
+            if (targetBlock == Material.DIAMOND_ORE && type == Material.DEEPSLATE_DIAMOND_ORE) return true;
+            if (targetBlock == Material.IRON_ORE && type == Material.DEEPSLATE_IRON_ORE) return true;
+            if (targetBlock == Material.GOLD_ORE && type == Material.DEEPSLATE_GOLD_ORE) return true;
+            if (targetBlock == Material.COAL_ORE && type == Material.DEEPSLATE_COAL_ORE) return true;
+            if (targetBlock == Material.EMERALD_ORE && type == Material.DEEPSLATE_EMERALD_ORE) return true;
+            if (targetBlock == Material.REDSTONE_ORE && type == Material.DEEPSLATE_REDSTONE_ORE) return true;
+            if (targetBlock == Material.LAPIS_ORE && type == Material.DEEPSLATE_LAPIS_ORE) return true;
+            if (targetBlock == Material.COPPER_ORE && type == Material.DEEPSLATE_COPPER_ORE) return true;
+        }
+        return false;
+    }
+
+    private void updateObstructionState(Minion minion, boolean partiallyObstructed) {
+        if (partiallyObstructed) {
+            minion.setState(MinionState.PARTIALLY_OBSTRUCTED);
+        } else {
+            minion.setState(MinionState.IDLE);
         }
     }
 

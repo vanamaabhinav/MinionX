@@ -3,7 +3,8 @@ package com.skyblock.minions.gui;
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
 import com.skyblock.minions.core.Minion;
-import com.skyblock.minions.hook.IslandHookManager;
+import com.skyblock.minions.hook.ProtectionHookManager;
+import com.skyblock.minions.hook.SkillHook;
 import com.skyblock.minions.item.MinionItemFactory;
 import com.skyblock.minions.core.CollectionCommandHandler;
 import com.skyblock.minions.util.ColorUtil;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 
 /**
  * Handles interactions inside the authentic Hypixel Minion Chest GUI.
+ * Uses MinionGUIConfig to support fully customizable slot layouts.
  */
 public class MinionGUIListener implements Listener {
 
@@ -39,7 +41,7 @@ public class MinionGUIListener implements Listener {
         if (minion == null) return;
 
         // Verify island / region access permission
-        if (!IslandHookManager.canAccessMinion(player, minion)) {
+        if (!ProtectionHookManager.canAccessMinion(player, minion)) {
             player.closeInventory();
             String msg = SkyBlockMinions.getInstance().getConfig().getString("messages.no-island-access-permission", "&cYou do not have permission to access this minion!");
             player.sendMessage(ColorUtil.color(msg));
@@ -49,47 +51,46 @@ public class MinionGUIListener implements Listener {
         int slot = event.getRawSlot();
 
         // 1. Collect All Items & Claim Stored XP
-        if (slot == MinionGUI.COLLECT_ALL_SLOT) {
+        if (slot == MinionGUIConfig.getCollectAllSlot()) {
             handleCollectAll(player, minion);
             return;
         }
 
         // 2. Upgrade Minion Tier
-        if (slot == MinionGUI.UPGRADE_MINION_SLOT) {
+        if (slot == MinionGUIConfig.getUpgradeTierSlot()) {
             handleUpgrade(player, minion);
             return;
         }
 
         // 3. Pickup Minion
-        if (slot == MinionGUI.PICKUP_SLOT) {
+        if (slot == MinionGUIConfig.getPickupSlot()) {
             handlePickup(player, minion);
             return;
         }
 
         // 4. Fuel Slot Click
-        if (slot == MinionGUI.FUEL_SLOT) {
+        if (slot == MinionGUIConfig.getFuelSlot()) {
             handleFuelSlot(player, minion);
             return;
         }
 
         // 5. Upgrade Slot 1 Click
-        if (slot == MinionGUI.UPGRADE_SLOT_1) {
+        if (slot == MinionGUIConfig.getUpgrade1Slot()) {
             handleUpgradeSlot(player, minion, 1);
             return;
         }
 
         // 6. Upgrade Slot 2 Click
-        if (slot == MinionGUI.UPGRADE_SLOT_2) {
+        if (slot == MinionGUIConfig.getUpgrade2Slot()) {
             handleUpgradeSlot(player, minion, 2);
             return;
         }
 
         // 7. Individual Storage Slot Clicks
-        for (int storageSlot : MinionGUI.STORAGE_SLOTS) {
-            if (slot == storageSlot) {
-                handleStorageSlotClick(player, minion, slot);
-                return;
-            }
+        int storageIndex = MinionGUIConfig.getStorageIndex(slot);
+        if (storageIndex >= 0) {
+            handleStorageSlotClick(player, minion, storageIndex);
+            return;
         }
     }
 
@@ -121,6 +122,9 @@ public class MinionGUIListener implements Listener {
             player.giveExp(xp);
             player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
         }
+
+        // Skill hook rewards
+        grantSkillRewards(player, minion, collectedCount);
 
         String template = SkyBlockMinions.getInstance().getConfig().getString("messages.collected", "&aCollected %amount% items and &e+%xp% XP &afrom your minion!");
         String msg = template.replace("%amount%", String.valueOf(collectedCount)).replace("%xp%", String.valueOf(xp));
@@ -272,15 +276,7 @@ public class MinionGUIListener implements Listener {
         }
     }
 
-    private void handleStorageSlotClick(Player player, Minion minion, int clickedSlot) {
-        int listIndex = -1;
-        for (int i = 0; i < MinionGUI.STORAGE_SLOTS.length; i++) {
-            if (MinionGUI.STORAGE_SLOTS[i] == clickedSlot) {
-                listIndex = i;
-                break;
-            }
-        }
-
+    private void handleStorageSlotClick(Player player, Minion minion, int listIndex) {
         if (listIndex >= 0 && listIndex < minion.getInventory().size()) {
             ItemStack item = minion.getInventory().remove(listIndex);
             int amount = item.getAmount();
@@ -298,12 +294,25 @@ public class MinionGUIListener implements Listener {
                 player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
             }
 
+            grantSkillRewards(player, minion, amount);
+
             if (minion.getState() == MinionState.FULL) {
                 minion.setState(MinionState.IDLE);
             }
             MinionHologram.updateHologram(minion);
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
             MinionGUI.open(player, minion);
+        }
+    }
+
+    private void grantSkillRewards(Player player, Minion minion, int amount) {
+        String typeId = minion.getCustomDefinitionId() != null
+                ? minion.getCustomDefinitionId()
+                : (minion.getType() != null ? minion.getType().name().toLowerCase() : "cobblestone");
+        String skill = SkyBlockMinions.getInstance().getConfig().getString("skill-rewards.types." + typeId + ".skill");
+        double xpPer = SkyBlockMinions.getInstance().getConfig().getDouble("skill-rewards.types." + typeId + ".xp-per-item", 0.0);
+        if (skill != null && xpPer > 0) {
+            SkillHook.addSkillXp(player, skill, xpPer * amount);
         }
     }
 

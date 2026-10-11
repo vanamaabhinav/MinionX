@@ -9,7 +9,10 @@ settings:
   auto-save-interval: 6000
   # Maximum placed minions per player (-1 for unlimited)
   # Players with permission "minions.bypass.limit" bypass this restriction
+  # Also supports permission nodes: minions.limit.<number> (e.g. minions.limit.10)
   max-minions-per-player: 5
+  # Maximum offline simulation time in hours (default 720 = 30 days)
+  max-offline-hours: 720
   # Visual animations, sounds, and particles
   enable-animations: true
   enable-sounds: true
@@ -22,6 +25,20 @@ settings:
     # Disable natural mob wandering (set AI false) for maximum server performance.
     # Set to false if you prefer mobs to wander naturally inside a 6x6 fenced area.
     disable-mob-wandering: true
+
+# ==============================================================================
+# STORAGE ENGINE (YAML, SQLITE, or MYSQL)
+# ==============================================================================
+storage:
+  type: YAML # Options: YAML (default), SQLITE, MYSQL
+  sqlite:
+    file: "minions.db"
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "minions"
+    username: "root"
+    password: ""
 
 # ==============================================================================
 # FLOATING NAMETAGS (Holograms)
@@ -60,63 +77,35 @@ tiers:
   4:
     action-delay: 12.5
     storage-slots: 6
-    upgrade-cost: 640
+    upgrade-cost: 512
   5:
     action-delay: 11.0
     storage-slots: 6
-    upgrade-cost: 1280
+    upgrade-cost: 1024
   6:
     action-delay: 11.0
     storage-slots: 9
-    upgrade-cost: 2560
+    upgrade-cost: 2048
   7:
     action-delay: 9.5
     storage-slots: 9
-    upgrade-cost: 5120
+    upgrade-cost: 4096
   8:
     action-delay: 9.5
     storage-slots: 12
-    upgrade-cost: 10240
+    upgrade-cost: 8192
   9:
     action-delay: 8.0
     storage-slots: 12
-    upgrade-cost: 20480
+    upgrade-cost: 16384
   10:
     action-delay: 8.0
     storage-slots: 15
-    upgrade-cost: 40960
+    upgrade-cost: 32768
   11:
     action-delay: 7.0
     storage-slots: 15
-    upgrade-cost: 0
-
-# Minion Player Head Textures (Base64 skins)
-heads:
-  cobblestone: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTRhMjQzZTU1OWU5OWExMGJmMWFlNGU2YmFmYmY0MTA1ODhhMTVhM2Q2YzVjOGVmMjljMWE4YmRiNWYzMWFjYyJ9fX0="
-  iron: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTZlOWFlMTVmNTRkOWI5ZTEyZGIzOWZhZTZlODlhMWY4MmU1YzlmOTBhOTRkZjljYzg0MjM1YWM3NzFmIn19fQ=="
-  diamond: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTRmODcxMThjZGEyMmQ0OWU4OTU1ZTZiYWY4Nzg2MzIxMzAxYWI5N2M3YjU3Mzg4YTFhMjAxYjU2YTUxZiJ9fX0="
-  zombie: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTZmYzg1NGJiODRjZjRiNDcxN2UxNTQ4MDU1NmU3NzM4ZTExYzcxM2NkMzlmYTkyOTAyMTUzNzYzMTIzMzEifX19"
-  skeleton: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvM2JmNTM0ZWRhNTJlMzEwODk0ZWVhNzU1ZThkYWE2MWRmZDdhODFjNmUxYWRlZmYzYjVjODhhYmFiZDA5OSJ9fX0="
-
-# ==============================================================================
-# CUSTOM ITEM LORE (Fully editable item descriptions)
-# ==============================================================================
-item-lore:
-  minion-item:
-    - "&7Time Between Actions: &a%delay%s"
-    - "&7Max Storage: &e%capacity% items &7(%slots% slots)"
-    - "&7"
-    - "&7Place this minion down to generate"
-    - "&7and harvest resources on your island!"
-    - "&7"
-    - "&eRight-click on the ground to place!"
-
-gui:
-  head-lore:
-    - "&7Time Between Actions: &a%delay%s"
-    - "&7Total Harvested: &e%harvested% items"
-    - "&7Storage: &e%stored% / %capacity% items"
-    - "&7Status: %status%"
+    upgrade-cost: 65536
 
 # ==============================================================================
 # CUSTOM FUELS
@@ -146,11 +135,22 @@ fuels:
     display-name: "&aEnchanted Charcoal"
     material: CHARCOAL
     speed-buff: 0.20
-    duration: "36h"
+    duration: "1d"
     glow: true
     lore:
       - "&7Increases minion speed by &a+20%&7."
-      - "&7Duration: &e36 hours"
+      - "&7Duration: &e1 day"
+
+  solar_panel:
+    display-name: "&eSolar Panel"
+    material: DAYLIGHT_DETECTOR
+    speed-buff: 0.25
+    duration: "permanent"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+25%&7"
+      - "&7during daytime."
+      - "&7Duration: &bPermanent"
 
   enchanted_lava_bucket:
     display-name: "&6Enchanted Lava Bucket"
@@ -170,16 +170,6 @@ fuels:
     glow: true
     lore:
       - "&7Increases minion speed by &a+35%&7."
-      - "&7Duration: &bPermanent"
-
-  solar_panel:
-    display-name: "&eSolar Panel"
-    material: DAYLIGHT_DETECTOR
-    speed-buff: 0.25
-    duration: "permanent"
-    glow: true
-    lore:
-      - "&7Increases minion speed by &a+25%&7."
       - "&7Duration: &bPermanent"
 
 # ==============================================================================
@@ -251,7 +241,6 @@ upgrades:
 # ==============================================================================
 # SUPER COMPACTOR RECIPES
 # ==============================================================================
-# Defines how the Super Compactor converts raw items into compressed forms.
 compression-recipes:
   cobblestone:
     input: COBBLESTONE
@@ -290,6 +279,27 @@ compression-recipes:
       glow: true
 
 # ==============================================================================
+# RPG SKILL REWARDS (AuraSkills & EcoSkills)
+# ==============================================================================
+skill-rewards:
+  types:
+    cobblestone:
+      skill: "mining"
+      xp-per-item: 1.0
+    iron:
+      skill: "mining"
+      xp-per-item: 2.0
+    diamond:
+      skill: "mining"
+      xp-per-item: 5.0
+    zombie:
+      skill: "combat"
+      xp-per-item: 4.0
+    skeleton:
+      skill: "combat"
+      xp-per-item: 4.0
+
+# ==============================================================================
 # COLLECTION COMMANDS
 # ==============================================================================
 collection-commands:
@@ -299,6 +309,38 @@ collection-commands:
     cobblestone: []
     iron: []
     diamond: []
+
+# ==============================================================================
+# MINION GUI LAYOUT CUSTOMIZATION (Authentic Hypixel SkyBlock Layout)
+# ==============================================================================
+gui:
+  minion-menu:
+    slots:
+      head: 4
+      fuel: 19
+      automated-shipping: 20
+      upgrade-1: 28
+      upgrade-2: 29
+      skin: 37
+      upgrade-tier: 48
+      collect-all: 49
+      pickup: 51
+      storage:
+        - 21
+        - 22
+        - 23
+        - 24
+        - 25
+        - 30
+        - 31
+        - 32
+        - 33
+        - 34
+        - 39
+        - 40
+        - 41
+        - 42
+        - 43
 
 # ==============================================================================
 # CONFIGURABLE MESSAGES (Non-coders can easily customize all text here)
@@ -319,7 +361,7 @@ messages:
   minion-limit-reached: "&cYou have reached your maximum minion limit of %limit%!"
   cannot-place-fuel-or-upgrade: "&cYou cannot place minion items or fuels in the world!"
   cannot-craft-with-minion-item: "&cYou cannot use minion items or upgrades in crafting recipes!"
-  no-island-place-permission: "&cYou do not have permission to place minions on this island!"
+  no-island-place-permission: "&cYou do not have permission to place minions here!"
   no-island-access-permission: "&cYou do not have permission to access this minion!"
   no-minion-access-permission: "&cYou do not have permission to access this minion!"
   partially-obstructed-status: "&ePartially Obstructed"

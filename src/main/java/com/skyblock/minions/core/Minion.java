@@ -323,6 +323,16 @@ public class Minion {
         return true;
     }
 
+    public void addItemDirect(ItemStack item) {
+        if (item != null && item.getType() != Material.AIR) {
+            this.inventory.add(item);
+        }
+    }
+
+    public void clearInventory() {
+        this.inventory.clear();
+    }
+
     public int getTotalStoredCount() {
         int count = 0;
         for (ItemStack item : inventory) {

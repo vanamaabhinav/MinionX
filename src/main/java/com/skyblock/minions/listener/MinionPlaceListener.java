@@ -1,11 +1,10 @@
 package com.skyblock.minions.listener;
 
 import com.skyblock.minions.SkyBlockMinions;
-import com.skyblock.minions.api.MinionDefinition;
-import com.skyblock.minions.api.MinionRegistry;
 import com.skyblock.minions.api.MinionType;
 import com.skyblock.minions.core.Minion;
-import com.skyblock.minions.hook.IslandHookManager;
+import com.skyblock.minions.core.PlayerLimitManager;
+import com.skyblock.minions.hook.ProtectionHookManager;
 import com.skyblock.minions.item.MinionItemFactory;
 import com.skyblock.minions.util.ColorUtil;
 import com.skyblock.minions.visual.MinionHologram;
@@ -29,7 +28,7 @@ import java.util.UUID;
 
 /**
  * Handles placing a Minion item onto the ground in the world.
- * Enforces per-player placement limits, island build security, and configurable messages.
+ * Enforces dynamic per-player placement limits, land claim security, and configurable messages.
  */
 public class MinionPlaceListener implements Listener {
 
@@ -50,17 +49,15 @@ public class MinionPlaceListener implements Listener {
 
         FileConfiguration config = SkyBlockMinions.getInstance().getConfig();
 
-        // 1. Check Per-Player Minion Limit
-        int limit = config.getInt("settings.max-minions-per-player", 5);
-        if (limit >= 0 && !player.hasPermission("minions.bypass.limit")) {
-            int currentCount = SkyBlockMinions.getInstance().getMinionManager().getMinionsByOwner(player.getUniqueId()).size();
-            if (currentCount >= limit) {
-                String limitMsg = config.getString("messages.minion-limit-reached", "&cYou have reached your maximum minion limit of %limit%!")
-                        .replace("%limit%", String.valueOf(limit));
-                player.sendMessage(ColorUtil.color(limitMsg));
-                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                return;
-            }
+        // 1. Dynamic Per-Player Minion Limit Check
+        PlayerLimitManager limitManager = SkyBlockMinions.getInstance().getPlayerLimitManager();
+        if (limitManager != null && !limitManager.canPlaceMore(player)) {
+            int limit = limitManager.getEffectiveLimit(player);
+            String limitMsg = config.getString("messages.minion-limit-reached", "&cYou have reached your maximum minion limit of %limit%!")
+                    .replace("%limit%", String.valueOf(limit));
+            player.sendMessage(ColorUtil.color(limitMsg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
         }
 
         // Placement target is the block directly above clicked block
@@ -71,9 +68,9 @@ public class MinionPlaceListener implements Listener {
             return;
         }
 
-        // 2. Check Island & Region Permissions (BentoBox / SuperiorSkyblock2 / WorldGuard)
-        if (!IslandHookManager.canPlaceMinion(player, placeBlock.getLocation())) {
-            String noPermMsg = config.getString("messages.no-island-place-permission", "&cYou do not have permission to place minions on this island!");
+        // 2. Check Land & Claim Permissions (GriefPrevention, BentoBox, SuperiorSkyblock2, WorldGuard, Towny, Lands)
+        if (!ProtectionHookManager.canPlaceMinion(player, placeBlock.getLocation())) {
+            String noPermMsg = config.getString("messages.no-island-place-permission", "&cYou do not have permission to place minions here!");
             player.sendMessage(ColorUtil.color(noPermMsg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
