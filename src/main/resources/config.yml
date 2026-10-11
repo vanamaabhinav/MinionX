@@ -1,0 +1,227 @@
+# ==============================================================================
+# SkyBlock Minions Configuration
+# Inspired by Hypixel SkyBlock
+# ==============================================================================
+
+settings:
+  # Size of the minion's working area (radius in blocks from center, 2 = 5x5 area)
+  working-radius: 2
+  # Auto-save interval in ticks (6000 ticks = 5 minutes)
+  auto-save-interval: 6000
+  # Minion tick cycle check interval in ticks (20 ticks = 1 second)
+  tick-interval: 20
+  # Play animation and sound effects
+  enable-animations: true
+  enable-sounds: true
+  enable-particles: true
+
+# Minion Player Head Textures (Base64 skins)
+heads:
+  cobblestone: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTRhMjQzZTU1OWU5OWExMGJmMWFlNGU2YmFmYmY0MTA1ODhhMTVhM2Q2YzVjOGVmMjljMWE4YmRiNWYzMWFjYyJ9fX0="
+  iron: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTZlOWFlMTVmNTRkOWI5ZTEyZGIzOWZhZTZlODlhMWY4MmU1YzlmOTBhOTRkZjljYzg0MjM1YWM3NzFmIn19fQ=="
+  diamond: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTRmODcxMThjZGEyMmQ0OWU4OTU1ZTZiYWY4Nzg2MzIxMzAxYWI5N2M3YjU3Mzg4YTFhMjAxYjU2YTUxZiJ9fX0="
+
+# ==============================================================================
+# CUSTOM FUELS (Add new fuels here without writing any Java code!)
+# ==============================================================================
+# Non-coders can easily add new fuels below by copying an entry.
+# Supported Options:
+#   display-name: The item display name (supports color codes like & or §)
+#   material: Minecraft Material name (e.g., COAL, LAVA_BUCKET, BLAZE_POWDER)
+#   speed-buff: Speed increase as a decimal (e.g. 0.05 = +5%, 0.25 = +25%, 0.50 = +50%)
+#   duration: How long the fuel lasts (e.g., "30m", "2h", "1d", "permanent", or "-1")
+#   glow: true/false (enchanted glow effect)
+#   custom-model-data: Optional integer for custom resource packs (0 to disable)
+#   lore: List of lore lines displayed on the fuel item
+fuels:
+  coal:
+    display-name: "&fCoal"
+    material: COAL
+    speed-buff: 0.05
+    duration: "30m"
+    glow: false
+    lore:
+      - "&7Increases minion speed by &a+5%&7."
+      - "&7Duration: &e30 minutes"
+
+  charcoal:
+    display-name: "&fCharcoal"
+    material: CHARCOAL
+    speed-buff: 0.05
+    duration: "30m"
+    glow: false
+    lore:
+      - "&7Increases minion speed by &a+5%&7."
+      - "&7Duration: &e30 minutes"
+
+  enchanted_charcoal:
+    display-name: "&aEnchanted Charcoal"
+    material: CHARCOAL
+    speed-buff: 0.20
+    duration: "36h"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+20%&7."
+      - "&7Duration: &e36 hours"
+
+  enchanted_lava_bucket:
+    display-name: "&6Enchanted Lava Bucket"
+    material: LAVA_BUCKET
+    speed-buff: 0.25
+    duration: "permanent"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+25%&7."
+      - "&7Duration: &bPermanent"
+
+  plasma_bucket:
+    display-name: "&dPlasma Bucket"
+    material: LAVA_BUCKET
+    speed-buff: 0.35
+    duration: "permanent"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+35%&7."
+      - "&7Duration: &bPermanent"
+
+  solar_panel:
+    display-name: "&eSolar Panel"
+    material: DAYLIGHT_DETECTOR
+    speed-buff: 0.25
+    duration: "permanent"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+25%&7."
+      - "&7Duration: &bPermanent"
+
+# ==============================================================================
+# CUSTOM UPGRADES / ACCESSORIES (Add new accessories with config only!)
+# ==============================================================================
+# Non-coders can easily add new accessories below by copying an entry.
+# Supported Options:
+#   display-name: The item display name
+#   material: Minecraft Material name (e.g. FURNACE, DROPPER, DIAMOND, PISTON, STRING)
+#   type: Behavior type:
+#         - SPEED_BUFF (grants a passive production speed increase)
+#         - AUTO_SMELTER (automatically smelts cobblestone -> stone, iron ore -> iron ingot)
+#         - COMPACTOR (compacts items into mineral/storage blocks)
+#         - DIAMOND_SPREADING (chance on harvest to generate diamonds)
+#   speed-buff: Speed increase as a decimal (e.g. 0.05 = +5%, 0.20 = +20%)
+#   chance: Probability for chance-based upgrades (e.g. 0.10 = 10%)
+#   glow: true/false
+#   custom-model-data: 0
+#   lore: List of lore lines
+upgrades:
+  auto_smelter:
+    display-name: "&6Auto-Smelter"
+    material: FURNACE
+    type: AUTO_SMELTER
+    glow: true
+    lore:
+      - "&7Automatically smelts harvested resources."
+
+  compactor:
+    display-name: "&6Compactor"
+    material: DROPPER
+    type: COMPACTOR
+    glow: true
+    lore:
+      - "&7Automatically compacts resources into blocks."
+
+  diamond_spreading:
+    display-name: "&bDiamond Spreading"
+    material: DIAMOND
+    type: DIAMOND_SPREADING
+    chance: 0.10
+    glow: true
+    lore:
+      - "&7Adds a 10% chance to generate diamonds"
+      - "&7when harvesting resources."
+
+  minion_expander:
+    display-name: "&aMinion Expander"
+    material: PISTON
+    type: SPEED_BUFF
+    speed-buff: 0.05
+    glow: true
+    lore:
+      - "&7Increases production speed by &a+5%&7."
+
+  flycatcher:
+    display-name: "&dFlycatcher"
+    material: STRING
+    type: SPEED_BUFF
+    speed-buff: 0.20
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+20%&7."
+
+  hyper_catalyst:
+    display-name: "&5Hyper Catalyst"
+    material: NETHER_STAR
+    type: SPEED_BUFF
+    speed-buff: 0.40
+    glow: true
+    lore:
+      - "&7Increases production speed by &a+40%&7."
+
+# ==============================================================================
+# COLLECTION COMMANDS (Skill EXP, Collections, Economy integration)
+# ==============================================================================
+# Executed from console whenever a player collects items from a minion (via Quick Collect
+# or individual storage slot click).
+#
+# Available Placeholders:
+#   %player%           - Player name (e.g., Steve)
+#   %player_uuid%      - Player UUID
+#   %amount%           - Number of items just collected (e.g., 64)
+#   %item%             - Material name collected (e.g., COBBLESTONE, IRON_INGOT, DIAMOND)
+#   %minion_type%      - Minion display name (e.g., Cobblestone, Iron, Diamond)
+#   %minion_type_id%   - Minion internal ID (e.g., cobblestone, iron, diamond)
+#   %minion_tier%      - Current tier number (e.g., 1 to 11)
+#   %minion_tier_roman%- Roman numeral tier (e.g., I, V, XI)
+#   %total_harvested%  - Total items ever produced by this minion
+#   %stored%           - Items currently left inside the minion
+#   %max_capacity%     - Maximum capacity of this minion tier
+#   %world%, %x%, %y%, %z% - Minion coordinate location
+#   PlaceholderAPI     - Any %placeholder% from PlaceholderAPI is also supported!
+#
+# Inline Math Calculations:
+#   Wrap expressions in curly braces {} using "amount", e.g.:
+#     {amount * 2.5}  -> (64 * 2.5 = 160)
+#     {amount * 10}   -> (64 * 10 = 640)
+#     {amount / 2}    -> (64 / 2 = 32)
+#     {amount + 5}    -> (64 + 5 = 69)
+collection-commands:
+  enabled: true
+  # Global commands triggered whenever ANY minion resource is collected
+  global:
+    # Example: Send a friendly message or add to global statistics
+    # - "eco give %player% {amount * 1.5}"
+  # Minion-type specific commands (triggered only when collecting from that minion)
+  types:
+    cobblestone:
+      # Gives 1.0 Mining skill EXP per collected cobblestone (AureliumSkills, MMOItems, MCMMO, etc.)
+      # - "skills addexp %player% mining {amount * 1}"
+      # - "collection add %player% cobblestone %amount%"
+    iron:
+      # Gives 3.0 Mining skill EXP per collected iron
+      # - "skills addexp %player% mining {amount * 3}"
+      # - "collection add %player% iron %amount%"
+    diamond:
+      # Gives 10.0 Mining skill EXP per collected diamond
+      # - "skills addexp %player% mining {amount * 10}"
+      # - "collection add %player% diamond %amount%"
+
+# Messages
+messages:
+  prefix: "§6[Minions] §r"
+  placed: "§aYou placed a %minion%!"
+  picked-up: "§eYou picked up your %minion%!"
+  upgraded: "§aUpgraded %minion% to Tier %tier%!"
+  not-enough-resources: "§cYou don't have enough resources to upgrade this minion!"
+  already-max-tier: "§cThis minion is already at maximum tier!"
+  collected: "§aCollected %amount% items from your minion!"
+  inventory-full: "§cYour inventory is too full to collect all items!"
+  area-blocked: "§cCannot place minion here! Ensure a flat 5x5 platform is available."
+  no-permission: "§cYou do not have permission to do this."
