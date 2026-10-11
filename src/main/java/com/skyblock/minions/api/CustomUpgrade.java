@@ -11,6 +11,7 @@ public class CustomUpgrade {
     public enum UpgradeBehavior {
         AUTO_SMELTER,
         COMPACTOR,
+        SUPER_COMPACTOR,
         DIAMOND_SPREADING,
         SPEED_BUFF
     }

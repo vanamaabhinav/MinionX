@@ -81,8 +81,10 @@ public class OperatorGUIListener implements Listener {
             OperatorGUI.openFuelsCatalog(player);
         } else if (slot == 24) {
             OperatorGUI.openUpgradesCatalog(player);
-        } else if (slot == 31) {
+        } else if (slot == 30) {
             OperatorGUI.openKitsCatalog(player);
+        } else if (slot == 32) {
+            MinionCreatorGUI.open(player, null);
         } else if (slot == 45 && clicked.getType() == Material.BARRIER) {
             player.closeInventory();
         } else if (slot == 53 && clicked.getType() == Material.REPEATER) {

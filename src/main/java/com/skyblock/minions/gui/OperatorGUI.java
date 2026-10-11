@@ -53,23 +53,25 @@ public class OperatorGUI {
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to open upgrades"))));
 
-        inv.setItem(31, createNamedItem(Material.CHEST, ColorUtil.color("&aAdmin Starter Kits"),
+        inv.setItem(30, createNamedItem(Material.CHEST, ColorUtil.color("&aAdmin Starter Kits"),
                 List.of(ColorUtil.color("&7Pre-packaged minion combinations"),
                         ColorUtil.color("&7for instant deployment and testing."),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to open kits"))));
 
+        inv.setItem(32, createNamedItem(Material.ANVIL, ColorUtil.color("&eMinion Creator Studio"),
+                List.of(ColorUtil.color("&7Design and deploy custom Miner or Combat"),
+                        ColorUtil.color("&7minions with custom heads, armor, tools,"),
+                        ColorUtil.color("&7exact drop item clones, and MythicMobs!"),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to open Creator Studio"))));
+
         // Bottom Controls
-        inv.setItem(45, createNamedItem(Material.BARRIER, ColorUtil.color("&cClose Menu"),
-                List.of(ColorUtil.color("&7Exit the operator panel."))));
+        inv.setItem(45, createNamedItem(Material.BARRIER, ColorUtil.color("&cClose"),
+                List.of(ColorUtil.color("&7Close the operator interface."))));
 
-        inv.setItem(49, createNamedItem(Material.BOOK, ColorUtil.color("&eMinionX Information"),
-                List.of(ColorUtil.color("&7Operator management system for SkyBlock Minions."),
-                        ColorUtil.color("&7Left-Click gives 1 item. Shift-Click gives 64."))));
-
-        inv.setItem(53, createNamedItem(Material.REPEATER, ColorUtil.color("&6Reload Configuration"),
-                List.of(ColorUtil.color("&7Reload config.yml and all registries."),
-                        ColorUtil.color("&eClick to reload"))));
+        inv.setItem(53, createNamedItem(Material.REPEATER, ColorUtil.color("&eReload Plugin"),
+                List.of(ColorUtil.color("&7Hot-reload config.yml and minion registries."))));
 
         player.openInventory(inv);
     }
@@ -85,7 +87,8 @@ public class OperatorGUI {
         for (int i = 0; i < 54; i++) inv.setItem(i, border);
 
         inv.setItem(4, createNamedItem(Material.DIAMOND_PICKAXE, ColorUtil.color("&bMinions Catalog"),
-                List.of(ColorUtil.color("&7Select a minion type below to receive or browse tiers."))));
+                List.of(ColorUtil.color("&7Left-Click any minion to receive Tier XI (Maxed)."),
+                        ColorUtil.color("&7Right-Click to browse and choose any tier (I to XI)."))));
 
         int[] slots = {20, 22, 24};
         MinionType[] types = MinionType.values();

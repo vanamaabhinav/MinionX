@@ -1,12 +1,15 @@
 package com.skyblock.minions;
 
 import com.skyblock.minions.api.FuelRegistry;
+import com.skyblock.minions.api.MinionRegistry;
 import com.skyblock.minions.api.MinionTier;
 import com.skyblock.minions.api.UpgradeRegistry;
 import com.skyblock.minions.command.MinionCommand;
 import com.skyblock.minions.command.OperatorCommand;
+import com.skyblock.minions.core.CompressionManager;
 import com.skyblock.minions.core.MinionManager;
 import com.skyblock.minions.core.MinionTickTask;
+import com.skyblock.minions.gui.MinionCreatorListener;
 import com.skyblock.minions.gui.MinionGUIListener;
 import com.skyblock.minions.gui.OperatorGUIListener;
 import com.skyblock.minions.listener.ChunkLifecycleListener;
@@ -31,7 +34,7 @@ public class SkyBlockMinions extends JavaPlugin {
         // Save default config
         saveDefaultConfig();
 
-        // Load dynamic custom tiers, fuels, and upgrades from config.yml
+        // Load dynamic custom tiers, fuels, upgrades, compression recipes, and custom minions
         loadRegistries();
 
         // Initialize Managers
@@ -45,6 +48,7 @@ public class SkyBlockMinions extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new MinionPlaceListener(), this);
         getServer().getPluginManager().registerEvents(new MinionInteractListener(), this);
         getServer().getPluginManager().registerEvents(new MinionGUIListener(), this);
+        getServer().getPluginManager().registerEvents(new MinionCreatorListener(), this);
         getServer().getPluginManager().registerEvents(new OperatorGUIListener(), this);
         getServer().getPluginManager().registerEvents(new ChunkLifecycleListener(), this);
         getServer().getPluginManager().registerEvents(new CustomItemProtectionListener(), this);
@@ -111,6 +115,9 @@ public class SkyBlockMinions extends JavaPlugin {
         MinionTier.load(getConfig().getConfigurationSection("tiers"));
         FuelRegistry.load(getConfig().getConfigurationSection("fuels"));
         UpgradeRegistry.load(getConfig().getConfigurationSection("upgrades"));
-        getLogger().info("Loaded " + MinionTier.getMaxTier() + " tiers, " + FuelRegistry.getKeys().size() + " fuels, and " + UpgradeRegistry.getKeys().size() + " upgrades.");
+        CompressionManager.loadRecipes();
+        MinionRegistry.load();
+        getLogger().info("Loaded " + MinionTier.getMaxTier() + " tiers, " + FuelRegistry.getKeys().size() + " fuels, " +
+                UpgradeRegistry.getKeys().size() + " upgrades, and " + MinionRegistry.getAll().size() + " minion definitions.");
     }
 }

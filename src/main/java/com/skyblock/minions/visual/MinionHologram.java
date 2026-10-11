@@ -1,6 +1,7 @@
 package com.skyblock.minions.visual;
 
 import com.skyblock.minions.SkyBlockMinions;
+import com.skyblock.minions.api.MinionState;
 import com.skyblock.minions.api.MinionTier;
 import com.skyblock.minions.core.Minion;
 import com.skyblock.minions.util.ColorUtil;
@@ -40,11 +41,15 @@ public class MinionHologram {
         loc.add(0, 1.05, 0);
 
         String template = config.getString("nametags.format", "&e[Lv.%tier_roman%] &a%minion_name% Minion &7(%status%&7)");
+        String statusDisplay = minion.getState() == MinionState.PARTIALLY_OBSTRUCTED
+                ? config.getString("messages.partially-obstructed-status", "&ePartially Obstructed")
+                : minion.getState().getDisplayStatus();
+
         String formatted = template
                 .replace("%tier%", String.valueOf(minion.getTier()))
                 .replace("%tier_roman%", MinionTier.toRoman(minion.getTier()))
-                .replace("%minion_name%", minion.getType().getDisplayName())
-                .replace("%status%", minion.getState().getDisplayStatus())
+                .replace("%minion_name%", minion.getDisplayName())
+                .replace("%status%", statusDisplay)
                 .replace("%total%", String.valueOf(minion.getTotalHarvested()));
 
         boolean visibleAlways = "ALWAYS".equals(mode);

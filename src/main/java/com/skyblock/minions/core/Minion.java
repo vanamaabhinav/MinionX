@@ -32,6 +32,8 @@ public class Minion {
 
     private UUID armorStandId;
     private UUID hologramId;
+    private int storedXp;
+    private String customDefinitionId;
 
     public Minion(UUID minionId, UUID ownerId, MinionType type, int tier, Location location) {
         this.minionId = minionId != null ? minionId : UUID.randomUUID();
@@ -137,6 +139,22 @@ public class Minion {
         if (fuel == null) return false;
         if (fuel.isPermanent()) return true;
         return System.currentTimeMillis() < fuelEndTime;
+    }
+
+    public boolean isFuelPermanent() {
+        CustomFuel cf = getCustomFuel();
+        return cf != null && cf.isPermanent();
+    }
+
+    public String getFormattedFuelTimeRemaining() {
+        if (isFuelPermanent()) return "Permanent";
+        if (!isFuelActive()) return "Expired";
+        long remaining = Math.max(0, fuelEndTime - System.currentTimeMillis());
+        long hours = remaining / (3600 * 1000L);
+        long minutes = (remaining % (3600 * 1000L)) / (60 * 1000L);
+        long seconds = (remaining % (60 * 1000L)) / 1000L;
+        if (hours > 0) return String.format("%dh %dm", hours, minutes);
+        return String.format("%dm %ds", minutes, seconds);
     }
 
     public String getUpgrade1Id() {
@@ -351,6 +369,42 @@ public class Minion {
 
     public void setLastActionWasPlace(boolean lastActionWasPlace) {
         this.lastActionWasPlace = lastActionWasPlace;
+    }
+
+    public int getStoredXp() {
+        return storedXp;
+    }
+
+    public void setStoredXp(int storedXp) {
+        this.storedXp = storedXp;
+    }
+
+    public void addStoredXp(int xp) {
+        this.storedXp += xp;
+    }
+
+    public int claimStoredXp() {
+        int x = this.storedXp;
+        this.storedXp = 0;
+        return x;
+    }
+
+    public String getCustomDefinitionId() {
+        return customDefinitionId;
+    }
+
+    public String getDisplayName() {
+        if (customDefinitionId != null) {
+            MinionDefinition def = MinionRegistry.get(customDefinitionId);
+            if (def != null) {
+                return def.getDisplayName();
+            }
+        }
+        return type != null ? type.getDisplayName() : "Unknown";
+    }
+
+    public void setCustomDefinitionId(String customDefinitionId) {
+        this.customDefinitionId = customDefinitionId;
     }
 
     public int getTotalHarvested() {

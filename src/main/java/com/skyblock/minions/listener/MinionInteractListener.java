@@ -4,6 +4,8 @@ import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.core.Minion;
 import com.skyblock.minions.core.OfflineCalculator;
 import com.skyblock.minions.gui.MinionGUI;
+import com.skyblock.minions.hook.IslandHookManager;
+import com.skyblock.minions.util.ColorUtil;
 import com.skyblock.minions.visual.MinionHologram;
 import com.skyblock.minions.visual.MinionVisual;
 import org.bukkit.Sound;
@@ -23,6 +25,7 @@ import java.util.UUID;
 
 /**
  * Handles interactions and damage prevention for minion ArmorStands.
+ * Enforces island team and owner security checks.
  */
 public class MinionInteractListener implements Listener {
 
@@ -38,6 +41,15 @@ public class MinionInteractListener implements Listener {
         event.setCancelled(true);
 
         Player player = event.getPlayer();
+
+        // Check island/owner access permissions
+        if (!IslandHookManager.canAccessMinion(player, minion)) {
+            String noAccessMsg = SkyBlockMinions.getInstance().getConfig().getString(
+                    "messages.no-minion-access-permission", "&cYou do not have permission to access this minion!");
+            player.sendMessage(ColorUtil.color(noAccessMsg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
 
         // Process any offline/unloaded accumulation catch-up
         OfflineCalculator.processOfflineCatchup(minion);

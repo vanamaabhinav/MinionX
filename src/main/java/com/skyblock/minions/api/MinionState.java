@@ -1,22 +1,25 @@
 package com.skyblock.minions.api;
 
+import com.skyblock.minions.util.ColorUtil;
+
 /**
  * Represents the current operational state of a minion.
  */
 public enum MinionState {
-    IDLE("§a● Working"),
-    PLACING("§a● Spawning"),
-    MINING("§a● Mining"),
-    FULL("§c● Inventory Full!"),
-    NO_SPACE("§c● Need 5x5 Area!");
+    IDLE("&aWorking"),
+    PLACING("&aSpawning"),
+    MINING("&aMining"),
+    PARTIALLY_OBSTRUCTED("&ePartially Obstructed"),
+    FULL("&cInventory Full!"),
+    NO_SPACE("&cNeed 5x5 Area!");
 
-    private final String displayStatus;
+    private final String defaultStatus;
 
-    MinionState(String displayStatus) {
-        this.displayStatus = displayStatus;
+    MinionState(String defaultStatus) {
+        this.defaultStatus = defaultStatus;
     }
 
     public String getDisplayStatus() {
-        return displayStatus;
+        return ColorUtil.color(defaultStatus);
     }
 }

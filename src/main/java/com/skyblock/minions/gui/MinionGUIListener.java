@@ -2,40 +2,26 @@ package com.skyblock.minions.gui;
 
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
-import com.skyblock.minions.core.CollectionCommandHandler;
 import com.skyblock.minions.core.Minion;
+import com.skyblock.minions.hook.IslandHookManager;
 import com.skyblock.minions.item.MinionItemFactory;
+import com.skyblock.minions.core.CollectionCommandHandler;
 import com.skyblock.minions.util.ColorUtil;
 import com.skyblock.minions.visual.MinionHologram;
-import com.skyblock.minions.visual.MinionVisual;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
 
 /**
- * Handles interactions within the Minion GUI.
- * Protects against item loss and enables auto-equipping accessories and fuels on shift-click.
+ * Handles interactions inside the authentic Hypixel Minion Chest GUI.
  */
 public class MinionGUIListener implements Listener {
-
-    @EventHandler
-    public void onInventoryDrag(InventoryDragEvent event) {
-        if (event.getInventory().getHolder() instanceof MinionHolder) {
-            for (int rawSlot : event.getRawSlots()) {
-                if (rawSlot < 54) {
-                    event.setCancelled(true);
-                    return;
-                }
-            }
-        }
-    }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
@@ -43,73 +29,26 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
-        Minion minion = holder.getMinion();
-        Player player = (Player) event.getWhoClicked();
-        int slot = event.getRawSlot();
-
-        // Prevent item loss on shift-click from player inventory into custom GUI
-        if (event.isShiftClick()) {
-            event.setCancelled(true);
-
-            if (slot >= 54) {
-                ItemStack clickedItem = event.getCurrentItem();
-                if (clickedItem == null || clickedItem.getType() == Material.AIR) {
-                    return;
-                }
-
-                // Auto-equip Upgrades / Accessories
-                CustomUpgrade upgrade = UpgradeRegistry.fromItemStack(clickedItem);
-                if (upgrade != null) {
-                    if (minion.getCustomUpgrade1() == null) {
-                        clickedItem.setAmount(clickedItem.getAmount() - 1);
-                        minion.setUpgrade1(upgrade);
-                        player.sendMessage(ColorUtil.color("&aEquipped " + upgrade.getDisplayName() + " &ain Upgrade Slot 1!"));
-                        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.5f);
-                        MinionGUI.open(player, minion);
-                        return;
-                    } else if (minion.getCustomUpgrade2() == null) {
-                        clickedItem.setAmount(clickedItem.getAmount() - 1);
-                        minion.setUpgrade2(upgrade);
-                        player.sendMessage(ColorUtil.color("&aEquipped " + upgrade.getDisplayName() + " &ain Upgrade Slot 2!"));
-                        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.5f);
-                        MinionGUI.open(player, minion);
-                        return;
-                    } else {
-                        player.sendMessage(ColorUtil.color("&cAll upgrade slots on this minion are full!"));
-                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                        return;
-                    }
-                }
-
-                // Auto-equip Fuels
-                CustomFuel fuel = FuelRegistry.fromItemStack(clickedItem);
-                if (fuel != null) {
-                    if (!minion.isFuelActive()) {
-                        clickedItem.setAmount(clickedItem.getAmount() - 1);
-                        minion.setFuel(fuel);
-                        player.sendMessage(ColorUtil.color("&aEquipped " + fuel.getDisplayName() + " &afuel! Speed boosted by +" + (int) (fuel.getSpeedBuff() * 100) + "%."));
-                        player.playSound(player.getLocation(), Sound.BLOCK_BREWING_STAND_BREW, 1.0f, 1.2f);
-                        MinionGUI.open(player, minion);
-                        return;
-                    } else {
-                        player.sendMessage(ColorUtil.color("&cThis minion already has active fuel!"));
-                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                        return;
-                    }
-                }
-            }
-            return;
-        }
-
-        // Allow normal non-shift clicking inside player's own inventory
-        if (slot >= 54) {
-            return;
-        }
-
-        // Cancel all clicks in the top Minion GUI for security
         event.setCancelled(true);
 
-        // 1. Quick Collect All
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+
+        Minion minion = holder.getMinion();
+        if (minion == null) return;
+
+        // Verify island / region access permission
+        if (!IslandHookManager.canAccessMinion(player, minion)) {
+            player.closeInventory();
+            String msg = SkyBlockMinions.getInstance().getConfig().getString("messages.no-island-access-permission", "&cYou do not have permission to access this minion!");
+            player.sendMessage(ColorUtil.color(msg));
+            return;
+        }
+
+        int slot = event.getRawSlot();
+
+        // 1. Collect All Items & Claim Stored XP
         if (slot == MinionGUI.COLLECT_ALL_SLOT) {
             handleCollectAll(player, minion);
             return;
@@ -145,10 +84,10 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
-        // 7. Individual Storage Slots Click
-        for (int i = 0; i < MinionGUI.STORAGE_SLOTS.length; i++) {
-            if (slot == MinionGUI.STORAGE_SLOTS[i]) {
-                handleStorageSlotClick(player, minion, i);
+        // 7. Individual Storage Slot Clicks
+        for (int storageSlot : MinionGUI.STORAGE_SLOTS) {
+            if (slot == storageSlot) {
+                handleStorageSlotClick(player, minion, slot);
                 return;
             }
         }
@@ -156,19 +95,14 @@ public class MinionGUIListener implements Listener {
 
     private void handleCollectAll(Player player, Minion minion) {
         if (minion.getInventory().isEmpty()) {
-            player.sendMessage(ColorUtil.color("&cThis minion has no resources stored!"));
+            player.sendMessage(ColorUtil.color("&cYour minion has no items to collect!"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
 
         int collectedCount = 0;
         for (ItemStack item : minion.getInventory()) {
-            int amount = item.getAmount();
-            Material itemType = item.getType();
-            collectedCount += amount;
-
-            CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, amount);
-
+            collectedCount += item.getAmount();
             HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
             for (ItemStack left : leftover.values()) {
                 player.getWorld().dropItemNaturally(player.getLocation(), left);
@@ -176,10 +110,21 @@ public class MinionGUIListener implements Listener {
         }
 
         minion.getInventory().clear();
-        minion.setState(MinionState.IDLE);
+
+        if (minion.getState() == MinionState.FULL) {
+            minion.setState(MinionState.IDLE);
+        }
         MinionHologram.updateHologram(minion);
 
-        player.sendMessage(ColorUtil.color("&aCollected " + collectedCount + " items from your minion!"));
+        int xp = minion.claimStoredXp();
+        if (xp > 0) {
+            player.giveExp(xp);
+            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+        }
+
+        String template = SkyBlockMinions.getInstance().getConfig().getString("messages.collected", "&aCollected %amount% items and &e+%xp% XP &afrom your minion!");
+        String msg = template.replace("%amount%", String.valueOf(collectedCount)).replace("%xp%", String.valueOf(xp));
+        player.sendMessage(ColorUtil.color(msg));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
 
         MinionGUI.open(player, minion);
@@ -195,32 +140,37 @@ public class MinionGUIListener implements Listener {
 
         int cost = MinionTier.getUpgradeCost(currentTier);
         Material required = minion.getType().getDropMaterial();
+        if (minion.getCustomDefinitionId() != null) {
+            MinionDefinition def = MinionRegistry.get(minion.getCustomDefinitionId());
+            if (def != null && def.getExactDropItem() != null) {
+                required = def.getExactDropItem().getType();
+            }
+        }
 
         if (!hasEnoughItems(player, required, cost)) {
-            player.sendMessage(ColorUtil.color("&cYou need " + cost + " " + minion.getType().getDisplayName() + " to upgrade this minion!"));
+            player.sendMessage(ColorUtil.color("&cYou need &e" + cost + "x " + required.name().replace("_", " ").toLowerCase() + " &cto upgrade!"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
 
-        // Deduct items
         removeItems(player, required, cost);
-
-        // Level up
         minion.setTier(currentTier + 1);
-        MinionVisual.spawnOrUpdate(minion);
-        MinionHologram.updateHologram(minion);
 
-        player.sendMessage(ColorUtil.color("&aUpgraded " + minion.getType().getDisplayName() + " Minion to Tier " + MinionTier.toRoman(minion.getTier()) + "!"));
-        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.2f);
+        String template = SkyBlockMinions.getInstance().getConfig().getString("messages.upgraded", "&aUpgraded your %minion% to &bTier %tier%&a!");
+        String msg = template.replace("%minion%", minion.getDisplayName() + " Minion").replace("%tier%", MinionTier.toRoman(minion.getTier()));
+        player.sendMessage(ColorUtil.color(msg));
+
+        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.0f);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
 
+        MinionHologram.updateHologram(minion);
         MinionGUI.open(player, minion);
     }
 
     private void handlePickup(Player player, Minion minion) {
         player.closeInventory();
 
-        // Return stored items
+        // 1. Return stored items
         for (ItemStack item : minion.getInventory()) {
             HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
             for (ItemStack left : leftover.values()) {
@@ -229,30 +179,47 @@ public class MinionGUIListener implements Listener {
         }
         minion.getInventory().clear();
 
-        // Return fuel item if present
+        // 2. Deliver stored XP
+        int xp = minion.claimStoredXp();
+        if (xp > 0) {
+            player.giveExp(xp);
+            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+        }
+
+        // 3. Return fuel item if present
         if (minion.isFuelActive() && minion.getCustomFuel() != null) {
             player.getInventory().addItem(MinionItemFactory.createFuelItem(minion.getCustomFuel()));
         }
 
-        // Return upgrade items if present
+        // 4. Return upgrade 1
         if (minion.getCustomUpgrade1() != null) {
             player.getInventory().addItem(MinionItemFactory.createUpgradeItem(minion.getCustomUpgrade1()));
         }
+
+        // 5. Return upgrade 2
         if (minion.getCustomUpgrade2() != null) {
             player.getInventory().addItem(MinionItemFactory.createUpgradeItem(minion.getCustomUpgrade2()));
         }
 
-        // Give Minion item
-        ItemStack minionItem = MinionItemFactory.createMinionItem(minion.getType(), minion.getTier(), minion.getTotalHarvested());
-        HashMap<Integer, ItemStack> left = player.getInventory().addItem(minionItem);
-        for (ItemStack extra : left.values()) {
-            player.getWorld().dropItemNaturally(player.getLocation(), extra);
+        // 6. Return minion item itself!
+        ItemStack minionItem;
+        if (minion.getCustomDefinitionId() != null) {
+            MinionDefinition def = MinionRegistry.get(minion.getCustomDefinitionId());
+            minionItem = def != null
+                    ? MinionItemFactory.createCustomMinionItem(def, minion.getTier(), minion.getTotalHarvested())
+                    : MinionItemFactory.createMinionItem(minion.getType(), minion.getTier(), minion.getTotalHarvested());
+        } else {
+            minionItem = MinionItemFactory.createMinionItem(minion.getType(), minion.getTier(), minion.getTotalHarvested());
+        }
+        HashMap<Integer, ItemStack> leftoverMinion = player.getInventory().addItem(minionItem);
+        for (ItemStack left : leftoverMinion.values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), left);
         }
 
         // Unregister and despawn
         SkyBlockMinions.getInstance().getMinionManager().unregister(minion);
 
-        player.sendMessage(ColorUtil.color("&eYou picked up your " + minion.getType().getDisplayName() + " Minion!"));
+        player.sendMessage(ColorUtil.color("&eYou picked up your " + minion.getDisplayName() + " Minion!"));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
     }
 
@@ -282,7 +249,8 @@ public class MinionGUIListener implements Listener {
     }
 
     private void handleUpgradeSlot(Player player, Minion minion, int slotNum) {
-        CustomUpgrade current = (slotNum == 1) ? minion.getCustomUpgrade1() : minion.getCustomUpgrade2();
+        CustomUpgrade current = slotNum == 1 ? minion.getCustomUpgrade1() : minion.getCustomUpgrade2();
+
         if (current != null) {
             if (slotNum == 1) minion.setUpgrade1((CustomUpgrade) null);
             else minion.setUpgrade2((CustomUpgrade) null);
@@ -304,18 +272,35 @@ public class MinionGUIListener implements Listener {
         }
     }
 
-    private void handleStorageSlotClick(Player player, Minion minion, int index) {
-        int unlocked = MinionTier.getStorageSlots(minion.getTier());
-        if (index < unlocked && index < minion.getInventory().size()) {
-            ItemStack item = minion.getInventory().remove(index);
+    private void handleStorageSlotClick(Player player, Minion minion, int clickedSlot) {
+        int listIndex = -1;
+        for (int i = 0; i < MinionGUI.STORAGE_SLOTS.length; i++) {
+            if (MinionGUI.STORAGE_SLOTS[i] == clickedSlot) {
+                listIndex = i;
+                break;
+            }
+        }
+
+        if (listIndex >= 0 && listIndex < minion.getInventory().size()) {
+            ItemStack item = minion.getInventory().remove(listIndex);
             int amount = item.getAmount();
             Material itemType = item.getType();
+
             HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
             for (ItemStack left : leftover.values()) {
                 player.getWorld().dropItemNaturally(player.getLocation(), left);
             }
             CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, amount);
-            minion.setState(MinionState.IDLE);
+
+            int xp = minion.claimStoredXp();
+            if (xp > 0) {
+                player.giveExp(xp);
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+            }
+
+            if (minion.getState() == MinionState.FULL) {
+                minion.setState(MinionState.IDLE);
+            }
             MinionHologram.updateHologram(minion);
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
             MinionGUI.open(player, minion);
@@ -335,19 +320,13 @@ public class MinionGUIListener implements Listener {
 
     private void removeItems(Player player, Material mat, int amount) {
         int remaining = amount;
-        ItemStack[] contents = player.getInventory().getContents();
-        for (int i = 0; i < contents.length; i++) {
-            ItemStack item = contents[i];
+        for (ItemStack item : player.getInventory().getContents()) {
             if (item != null && item.getType() == mat) {
                 int take = Math.min(remaining, item.getAmount());
                 item.setAmount(item.getAmount() - take);
                 remaining -= take;
-                if (item.getAmount() <= 0) {
-                    contents[i] = null;
-                }
                 if (remaining <= 0) break;
             }
         }
-        player.getInventory().setContents(contents);
     }
 }

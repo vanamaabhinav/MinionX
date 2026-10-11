@@ -31,11 +31,12 @@ public class MinionItemFactory {
     public static final NamespacedKey MINION_TYPE_KEY = new NamespacedKey("skyblockminions", "minion_type");
     public static final NamespacedKey MINION_TIER_KEY = new NamespacedKey("skyblockminions", "minion_tier");
     public static final NamespacedKey MINION_HARVESTED_KEY = new NamespacedKey("skyblockminions", "minion_harvested");
+    public static final NamespacedKey CUSTOM_MINION_ID_KEY = new NamespacedKey("skyblockminions", "custom_minion_id");
     public static final NamespacedKey UPGRADE_KEY = new NamespacedKey("skyblockminions", "upgrade_type");
     public static final NamespacedKey FUEL_KEY = new NamespacedKey("skyblockminions", "fuel_type");
 
     /**
-     * Creates a placeable minion item.
+     * Creates a placeable minion item for a built-in MinionType.
      */
     public static ItemStack createMinionItem(MinionType type, int tier, int harvested) {
         tier = Math.clamp(tier, 1, MinionTier.getMaxTier());
@@ -45,16 +46,18 @@ public class MinionItemFactory {
         if (meta != null) {
             String texture = type.getSkullTexture();
             if (texture != null && !texture.isEmpty()) {
-                PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
-                profile.setProperty(new ProfileProperty("textures", texture));
-                meta.setPlayerProfile(profile);
+                try {
+                    PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
+                    profile.setProperty(new ProfileProperty("textures", texture));
+                    meta.setPlayerProfile(profile);
+                } catch (Exception ignored) {}
             }
 
             String roman = MinionTier.toRoman(tier);
             meta.setDisplayName(ColorUtil.color("&a" + type.getDisplayName() + " Minion " + roman));
 
-            FileConfiguration config = SkyBlockMinions.getInstance().getConfig();
-            List<String> configuredLore = config.getStringList("item-lore.minion-item");
+            FileConfiguration config = SkyBlockMinions.getInstance() != null ? SkyBlockMinions.getInstance().getConfig() : null;
+            List<String> configuredLore = config != null ? config.getStringList("item-lore.minion-item") : null;
 
             List<String> lore = new ArrayList<>();
             if (configuredLore != null && !configuredLore.isEmpty()) {
@@ -92,6 +95,73 @@ public class MinionItemFactory {
         return skull;
     }
 
+    /**
+     * Creates a placeable minion item for a custom data-driven MinionDefinition.
+     */
+    public static ItemStack createCustomMinionItem(MinionDefinition def, int tier, int harvested) {
+        if (def == null) return new ItemStack(Material.PLAYER_HEAD);
+        tier = Math.clamp(tier, 1, MinionTier.getMaxTier());
+        ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) skull.getItemMeta();
+
+        if (meta != null) {
+            String texture = def.getSkullTexture(tier);
+            if (texture != null && !texture.isEmpty()) {
+                try {
+                    PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
+                    profile.setProperty(new ProfileProperty("textures", texture));
+                    meta.setPlayerProfile(profile);
+                } catch (Exception ignored) {}
+            }
+
+            String roman = MinionTier.toRoman(tier);
+            meta.setDisplayName(ColorUtil.color("&a" + def.getDisplayName() + " Minion " + roman));
+
+            FileConfiguration config = SkyBlockMinions.getInstance() != null ? SkyBlockMinions.getInstance().getConfig() : null;
+            List<String> configuredLore = config != null ? config.getStringList("item-lore.minion-item") : null;
+
+            List<String> lore = new ArrayList<>();
+            double delay = def.getDefaultActionDelay();
+            int slots = def.getDefaultStorageSlots();
+            int capacity = slots * 64;
+
+            if (configuredLore != null && !configuredLore.isEmpty()) {
+                for (String line : configuredLore) {
+                    lore.add(ColorUtil.color(line
+                            .replace("%type%", def.getDisplayName())
+                            .replace("%tier%", String.valueOf(tier))
+                            .replace("%tier_roman%", roman)
+                            .replace("%delay%", String.format("%.1f", delay))
+                            .replace("%capacity%", String.valueOf(capacity))
+                            .replace("%slots%", String.valueOf(slots))
+                            .replace("%harvested%", String.valueOf(harvested))));
+                }
+            } else {
+                lore.add(ColorUtil.color("&7Time Between Actions: &a" + String.format("%.1f", delay) + "s"));
+                lore.add(ColorUtil.color("&7Max Storage: &e" + capacity + " items &7(" + slots + " slots)"));
+                lore.add(ColorUtil.color("&7Archetype: &e" + def.getArchetype().name()));
+                lore.add(ColorUtil.color("&7"));
+                lore.add(ColorUtil.color("&7Place this minion down to generate"));
+                lore.add(ColorUtil.color("&7and harvest resources on your island!"));
+                lore.add(ColorUtil.color("&7"));
+                lore.add(ColorUtil.color("&eRight-click on the ground to place!"));
+            }
+
+            meta.setLore(lore);
+
+            PersistentDataContainer pdc = meta.getPersistentDataContainer();
+            pdc.set(IS_MINION_KEY, PersistentDataType.BYTE, (byte) 1);
+            pdc.set(MINION_TYPE_KEY, PersistentDataType.STRING, "COBBLESTONE");
+            pdc.set(CUSTOM_MINION_ID_KEY, PersistentDataType.STRING, def.getId());
+            pdc.set(MINION_TIER_KEY, PersistentDataType.INTEGER, tier);
+            pdc.set(MINION_HARVESTED_KEY, PersistentDataType.INTEGER, harvested);
+
+            skull.setItemMeta(meta);
+        }
+
+        return skull;
+    }
+
     public static boolean isMinionItem(ItemStack item) {
         if (item == null || item.getType() != Material.PLAYER_HEAD) return false;
         ItemMeta meta = item.getItemMeta();
@@ -103,6 +173,11 @@ public class MinionItemFactory {
         if (!isMinionItem(item)) return null;
         String typeStr = item.getItemMeta().getPersistentDataContainer().get(MINION_TYPE_KEY, PersistentDataType.STRING);
         return MinionType.fromString(typeStr);
+    }
+
+    public static String getCustomMinionId(ItemStack item) {
+        if (!isMinionItem(item)) return null;
+        return item.getItemMeta().getPersistentDataContainer().get(CUSTOM_MINION_ID_KEY, PersistentDataType.STRING);
     }
 
     public static int getMinionTier(ItemStack item) {
@@ -229,7 +304,7 @@ public class MinionItemFactory {
         if (meta != null) {
             meta.setDisplayName(ColorUtil.color("&b" + fuel.getDisplayName()));
             List<String> lore = new ArrayList<>();
-            lore.add(ColorUtil.color("&7Increases minion speed by &a+" + (int) (fuel.getSpeedBuff() * 100) + "%&7."));
+            lore.add(ColorUtil.color("&7Increases minion speed by &a+" + (int) (fuel.getSpeedBuff() * 100) + "%.&7"));
             lore.add(ColorUtil.color("&7Duration: &e" + (fuel.isPermanent() ? "Permanent" : (fuel.getDurationMillis() / (3600 * 1000L)) + " hours")));
             lore.add(ColorUtil.color("&7"));
             lore.add(ColorUtil.color("&ePlace in a Minion's fuel slot!"));

@@ -65,6 +65,8 @@ public class MinionStorage {
             config.set(path + ".last-was-place", minion.wasLastActionPlace());
             config.set(path + ".harvested", minion.getTotalHarvested());
 
+            config.set(path + ".xp", minion.getStoredXp());
+            config.set(path + ".custom_id", minion.getCustomDefinitionId());
             config.set(path + ".items", minion.getInventory());
         }
 

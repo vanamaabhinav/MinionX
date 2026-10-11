@@ -2,9 +2,11 @@ package com.skyblock.minions.visual;
 
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
-import com.skyblock.minions.SkyBlockMinions;
+import com.skyblock.minions.api.MinionDefinition;
+import com.skyblock.minions.api.MinionRegistry;
 import com.skyblock.minions.core.Minion;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -19,6 +21,7 @@ import java.util.UUID;
 
 /**
  * Handles spawning, styling, and despawning of the visual ArmorStand minion entity.
+ * Supports both standard MinionType and custom data-driven MinionDefinitions with per-tier styles.
  */
 public class MinionVisual {
 
@@ -33,12 +36,22 @@ public class MinionVisual {
         }
 
         Location loc = minion.getLocation().clone();
-        // Center the armor stand precisely in the middle of the block
         loc.setX(loc.getBlockX() + 0.5);
         loc.setZ(loc.getBlockZ() + 0.5);
 
         // Despawn existing if present
         remove(minion);
+
+        MinionDefinition def = minion.getCustomDefinitionId() != null
+                ? MinionRegistry.get(minion.getCustomDefinitionId())
+                : (minion.getType() != null ? MinionRegistry.get(minion.getType().name().toLowerCase()) : null);
+
+        int tier = minion.getTier();
+
+        String skullTexture = def != null ? def.getSkullTexture(tier) : (minion.getType() != null ? minion.getType().getSkullTexture() : null);
+        Material armorMat = def != null ? def.getArmorMaterial(tier) : Material.LEATHER_CHESTPLATE;
+        Color armorColor = def != null ? def.getArmorColor(tier) : (minion.getType() != null ? minion.getType().getArmorColor() : Color.fromRGB(120, 120, 120));
+        ItemStack handItem = def != null ? def.getHandItem(tier) : (minion.getType() != null ? new ItemStack(minion.getType().getToolMaterial()) : new ItemStack(Material.STONE_PICKAXE));
 
         ArmorStand stand = loc.getWorld().spawn(loc, ArmorStand.class, as -> {
             as.setSmall(true);
@@ -50,19 +63,22 @@ public class MinionVisual {
             as.setRemoveWhenFarAway(false);
             as.setPersistent(true);
 
-            // Tag with minion UUID in PersistentDataContainer
             as.getPersistentDataContainer().set(MINION_ENTITY_KEY, PersistentDataType.STRING, minion.getMinionId().toString());
 
-            // Equip custom textured skull
-            as.getEquipment().setHelmet(createCustomSkull(minion.getType().getSkullTexture()));
+            // Skull
+            as.getEquipment().setHelmet(createCustomSkull(skullTexture));
 
-            // Equip dyed leather armor
-            as.getEquipment().setChestplate(createDyedArmor(Material.LEATHER_CHESTPLATE, minion.getType().getArmorColor()));
-            as.getEquipment().setLeggings(createDyedArmor(Material.LEATHER_LEGGINGS, minion.getType().getArmorColor()));
-            as.getEquipment().setBoots(createDyedArmor(Material.LEATHER_BOOTS, minion.getType().getArmorColor()));
+            // Armor
+            if (armorMat == Material.LEATHER_CHESTPLATE || armorMat == Material.LEATHER_LEGGINGS || armorMat == Material.LEATHER_BOOTS) {
+                as.getEquipment().setChestplate(createDyedArmor(Material.LEATHER_CHESTPLATE, armorColor));
+                as.getEquipment().setLeggings(createDyedArmor(Material.LEATHER_LEGGINGS, armorColor));
+                as.getEquipment().setBoots(createDyedArmor(Material.LEATHER_BOOTS, armorColor));
+            } else {
+                as.getEquipment().setChestplate(new ItemStack(armorMat));
+            }
 
-            // Equip appropriate pickaxe tool
-            as.getEquipment().setItemInMainHand(new ItemStack(minion.getType().getToolMaterial()));
+            // Hand Tool / Weapon
+            as.getEquipment().setItemInMainHand(handItem);
         });
 
         minion.setArmorStandId(stand.getUniqueId());
@@ -82,7 +98,6 @@ public class MinionVisual {
             }
         }
 
-        // Also clean up any lingering armor stand with matching PDC tag in that chunk
         Location loc = minion.getLocation();
         if (loc.isChunkLoaded()) {
             for (Entity nearby : loc.getWorld().getNearbyEntities(loc, 2.0, 2.0, 2.0)) {
@@ -110,7 +125,7 @@ public class MinionVisual {
         return skull;
     }
 
-    private static ItemStack createDyedArmor(Material material, org.bukkit.Color color) {
+    private static ItemStack createDyedArmor(Material material, Color color) {
         ItemStack armor = new ItemStack(material);
         LeatherArmorMeta meta = (LeatherArmorMeta) armor.getItemMeta();
         if (meta != null) {

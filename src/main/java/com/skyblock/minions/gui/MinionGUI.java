@@ -1,8 +1,12 @@
 package com.skyblock.minions.gui;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.CustomFuel;
 import com.skyblock.minions.api.CustomUpgrade;
+import com.skyblock.minions.api.MinionDefinition;
+import com.skyblock.minions.api.MinionRegistry;
 import com.skyblock.minions.api.MinionTier;
 import com.skyblock.minions.core.Minion;
 import com.skyblock.minions.util.ColorUtil;
@@ -13,9 +17,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Builds the authentic 54-slot Hypixel SkyBlock Minion chest interface.
@@ -46,7 +52,7 @@ public class MinionGUI {
      * Creates and opens the Minion GUI for the player.
      */
     public static void open(Player player, Minion minion) {
-        String title = GUI_TITLE_PREFIX + minion.getType().getDisplayName() + " " + MinionTier.toRoman(minion.getTier());
+        String title = GUI_TITLE_PREFIX + minion.getDisplayName() + " " + MinionTier.toRoman(minion.getTier());
         Inventory inv = Bukkit.createInventory(new MinionHolder(minion), 54, title);
 
         // Hypixel style: Sleek Black Stained Glass Pane borders
@@ -100,9 +106,27 @@ public class MinionGUI {
 
     private static ItemStack createHeadItem(Minion minion) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-        ItemMeta meta = item.getItemMeta();
+        SkullMeta meta = (SkullMeta) item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ColorUtil.color("&a" + minion.getType().getDisplayName() + " Minion " + MinionTier.toRoman(minion.getTier())));
+            String texture = null;
+            if (minion.getCustomDefinitionId() != null) {
+                MinionDefinition def = MinionRegistry.get(minion.getCustomDefinitionId());
+                if (def != null) {
+                    texture = def.getSkullTexture(minion.getTier());
+                }
+            } else if (minion.getType() != null) {
+                texture = minion.getType().getSkullTexture();
+            }
+
+            if (texture != null && !texture.isEmpty()) {
+                try {
+                    PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
+                    profile.setProperty(new ProfileProperty("textures", texture));
+                    meta.setPlayerProfile(profile);
+                } catch (Exception ignored) {}
+            }
+
+            meta.setDisplayName(ColorUtil.color("&a" + minion.getDisplayName() + " Minion " + MinionTier.toRoman(minion.getTier())));
 
             FileConfiguration config = SkyBlockMinions.getInstance().getConfig();
             List<String> configuredLore = config.getStringList("gui.head-lore");
@@ -119,8 +143,8 @@ public class MinionGUI {
                 }
             } else {
                 lore.add(ColorUtil.color("&7Time Between Actions: &a" + String.format("%.1f", minion.getEffectiveActionDelay()) + "s"));
-                lore.add(ColorUtil.color("&7Total Harvested: &e" + minion.getTotalHarvested() + " items"));
-                lore.add(ColorUtil.color("&7Storage: &e" + minion.getTotalStoredCount() + " / " + MinionTier.getMaxCapacity(minion.getTier()) + " items"));
+                lore.add(ColorUtil.color("&7Total Harvested: &e" + minion.getTotalHarvested()));
+                lore.add(ColorUtil.color("&7Items Stored: &f" + minion.getTotalStoredCount() + " &7/ &e" + MinionTier.getMaxCapacity(minion.getTier())));
                 lore.add(ColorUtil.color("&7Status: " + minion.getState().getDisplayStatus()));
             }
 
@@ -131,45 +155,53 @@ public class MinionGUI {
     }
 
     private static ItemStack createEmptyFuelItem() {
-        return createNamedItem(Material.YELLOW_STAINED_GLASS_PANE, ColorUtil.color("&eFuel Slot"),
-                List.of(ColorUtil.color("&7Place fuel here to increase"), ColorUtil.color("&7your minion's speed!")));
+        return createNamedItem(Material.BUCKET, ColorUtil.color("&6Fuel Slot"),
+                List.of(ColorUtil.color("&7Increase the speed of your"),
+                        ColorUtil.color("&7minion by adding fuel!"),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick with a fuel item to deposit!")));
     }
 
     private static ItemStack createActiveFuelItem(Minion minion) {
         CustomFuel fuel = minion.getCustomFuel();
-        if (fuel == null) return createEmptyFuelItem();
-        String duration = fuel.isPermanent() ? "Permanent" :
-                (Math.max(0, (minion.getFuelEndTime() - System.currentTimeMillis()) / (60 * 1000L))) + "m remaining";
+        String name = fuel != null ? fuel.getDisplayName() : minion.getFuelId();
+        int buff = fuel != null ? (int) (fuel.getSpeedBuff() * 100) : 0;
+        String timeLeft = minion.isFuelPermanent() ? "Permanent" : minion.getFormattedFuelTimeRemaining();
 
-        return createNamedItem(fuel.getMaterial(), ColorUtil.color("&bFuel: " + fuel.getDisplayName()),
-                List.of(ColorUtil.color("&7Speed Boost: &a+" + (int) (fuel.getSpeedBuff() * 100) + "%"),
-                        ColorUtil.color("&7Duration: &e" + duration),
+        return createNamedItem(Material.LAVA_BUCKET, ColorUtil.color("&aFuel Active: " + name),
+                List.of(ColorUtil.color("&7Speed Boost: &a+" + buff + "%"),
+                        ColorUtil.color("&7Time Remaining: &e" + timeLeft),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick to remove fuel!")));
+                        ColorUtil.color("&eClick to retrieve fuel!")));
     }
 
-    private static ItemStack createUpgradeSlotItem(CustomUpgrade upgrade, int slotNum) {
+    private static ItemStack createUpgradeSlotItem(CustomUpgrade upgrade, int slotIndex) {
         if (upgrade == null) {
-            return createNamedItem(Material.LIGHT_GRAY_STAINED_GLASS_PANE, ColorUtil.color("&7Upgrade Slot " + slotNum),
-                    List.of(ColorUtil.color("&7Place minion upgrades here"), ColorUtil.color("&7to enhance functionality!")));
+            return createNamedItem(Material.IRON_BARS, ColorUtil.color("&dUpgrade Slot " + slotIndex),
+                    List.of(ColorUtil.color("&7Enhance your minion with upgrades"),
+                            ColorUtil.color("&7like the Auto-Smelter, Compactor,"),
+                            ColorUtil.color("&7or Diamond Spreading!"),
+                            ColorUtil.color("&7"),
+                            ColorUtil.color("&eClick with an upgrade to insert!")));
         }
-        List<String> lore = new ArrayList<>(upgrade.getLore());
-        lore.add(ColorUtil.color("&7"));
-        lore.add(ColorUtil.color("&eClick to remove upgrade!"));
-        return createNamedItem(upgrade.getMaterial(), ColorUtil.color(upgrade.getDisplayName()), lore);
+
+        return createNamedItem(upgrade.getMaterial(), ColorUtil.color("&a" + upgrade.getDisplayName()),
+                List.of(ColorUtil.color("&7Active upgrade installed."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to retrieve upgrade!")));
     }
 
-    private static ItemStack createLockedStoragePane(int slotNumber) {
-        return createNamedItem(Material.RED_STAINED_GLASS_PANE, ColorUtil.color("&cLocked Storage Slot"),
-                List.of(ColorUtil.color("&7Upgrade this minion to unlock"), ColorUtil.color("&7more storage space!")));
+    private static ItemStack createLockedStoragePane(int slotIndex) {
+        return createPane(Material.RED_STAINED_GLASS_PANE, ColorUtil.color("&cLocked Storage Slot &7(#" + slotIndex + ")"));
     }
 
     private static ItemStack createCollectAllItem(Minion minion) {
-        return createNamedItem(Material.CHEST, ColorUtil.color("&aQuick Collect All"),
-                List.of(ColorUtil.color("&7Instantly collect all stored items"),
-                        ColorUtil.color("&7into your inventory."),
+        int count = minion.getTotalStoredCount();
+        return createNamedItem(Material.CHEST, ColorUtil.color("&aCollect All Items &7(" + count + ")"),
+                List.of(ColorUtil.color("&7Click to instantly transfer all"),
+                        ColorUtil.color("&7stored resources and vanilla XP"),
+                        ColorUtil.color("&7into your inventory!"),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&7Items Stored: &e" + minion.getTotalStoredCount()),
                         ColorUtil.color("&eClick to collect!")));
     }
 
@@ -177,46 +209,58 @@ public class MinionGUI {
         int currentTier = minion.getTier();
         if (currentTier >= MinionTier.getMaxTier()) {
             return createNamedItem(Material.BEDROCK, ColorUtil.color("&cMax Tier Reached"),
-                    List.of(ColorUtil.color("&7This minion has reached the"), ColorUtil.color("&7maximum craftable tier (Tier XI)!")));
+                    List.of(ColorUtil.color("&7This minion has attained its"),
+                            ColorUtil.color("&7absolute maximum tier (" + MinionTier.toRoman(currentTier) + ")!")));
         }
 
         int nextTier = currentTier + 1;
         int cost = MinionTier.getUpgradeCost(currentTier);
-        double nextSpeed = MinionTier.getActionDelay(nextTier);
-        int nextSlots = MinionTier.getStorageSlots(nextTier);
 
-        List<String> lore = new ArrayList<>();
-        lore.add(ColorUtil.color("&7Upgrade to Tier &e" + MinionTier.toRoman(nextTier)));
-        lore.add(ColorUtil.color("&7"));
-        lore.add(ColorUtil.color("&7New Action Delay: &a" + nextSpeed + "s"));
-        lore.add(ColorUtil.color("&7New Storage: &e" + nextSlots + " slots &7(" + (nextSlots * 64) + " items)"));
-        lore.add(ColorUtil.color("&7"));
-        lore.add(ColorUtil.color("&7Cost: &a" + cost + " " + minion.getType().getDisplayName()));
-        lore.add(ColorUtil.color("&7"));
-        lore.add(ColorUtil.color("&eClick to upgrade!"));
+        Material mat = minion.getType().getDropMaterial();
+        if (minion.getCustomDefinitionId() != null) {
+            MinionDefinition def = MinionRegistry.get(minion.getCustomDefinitionId());
+            if (def != null && def.getExactDropItem() != null) {
+                mat = def.getExactDropItem().getType();
+            }
+        }
 
-        return createNamedItem(Material.ANVIL, ColorUtil.color("&aUpgrade Minion"), lore);
+        String matName = mat.name().replace("_", " ").toLowerCase();
+
+        return createNamedItem(Material.ANVIL, ColorUtil.color("&aUpgrade to Tier " + MinionTier.toRoman(nextTier)),
+                List.of(ColorUtil.color("&7Action Delay: &f" + MinionTier.getActionDelay(currentTier) + "s &8-> &a" + MinionTier.getActionDelay(nextTier) + "s"),
+                        ColorUtil.color("&7Storage: &f" + MinionTier.getMaxCapacity(currentTier) + " &8-> &a" + MinionTier.getMaxCapacity(nextTier)),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&7Cost: &e" + cost + "x " + matName),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick with items to upgrade!")));
     }
 
     private static ItemStack createPickupItem() {
         return createNamedItem(Material.REDSTONE_BLOCK, ColorUtil.color("&cPickup Minion"),
-                List.of(ColorUtil.color("&7Reclaims this minion back into your"),
-                        ColorUtil.color("&7inventory along with all stored items,"),
-                        ColorUtil.color("&7fuel, and upgrades."),
+                List.of(ColorUtil.color("&7Packs up the minion and delivers"),
+                        ColorUtil.color("&7it back into your inventory."),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&cClick to pickup minion!")));
     }
 
-    private static ItemStack createPane(Material mat, String name) {
-        return createNamedItem(mat, name, List.of());
-    }
-
-    private static ItemStack createNamedItem(Material mat, String name, List<String> lore) {
-        ItemStack item = new ItemStack(mat);
+    private static ItemStack createPane(Material material, String name) {
+        ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);
-            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private static ItemStack createNamedItem(Material material, String name, List<String> lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(name);
+            if (lore != null) {
+                meta.setLore(lore);
+            }
             item.setItemMeta(meta);
         }
         return item;
