@@ -3,6 +3,11 @@
 # ==============================================================================
 
 settings:
+  # If true, temporary fuels (Coal, Charcoal, etc.) burn out and disappear when removed.
+  # Permanent fuels (Enchanted Lava Bucket, Plasma Bucket, Solar Panel) can always be retrieved.
+  destroy-temporary-fuel-on-removal: true
+  # Geyser / Bedrock edition touch friendly menu mode
+  geyser-touch-friendly: true
   # Tick interval for the minion AI task (20 ticks = 1 second)
   tick-interval: 20
   # Periodic auto-save interval in ticks (6000 ticks = 5 minutes)
@@ -577,6 +582,9 @@ gui:
 # CONFIGURABLE MESSAGES (Non-coders can easily customize all text here)
 # ==============================================================================
 messages:
+  fuel-burned-out: "&cThe active %fuel% burned out and was consumed!"
+  fuel-extended: "&aEquipped &f%amount%x %fuel%&a! Fuel duration: &e%time%&a."
+  cannot-stack-permanent-fuel: "&cThis minion already has permanent fuel installed!"
   prefix: "&6[Minions] &r"
   placed: "&aYou placed a %minion%!"
   picked-up: "&eYou picked up your %minion%!"

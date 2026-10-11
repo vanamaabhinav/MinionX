@@ -2,11 +2,11 @@ package com.skyblock.minions.gui;
 
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
+import com.skyblock.minions.core.CollectionCommandHandler;
 import com.skyblock.minions.core.Minion;
 import com.skyblock.minions.hook.ProtectionHookManager;
 import com.skyblock.minions.hook.SkillHook;
 import com.skyblock.minions.item.MinionItemFactory;
-import com.skyblock.minions.core.CollectionCommandHandler;
 import com.skyblock.minions.util.ColorUtil;
 import com.skyblock.minions.visual.MinionHologram;
 import org.bukkit.Material;
@@ -20,8 +20,9 @@ import org.bukkit.inventory.ItemStack;
 import java.util.HashMap;
 
 /**
- * Handles interactions inside the authentic Hypixel Minion Chest GUI.
- * Uses MinionGUIConfig to support fully customizable slot layouts.
+ * Handles clicks and interactions inside the Minion GUI.
+ * Supports multi-item fuel stacking, one-time use fuel destruction toggle,
+ * and Bedrock/Geyser-friendly click interactions.
  */
 public class MinionGUIListener implements Listener {
 
@@ -50,47 +51,72 @@ public class MinionGUIListener implements Listener {
 
         int slot = event.getRawSlot();
 
-        // 1. Collect All Items & Claim Stored XP
+        // 1. Bottom Player Inventory Click (slot >= 54)
+        if (slot >= 54) {
+            if (event.isShiftClick()) {
+                ItemStack clicked = event.getCurrentItem();
+                if (clicked == null || clicked.getType() == Material.AIR) return;
+
+                // Shift-click Fuel item
+                CustomFuel fuel = FuelRegistry.fromItemStack(clicked);
+                if (fuel != null) {
+                    handleFuelDeposit(player, minion, clicked, clicked.getAmount());
+                    return;
+                }
+
+                // Shift-click Upgrade item
+                CustomUpgrade upgrade = UpgradeRegistry.fromItemStack(clicked);
+                if (upgrade != null) {
+                    handleUpgradeShiftClick(player, minion, clicked, upgrade);
+                    return;
+                }
+            } else {
+                // Allow normal item movement/pickup in player's own inventory
+                event.setCancelled(false);
+                return;
+            }
+        }
+
+        // 2. Collect All Items & Claim Stored XP
         if (slot == MinionGUIConfig.getCollectAllSlot()) {
             handleCollectAll(player, minion);
             return;
         }
 
-        // 2. Upgrade Minion Tier
+        // 3. Upgrade Minion Tier
         if (slot == MinionGUIConfig.getUpgradeTierSlot()) {
             handleUpgrade(player, minion);
             return;
         }
 
-        // 3. Pickup Minion
+        // 4. Pickup Minion
         if (slot == MinionGUIConfig.getPickupSlot()) {
             handlePickup(player, minion);
             return;
         }
 
-        // 4. Fuel Slot Click
+        // 5. Fuel Slot Click
         if (slot == MinionGUIConfig.getFuelSlot()) {
-            handleFuelSlot(player, minion);
+            handleFuelSlot(player, minion, event);
             return;
         }
 
-        // 5. Upgrade Slot 1 Click
+        // 6. Upgrade Slot 1 Click
         if (slot == MinionGUIConfig.getUpgrade1Slot()) {
             handleUpgradeSlot(player, minion, 1);
             return;
         }
 
-        // 6. Upgrade Slot 2 Click
+        // 7. Upgrade Slot 2 Click
         if (slot == MinionGUIConfig.getUpgrade2Slot()) {
             handleUpgradeSlot(player, minion, 2);
             return;
         }
 
-        // 7. Individual Storage Slot Clicks
+        // 8. Individual Storage Slot Clicks
         int storageIndex = MinionGUIConfig.getStorageIndex(slot);
         if (storageIndex >= 0) {
             handleStorageSlotClick(player, minion, storageIndex);
-            return;
         }
     }
 
@@ -123,7 +149,6 @@ public class MinionGUIListener implements Listener {
             player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
         }
 
-        // Skill hook rewards
         grantSkillRewards(player, minion, collectedCount);
 
         String template = SkyBlockMinions.getInstance().getConfig().getString("messages.collected", "&aCollected %amount% items and &e+%xp% XP &afrom your minion!");
@@ -152,7 +177,11 @@ public class MinionGUIListener implements Listener {
         }
 
         if (!hasEnoughItems(player, required, cost)) {
-            player.sendMessage(ColorUtil.color("&cYou need &e" + cost + "x " + required.name().replace("_", " ").toLowerCase() + " &cto upgrade!"));
+            String template = SkyBlockMinions.getInstance().getConfig().getString("messages.not-enough-items", "&cYou need %cost%x %material% to upgrade to Tier %tier%!");
+            String msg = template.replace("%cost%", String.valueOf(cost))
+                    .replace("%material%", required.name())
+                    .replace("%tier%", MinionTier.toRoman(currentTier + 1));
+            player.sendMessage(ColorUtil.color(msg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
@@ -160,65 +189,74 @@ public class MinionGUIListener implements Listener {
         removeItems(player, required, cost);
         minion.setTier(currentTier + 1);
 
-        String template = SkyBlockMinions.getInstance().getConfig().getString("messages.upgraded", "&aUpgraded your %minion% to &bTier %tier%&a!");
-        String msg = template.replace("%minion%", minion.getDisplayName() + " Minion").replace("%tier%", MinionTier.toRoman(minion.getTier()));
-        player.sendMessage(ColorUtil.color(msg));
-
-        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.0f);
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
-
         MinionHologram.updateHologram(minion);
+
+        String template = SkyBlockMinions.getInstance().getConfig().getString("messages.upgraded", "&aUpgraded to %minion% %tier%!");
+        String msg = template.replace("%minion%", minion.getDisplayName())
+                .replace("%tier%", MinionTier.toRoman(minion.getTier()));
+        player.sendMessage(ColorUtil.color(msg));
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f);
+
         MinionGUI.open(player, minion);
     }
 
     private void handlePickup(Player player, Minion minion) {
         player.closeInventory();
 
-        // 1. Return stored items
+        // Check if player has at least 1 free inventory slot
+        if (player.getInventory().firstEmpty() == -1) {
+            player.sendMessage(ColorUtil.color("&cYour inventory is full! Make space before picking up this minion."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
+        // Return stored inventory items
         for (ItemStack item : minion.getInventory()) {
             HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
             for (ItemStack left : leftover.values()) {
                 player.getWorld().dropItemNaturally(player.getLocation(), left);
             }
         }
-        minion.getInventory().clear();
 
-        // 2. Deliver stored XP
-        int xp = minion.claimStoredXp();
-        if (xp > 0) {
-            player.giveExp(xp);
-            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+        // Return permanent fuel if active, or temporary fuel if configured to not destroy
+        if (minion.isFuelActive()) {
+            CustomFuel fuel = minion.getCustomFuel();
+            if (fuel != null) {
+                if (fuel.isPermanent()) {
+                    player.getInventory().addItem(MinionItemFactory.createFuelItem(fuel));
+                } else {
+                    boolean destroyOnRemoval = SkyBlockMinions.getInstance().getConfig()
+                            .getBoolean("settings.destroy-temporary-fuel-on-removal", true);
+                    if (!destroyOnRemoval) {
+                        player.getInventory().addItem(MinionItemFactory.createFuelItem(fuel));
+                    }
+                }
+            }
         }
 
-        // 3. Return fuel item if present
-        if (minion.isFuelActive() && minion.getCustomFuel() != null) {
-            player.getInventory().addItem(MinionItemFactory.createFuelItem(minion.getCustomFuel()));
-        }
-
-        // 4. Return upgrade 1
+        // Return upgrades
         if (minion.getCustomUpgrade1() != null) {
             player.getInventory().addItem(MinionItemFactory.createUpgradeItem(minion.getCustomUpgrade1()));
         }
-
-        // 5. Return upgrade 2
         if (minion.getCustomUpgrade2() != null) {
             player.getInventory().addItem(MinionItemFactory.createUpgradeItem(minion.getCustomUpgrade2()));
         }
 
-        // 6. Return minion item itself!
+        // Claim stored XP
+        int xp = minion.claimStoredXp();
+        if (xp > 0) {
+            player.giveExp(xp);
+        }
+
+        // Give placeable minion item
         ItemStack minionItem;
         if (minion.getCustomDefinitionId() != null) {
             MinionDefinition def = MinionRegistry.get(minion.getCustomDefinitionId());
-            minionItem = def != null
-                    ? MinionItemFactory.createCustomMinionItem(def, minion.getTier(), minion.getTotalHarvested())
-                    : MinionItemFactory.createMinionItem(minion.getType(), minion.getTier(), minion.getTotalHarvested());
+            minionItem = MinionItemFactory.createCustomMinionItem(def, minion.getTier(), minion.getTotalHarvested());
         } else {
             minionItem = MinionItemFactory.createMinionItem(minion.getType(), minion.getTier(), minion.getTotalHarvested());
         }
-        HashMap<Integer, ItemStack> leftoverMinion = player.getInventory().addItem(minionItem);
-        for (ItemStack left : leftoverMinion.values()) {
-            player.getWorld().dropItemNaturally(player.getLocation(), left);
-        }
+        player.getInventory().addItem(minionItem);
 
         // Unregister and despawn
         SkyBlockMinions.getInstance().getMinionManager().unregister(minion);
@@ -227,28 +265,158 @@ public class MinionGUIListener implements Listener {
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
     }
 
-    private void handleFuelSlot(Player player, Minion minion) {
+    private void handleFuelSlot(Player player, Minion minion, InventoryClickEvent event) {
+        ItemStack inHand = player.getItemOnCursor();
+        CustomFuel fuel = FuelRegistry.fromItemStack(inHand);
+
+        // A. Player has fuel item on cursor -> Deposit / Stack
+        if (fuel != null) {
+            int depositAmount = event.isRightClick() ? 1 : inHand.getAmount();
+            handleFuelDeposit(player, minion, inHand, depositAmount);
+            return;
+        }
+
+        // B. Cursor is empty (AIR) -> Retrieve / Remove active fuel
         if (minion.isFuelActive()) {
             CustomFuel currentFuel = minion.getCustomFuel();
-            minion.setFuel((CustomFuel) null);
-            if (currentFuel != null) {
+            if (currentFuel == null) {
+                minion.setFuel((CustomFuel) null);
+                MinionGUI.open(player, minion);
+                return;
+            }
+
+            if (currentFuel.isPermanent()) {
+                minion.setFuel((CustomFuel) null);
                 player.getInventory().addItem(MinionItemFactory.createFuelItem(currentFuel));
                 player.sendMessage(ColorUtil.color("&eRemoved " + currentFuel.getDisplayName() + " &efuel from minion."));
-            } else {
-                player.sendMessage(ColorUtil.color("&eRemoved fuel from minion."));
+                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+                MinionGUI.open(player, minion);
+                return;
             }
-            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+
+            // Temporary fuel removal
+            boolean destroyOnRemoval = SkyBlockMinions.getInstance().getConfig()
+                    .getBoolean("settings.destroy-temporary-fuel-on-removal", true);
+
+            if (destroyOnRemoval) {
+                minion.setFuel((CustomFuel) null);
+                String template = SkyBlockMinions.getInstance().getConfig()
+                        .getString("messages.fuel-burned-out", "&cThe active %fuel% burned out and was consumed!");
+                player.sendMessage(ColorUtil.color(template.replace("%fuel%", currentFuel.getDisplayName())));
+                player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 1.2f);
+            } else {
+                minion.setFuel((CustomFuel) null);
+                player.getInventory().addItem(MinionItemFactory.createFuelItem(currentFuel));
+                player.sendMessage(ColorUtil.color("&eRemoved " + currentFuel.getDisplayName() + " &efuel from minion."));
+                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+            }
+
+            MinionGUI.open(player, minion);
+        }
+    }
+
+    private void handleFuelDeposit(Player player, Minion minion, ItemStack fuelItem, int amount) {
+        CustomFuel fuel = FuelRegistry.fromItemStack(fuelItem);
+        if (fuel == null || amount <= 0) return;
+
+        if (fuel.isPermanent()) {
+            if (minion.isFuelPermanent()) {
+                String msg = SkyBlockMinions.getInstance().getConfig()
+                        .getString("messages.cannot-stack-permanent-fuel", "&cThis minion already has permanent fuel installed!");
+                player.sendMessage(ColorUtil.color(msg));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
+            }
+
+            handlePreviousFuelRemoval(player, minion);
+            consumeItem(fuelItem, 1);
+            minion.setFuel(fuel, 1);
+            player.sendMessage(ColorUtil.color("&aEquipped " + fuel.getDisplayName() + " &a(Permanent)! Speed boosted by +" + (int) (fuel.getSpeedBuff() * 100) + "%."));
+            player.playSound(player.getLocation(), Sound.BLOCK_BREWING_STAND_BREW, 1.0f, 1.2f);
+            MinionGUI.open(player, minion);
+            return;
+        }
+
+        int actualDeposit = Math.min(amount, fuelItem.getAmount());
+        if (actualDeposit <= 0) return;
+
+        // If minion already has same active temporary fuel -> extend duration!
+        if (minion.isFuelActive() && minion.getFuelId() != null && minion.getFuelId().equalsIgnoreCase(fuel.getId())) {
+            minion.extendFuel(fuel, actualDeposit);
+            consumeItem(fuelItem, actualDeposit);
+
+            String template = SkyBlockMinions.getInstance().getConfig()
+                    .getString("messages.fuel-extended", "&aAdded &f%amount%x %fuel%&a! Fuel duration extended to &e%time%&a.");
+            String msg = template.replace("%amount%", String.valueOf(actualDeposit))
+                    .replace("%fuel%", fuel.getDisplayName())
+                    .replace("%time%", minion.getFormattedFuelTimeRemaining());
+            player.sendMessage(ColorUtil.color(msg));
+            player.playSound(player.getLocation(), Sound.BLOCK_BREWING_STAND_BREW, 1.0f, 1.2f);
+            MinionGUI.open(player, minion);
+            return;
+        }
+
+        // Different fuel or empty slot -> install new fuel
+        handlePreviousFuelRemoval(player, minion);
+        consumeItem(fuelItem, actualDeposit);
+        minion.setFuel(fuel, actualDeposit);
+
+        String template = SkyBlockMinions.getInstance().getConfig()
+                .getString("messages.fuel-extended", "&aEquipped &f%amount%x %fuel%&a! Total duration: &e%time%&a.");
+        String msg = template.replace("%amount%", String.valueOf(actualDeposit))
+                .replace("%fuel%", fuel.getDisplayName())
+                .replace("%time%", minion.getFormattedFuelTimeRemaining());
+        player.sendMessage(ColorUtil.color(msg));
+        player.playSound(player.getLocation(), Sound.BLOCK_BREWING_STAND_BREW, 1.0f, 1.2f);
+        MinionGUI.open(player, minion);
+    }
+
+    private void handlePreviousFuelRemoval(Player player, Minion minion) {
+        if (!minion.isFuelActive()) return;
+        CustomFuel oldFuel = minion.getCustomFuel();
+        if (oldFuel == null) return;
+
+        if (oldFuel.isPermanent()) {
+            player.getInventory().addItem(MinionItemFactory.createFuelItem(oldFuel));
+            player.sendMessage(ColorUtil.color("&eReturned previous " + oldFuel.getDisplayName() + " &eto your inventory."));
+        } else {
+            boolean destroyOnRemoval = SkyBlockMinions.getInstance().getConfig()
+                    .getBoolean("settings.destroy-temporary-fuel-on-removal", true);
+            if (destroyOnRemoval) {
+                String template = SkyBlockMinions.getInstance().getConfig()
+                        .getString("messages.fuel-burned-out", "&cThe previous %fuel% burned out and was consumed!");
+                player.sendMessage(ColorUtil.color(template.replace("%fuel%", oldFuel.getDisplayName())));
+                player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 0.8f, 1.2f);
+            } else {
+                player.getInventory().addItem(MinionItemFactory.createFuelItem(oldFuel));
+            }
+        }
+    }
+
+    private void handleUpgradeShiftClick(Player player, Minion minion, ItemStack clicked, CustomUpgrade upgrade) {
+        if (minion.getCustomUpgrade1() == null) {
+            clicked.setAmount(clicked.getAmount() - 1);
+            minion.setUpgrade1(upgrade);
+            player.sendMessage(ColorUtil.color("&aEquipped " + upgrade.getDisplayName() + "!"));
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.5f);
+            MinionGUI.open(player, minion);
+        } else if (minion.getCustomUpgrade2() == null) {
+            clicked.setAmount(clicked.getAmount() - 1);
+            minion.setUpgrade2(upgrade);
+            player.sendMessage(ColorUtil.color("&aEquipped " + upgrade.getDisplayName() + "!"));
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.5f);
             MinionGUI.open(player, minion);
         } else {
-            ItemStack inHand = player.getItemOnCursor();
-            CustomFuel fuel = FuelRegistry.fromItemStack(inHand);
-            if (fuel != null) {
-                inHand.setAmount(inHand.getAmount() - 1);
-                minion.setFuel(fuel);
-                player.sendMessage(ColorUtil.color("&aEquipped " + fuel.getDisplayName() + " &afuel! Speed boosted by +" + (int) (fuel.getSpeedBuff() * 100) + "%."));
-                player.playSound(player.getLocation(), Sound.BLOCK_BREWING_STAND_BREW, 1.0f, 1.2f);
-                MinionGUI.open(player, minion);
-            }
+            player.sendMessage(ColorUtil.color("&cUpgrade slots are full!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+        }
+    }
+
+    private void consumeItem(ItemStack item, int amount) {
+        if (item.getAmount() <= amount) {
+            item.setAmount(0);
+        } else {
+            item.setAmount(item.getAmount() - amount);
         }
     }
 

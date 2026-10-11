@@ -148,7 +148,8 @@ public class MinionGUI {
                 List.of(ColorUtil.color("&7Increase the speed of your"),
                         ColorUtil.color("&7minion by adding fuel!"),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick with a fuel item to deposit!")));
+                        ColorUtil.color("&eClick with fuel on cursor or shift-click!"),
+                        ColorUtil.color("&7Stackable fuels (Coal, etc.) add all quantity duration.")));
     }
 
     private static ItemStack createActiveFuelItem(Minion minion) {
@@ -157,11 +158,26 @@ public class MinionGUI {
         int buff = fuel != null ? (int) (fuel.getSpeedBuff() * 100) : 0;
         String timeLeft = minion.isFuelPermanent() ? "Permanent" : minion.getFormattedFuelTimeRemaining();
 
-        return createNamedItem(Material.LAVA_BUCKET, ColorUtil.color("&aFuel Active: " + name),
-                List.of(ColorUtil.color("&7Speed Boost: &a+" + buff + "%"),
-                        ColorUtil.color("&7Time Remaining: &e" + timeLeft),
-                        ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick to retrieve fuel!")));
+        boolean destroyOnRemoval = SkyBlockMinions.getInstance() != null &&
+                SkyBlockMinions.getInstance().getConfig().getBoolean("settings.destroy-temporary-fuel-on-removal", true);
+
+        List<String> lore = new ArrayList<>();
+        lore.add(ColorUtil.color("&7Speed Boost: &a+" + buff + "%"));
+        lore.add(ColorUtil.color("&7Time Remaining: &e" + timeLeft));
+        lore.add(ColorUtil.color("&7"));
+        if (minion.isFuelPermanent()) {
+            lore.add(ColorUtil.color("&eClick to retrieve fuel!"));
+        } else if (destroyOnRemoval) {
+            lore.add(ColorUtil.color("&cOne-Time Use Fuel:"));
+            lore.add(ColorUtil.color("&7Removing this fuel will burn out"));
+            lore.add(ColorUtil.color("&7and consume the active time!"));
+            lore.add(ColorUtil.color("&7"));
+            lore.add(ColorUtil.color("&eClick with more &f" + (fuel != null ? fuel.getDisplayName() : "fuel") + " &eto extend duration!"));
+        } else {
+            lore.add(ColorUtil.color("&eClick to retrieve fuel!"));
+        }
+
+        return createNamedItem(Material.LAVA_BUCKET, ColorUtil.color("&aFuel Active: " + name), lore);
     }
 
     private static ItemStack createUpgradeSlotItem(CustomUpgrade upgrade, int slotIndex) {

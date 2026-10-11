@@ -95,6 +95,10 @@ public class Minion {
     }
 
     public void setFuel(String fuelId) {
+        setFuel(fuelId, 1);
+    }
+
+    public void setFuel(String fuelId, int amount) {
         this.fuelId = fuelId != null ? fuelId.toLowerCase() : null;
         CustomFuel cf = getCustomFuel();
         if (cf == null) {
@@ -102,15 +106,38 @@ public class Minion {
         } else if (cf.isPermanent()) {
             this.fuelEndTime = -1L;
         } else {
-            this.fuelEndTime = System.currentTimeMillis() + cf.getDurationMillis();
+            amount = Math.max(1, amount);
+            this.fuelEndTime = System.currentTimeMillis() + (cf.getDurationMillis() * (long) amount);
         }
     }
 
     public void setFuel(CustomFuel fuel) {
+        setFuel(fuel, 1);
+    }
+
+    public void setFuel(CustomFuel fuel, int amount) {
         if (fuel == null) {
-            setFuel((String) null);
+            setFuel((String) null, 1);
         } else {
-            setFuel(fuel.getId());
+            this.fuelId = fuel.getId().toLowerCase();
+            if (fuel.isPermanent()) {
+                this.fuelEndTime = -1L;
+            } else {
+                amount = Math.max(1, amount);
+                this.fuelEndTime = System.currentTimeMillis() + (fuel.getDurationMillis() * (long) amount);
+            }
+        }
+    }
+
+    public void extendFuel(CustomFuel fuel, int amount) {
+        if (fuel == null || fuel.isPermanent()) return;
+        amount = Math.max(1, amount);
+        long added = fuel.getDurationMillis() * (long) amount;
+        long now = System.currentTimeMillis();
+        if (this.fuelEndTime > now) {
+            this.fuelEndTime += added;
+        } else {
+            this.fuelEndTime = now + added;
         }
     }
 
@@ -150,9 +177,11 @@ public class Minion {
         if (isFuelPermanent()) return "Permanent";
         if (!isFuelActive()) return "Expired";
         long remaining = Math.max(0, fuelEndTime - System.currentTimeMillis());
-        long hours = remaining / (3600 * 1000L);
+        long days = remaining / (86400 * 1000L);
+        long hours = (remaining % (86400 * 1000L)) / (3600 * 1000L);
         long minutes = (remaining % (3600 * 1000L)) / (60 * 1000L);
         long seconds = (remaining % (60 * 1000L)) / 1000L;
+        if (days > 0) return String.format("%dd %dh", days, hours);
         if (hours > 0) return String.format("%dh %dm", hours, minutes);
         return String.format("%dm %ds", minutes, seconds);
     }

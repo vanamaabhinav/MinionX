@@ -123,7 +123,7 @@ public class OperatorGUIListener implements Listener {
         }
 
         if (def != null) {
-            if (event.isRightClick()) {
+            if (com.skyblock.minions.hook.GeyserHook.isBedrockPlayer(player) || event.isRightClick()) {
                 OperatorGUI.openTierBrowser(player, def);
             } else {
                 int tier = event.isShiftClick() ? 1 : 11;
