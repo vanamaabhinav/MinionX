@@ -112,6 +112,10 @@ tiers:
     action-delay: 7.0
     storage-slots: 15
     upgrade-cost: 65536
+  12:
+    action-delay: 6.0
+    storage-slots: 15
+    upgrade-cost: 0
 
 # ==============================================================================
 # CUSTOM FUELS

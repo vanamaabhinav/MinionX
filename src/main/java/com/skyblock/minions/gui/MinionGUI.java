@@ -67,9 +67,12 @@ public class MinionGUI {
         inv.setItem(MinionGUIConfig.getUpgrade2Slot(), createUpgradeSlotItem(minion.getCustomUpgrade2(), 2));
 
         // 5. Minion Skin Cosmetic Slot (Slot 37)
-        inv.setItem(MinionGUIConfig.getSkinSlot(), createNamedItem(Material.LEATHER_CHESTPLATE, ColorUtil.color("&dMinion Skin &7(None)"),
-                List.of(ColorUtil.color("&7Customize your minion with"),
-                        ColorUtil.color("&7exclusive cosmetic skins!"))));
+        int skinSlot = MinionGUIConfig.getSkinSlot();
+        if (minion.hasSkin()) {
+            inv.setItem(skinSlot, createActiveSkinItem(minion.getSkin()));
+        } else {
+            inv.setItem(skinSlot, createEmptySkinItem());
+        }
 
         // 6. Storage Slots (Rows 1-3, Columns 3-7: Slots 12-16, 21-25, 30-34)
         int[] storageSlots = MinionGUIConfig.getStorageSlots();
@@ -243,6 +246,29 @@ public class MinionGUI {
                         ColorUtil.color("&7Cost: &e" + cost + "x " + matName),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick with items to upgrade!")));
+    }
+
+    public static ItemStack createActiveSkinItem(com.skyblock.minions.api.MinionSkin skin) {
+        if (skin == null) return createEmptySkinItem();
+        ItemStack item = com.skyblock.minions.item.MinionItemFactory.createSkinItem(skin);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+            lore.add(ColorUtil.color("&7"));
+            lore.add(ColorUtil.color("&aCurrently Applied to this Minion"));
+            lore.add(ColorUtil.color("&eClick to remove and retrieve skin."));
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    public static ItemStack createEmptySkinItem() {
+        return createNamedItem(Material.LEATHER_CHESTPLATE, ColorUtil.color("&dMinion Skin Slot"),
+                List.of(ColorUtil.color("&7Slot an authentic minion skin here"),
+                        ColorUtil.color("&7to transform its helmet and styling!"),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick with a skin item to apply.")));
     }
 
     private static ItemStack createPickupItem() {

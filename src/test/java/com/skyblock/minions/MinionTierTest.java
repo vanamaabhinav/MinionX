@@ -22,6 +22,7 @@ public class MinionTierTest {
         assertEquals(8.0, MinionTier.getActionDelay(9));
         assertEquals(8.0, MinionTier.getActionDelay(10));
         assertEquals(7.0, MinionTier.getActionDelay(11));
+        assertEquals(6.0, MinionTier.getActionDelay(12));
     }
 
     @Test
@@ -38,6 +39,7 @@ public class MinionTierTest {
         assertEquals(12, MinionTier.getStorageSlots(9));
         assertEquals(15, MinionTier.getStorageSlots(10));
         assertEquals(15, MinionTier.getStorageSlots(11));
+        assertEquals(15, MinionTier.getStorageSlots(12));
     }
 
     @Test
@@ -50,6 +52,7 @@ public class MinionTierTest {
         assertEquals(768, MinionTier.getMaxCapacity(8));
         assertEquals(960, MinionTier.getMaxCapacity(10));
         assertEquals(960, MinionTier.getMaxCapacity(11));
+        assertEquals(960, MinionTier.getMaxCapacity(12));
     }
 
     @Test
@@ -59,6 +62,7 @@ public class MinionTierTest {
         assertEquals("V", MinionTier.toRoman(5));
         assertEquals("X", MinionTier.toRoman(10));
         assertEquals("XI", MinionTier.toRoman(11));
+        assertEquals("XII", MinionTier.toRoman(12));
     }
 
     @Test
@@ -69,6 +73,7 @@ public class MinionTierTest {
         assertEquals(320, MinionTier.getUpgradeCost(3));
         assertEquals(640, MinionTier.getUpgradeCost(4));
         assertEquals(1280, MinionTier.getUpgradeCost(5));
-        assertEquals(0, MinionTier.getUpgradeCost(11)); // Max tier has no upgrade cost
+        assertEquals(81920, MinionTier.getUpgradeCost(11));
+        assertEquals(0, MinionTier.getUpgradeCost(12)); // Max tier XII has no upgrade cost
     }
 }

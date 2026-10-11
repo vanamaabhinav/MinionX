@@ -14,7 +14,8 @@ public class OperatorHolder implements InventoryHolder {
         MINION_TIERS,
         FUELS_CATALOG,
         UPGRADES_CATALOG,
-        KITS_CATALOG
+        KITS_CATALOG,
+        SKINS_CATALOG
     }
 
     private final ViewType viewType;

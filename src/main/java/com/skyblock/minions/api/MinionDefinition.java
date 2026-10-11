@@ -48,7 +48,7 @@ public class MinionDefinition {
     private final String displayName;
     private final MinionArchetype archetype;
 
-    private final String defaultSkullTexture;
+    private String defaultSkullTexture;
     private final Material defaultArmorMaterial;
     private final Color defaultArmorColor;
     private final ItemStack defaultHandItem;
@@ -162,6 +162,10 @@ public class MinionDefinition {
 
     public String getDefaultSkullTexture() {
         return defaultSkullTexture;
+    }
+
+    public void setDefaultSkullTexture(String defaultSkullTexture) {
+        this.defaultSkullTexture = defaultSkullTexture;
     }
 
     public Material getDefaultArmorMaterial() {

@@ -138,7 +138,8 @@ public class SkyBlockMinions extends JavaPlugin {
         UpgradeRegistry.load(getConfig().getConfigurationSection("upgrades"));
         CompressionManager.loadRecipes();
         MinionRegistry.load();
+        com.skyblock.minions.api.MinionSkinRegistry.loadBuiltinSkins();
         getLogger().info("Loaded " + MinionTier.getMaxTier() + " tiers, " + FuelRegistry.getKeys().size() + " fuels, " +
-                UpgradeRegistry.getKeys().size() + " upgrades, and " + MinionRegistry.getAll().size() + " minion definitions.");
+                UpgradeRegistry.getKeys().size() + " upgrades, " + com.skyblock.minions.api.MinionSkinRegistry.getAll().size() + " skins, and " + MinionRegistry.getAll().size() + " minion definitions.");
     }
 }

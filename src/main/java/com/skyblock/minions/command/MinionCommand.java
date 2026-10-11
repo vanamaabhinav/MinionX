@@ -85,6 +85,29 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         String itemArg = args[2].toLowerCase();
 
+        // 0. Check skin item (/minion give <player> skin <skin_id> or /minion give <player> <skin_id>)
+        if (itemArg.equalsIgnoreCase("skin") && args.length >= 4) {
+            String skinId = args[3].toLowerCase();
+            com.skyblock.minions.api.MinionSkin skin = com.skyblock.minions.api.MinionSkinRegistry.get(skinId);
+            if (skin != null) {
+                target.getInventory().addItem(MinionItemFactory.createSkinItem(skin));
+                sender.sendMessage(ColorUtil.color("&aGave " + skin.getDisplayName() + " &aminion skin to " + target.getName() + "."));
+                target.sendMessage(ColorUtil.color("&6[Minions] &aYou received a " + skin.getDisplayName() + " &aminion skin!"));
+                return;
+            } else {
+                sender.sendMessage(ColorUtil.color("&cUnknown minion skin: " + args[3]));
+                return;
+            }
+        }
+
+        com.skyblock.minions.api.MinionSkin directSkin = com.skyblock.minions.api.MinionSkinRegistry.get(itemArg);
+        if (directSkin != null) {
+            target.getInventory().addItem(MinionItemFactory.createSkinItem(directSkin));
+            sender.sendMessage(ColorUtil.color("&aGave " + directSkin.getDisplayName() + " &aminion skin to " + target.getName() + "."));
+            target.sendMessage(ColorUtil.color("&6[Minions] &aYou received a " + directSkin.getDisplayName() + " &aminion skin!"));
+            return;
+        }
+
         // 1. Check custom minion definitions (from Minion Creator Studio or minions.yml)
         MinionDefinition customDef = MinionRegistry.get(itemArg);
         if (customDef != null) {
@@ -258,7 +281,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(ColorUtil.color("&6=== SkyBlock Minions Commands ==="));
         sender.sendMessage(ColorUtil.color("&e/minion create &7- Open In-Game Minion Creator Studio"));
-        sender.sendMessage(ColorUtil.color("&e/minion give <player> <type|fuel|upgrade> [tier] &7- Give a minion or item"));
+        sender.sendMessage(ColorUtil.color("&e/minion give <player> <type|fuel|upgrade|skin> [tier|skin_id] &7- Give a minion, item, or skin"));
         sender.sendMessage(ColorUtil.color("&e/minion limit <check|add|remove|set> <player> [amount] &7- Manage player limits"));
         sender.sendMessage(ColorUtil.color("&e/minion list &7- View your placed minions"));
         sender.sendMessage(ColorUtil.color("&e/minion killall &7- Kill and purge all active minions and holograms"));
@@ -281,16 +304,21 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
             List<String> items = new ArrayList<>();
+            items.add("skin");
             for (MinionType t : MinionType.values()) {
                 items.add(t.name().toLowerCase());
             }
             items.addAll(MinionRegistry.getKeys());
             items.addAll(FuelRegistry.getKeys());
             items.addAll(UpgradeRegistry.getKeys());
+            items.addAll(com.skyblock.minions.api.MinionSkinRegistry.getKeys());
             return filter(items, args[2]);
         }
 
         if (args.length == 4 && args[0].equalsIgnoreCase("give")) {
+            if (args[2].equalsIgnoreCase("skin")) {
+                return filter(new ArrayList<>(com.skyblock.minions.api.MinionSkinRegistry.getKeys()), args[3]);
+            }
             List<String> tiers = new ArrayList<>();
             for (int i = 1; i <= MinionTier.getMaxTier(); i++) {
                 tiers.add(String.valueOf(i));

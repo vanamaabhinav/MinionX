@@ -42,7 +42,7 @@ public class ItemProtectionAndTiersTest {
 
         // Reset to default
         MinionTier.load(null);
-        assertEquals(11, MinionTier.getMaxTier());
+        assertEquals(12, MinionTier.getMaxTier());
     }
 
     @Test

@@ -3,6 +3,17 @@
 MinionX is a high-performance Minecraft Java plugin inspired by Hypixel SkyBlock. It introduces autonomous, customizable minions featuring authentic visual animations, interactive chest interfaces, dynamic fuels, accessories, and command execution pipelines.
 
 ---
+Developed by Abhinav Vanama
+### 🎭 Authentic Hypixel Minion Heads & Tier XII
+- **Authentic Head Textures:** All 37 built-in minions wear exact, authentic Hypixel SkyBlock player heads across every tier (Tiers I–XII), bundled offline with zero external network lag.
+- **Tier XII Progression:** Max tier progression extended to Tier XII (6.0s delay, 15 storage slots, 960 item capacity).
+- **Tier Browser:** Visualized in `/minionx` Minions Catalog with dedicated 12-slot tier inspection and instant delivery.
+
+### 🎨 Cosmetic Minion Skins
+- **51 Authentic Hypixel Skins:** Includes Santa, Snowman, Robot, Shark, Penguin, Pufferfish, Dragon, Sloth, Bee, Mummy, and 40+ more.
+- **Dedicated GUI Slot 37:** Insert or retrieve minion skins directly from the Minion GUI to transform appearance and armor styling.
+- **Operator Skins Catalog:** Full paginated browser in `/minionx` (Slot 28) with 1-click delivery.
+- **Command Support:** `/minion give <player> skin <skin_id>` with complete tab-completion.
 
 ## Supported Versions
 

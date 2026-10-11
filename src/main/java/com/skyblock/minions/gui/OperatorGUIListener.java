@@ -71,6 +71,12 @@ public class OperatorGUIListener implements Listener {
         // 6. Kits Catalog View
         if (holder.getViewType() == OperatorHolder.ViewType.KITS_CATALOG) {
             handleKitsCatalogClick(player, slot, clicked);
+            return;
+        }
+
+        // 7. Skins Catalog View
+        if (holder.getViewType() == OperatorHolder.ViewType.SKINS_CATALOG) {
+            handleSkinsCatalogClick(player, slot, clicked, holder, event);
         }
     }
 
@@ -81,6 +87,8 @@ public class OperatorGUIListener implements Listener {
             OperatorGUI.openFuelsCatalog(player);
         } else if (slot == 24) {
             OperatorGUI.openUpgradesCatalog(player);
+        } else if (slot == 28) {
+            OperatorGUI.openSkinsCatalog(player, 0);
         } else if (slot == 30) {
             OperatorGUI.openKitsCatalog(player);
         } else if (slot == 32) {
@@ -233,7 +241,39 @@ public class OperatorGUIListener implements Listener {
         }
     }
 
-    private void giveItem(Player player, ItemStack item, int amount) {
+    private void handleSkinsCatalogClick(Player player, int slot, ItemStack clicked, OperatorHolder holder, InventoryClickEvent event) {
+        int page = 0;
+        if (holder.getContext() instanceof Integer p) {
+            page = p;
+        }
+
+        if (slot == 45 && clicked.getType() == Material.ARROW) {
+            OperatorGUI.openSkinsCatalog(player, page - 1);
+            return;
+        }
+
+        if (slot == 49 && clicked.getType() == Material.ARROW) {
+            OperatorGUI.openMain(player);
+            return;
+        }
+
+        if (slot == 53 && clicked.getType() == Material.ARROW) {
+            OperatorGUI.openSkinsCatalog(player, page + 1);
+            return;
+        }
+
+        if (clicked.getType() == Material.LEATHER_CHESTPLATE && slot == 4) {
+            return;
+        }
+
+        String skinId = MinionItemFactory.getSkinId(clicked);
+        if (skinId != null) {
+            int amount = event.isShiftClick() ? 16 : 1;
+            giveItem(player, clicked, amount);
+        }
+    }
+
+        private void giveItem(Player player, ItemStack item, int amount) {
         if (item == null || item.getType() == Material.AIR) return;
         ItemStack toGive = item.clone();
         toGive.setAmount(amount);

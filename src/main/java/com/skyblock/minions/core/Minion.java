@@ -24,6 +24,7 @@ public class Minion {
     private long fuelEndTime; // -1 if permanent, or expiration millis
     private String upgrade1Id;
     private String upgrade2Id;
+    private String skinId;
 
     private long lastActionTime;
     private boolean lastActionWasPlace;
@@ -246,6 +247,22 @@ public class Minion {
 
     public void setUpgrade2(MinionUpgradeType upgrade2) {
         this.upgrade2Id = upgrade2 != null ? upgrade2.name().toLowerCase() : null;
+    }
+
+    public String getSkinId() {
+        return skinId;
+    }
+
+    public void setSkinId(String skinId) {
+        this.skinId = skinId != null && !skinId.isBlank() ? skinId.toLowerCase() : null;
+    }
+
+    public com.skyblock.minions.api.MinionSkin getSkin() {
+        return skinId != null ? com.skyblock.minions.api.MinionSkinRegistry.get(skinId) : null;
+    }
+
+    public boolean hasSkin() {
+        return skinId != null && getSkin() != null;
     }
 
     public void setUpgradeType2(MinionUpgradeType upgrade2) {

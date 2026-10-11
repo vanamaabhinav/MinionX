@@ -75,6 +75,7 @@ public class MinionStorage {
 
             config.set(path + ".upgrade1", minion.getUpgrade1Id());
             config.set(path + ".upgrade2", minion.getUpgrade2Id());
+            config.set(path + ".skin", minion.getSkinId());
 
             config.set(path + ".last-action", minion.getLastActionTime());
             config.set(path + ".last-was-place", minion.wasLastActionPlace());
@@ -148,6 +149,11 @@ public class MinionStorage {
                 String up2Str = section.getString(idStr + ".upgrade2");
                 if (up2Str != null && !up2Str.isBlank()) {
                     minion.setUpgrade2Id(up2Str);
+                }
+
+                String skinStr = section.getString(idStr + ".skin");
+                if (skinStr != null && !skinStr.isBlank()) {
+                    minion.setSkinId(skinStr);
                 }
 
                 minion.setLastActionTime(section.getLong(idStr + ".last-action", System.currentTimeMillis()));

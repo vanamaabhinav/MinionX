@@ -53,6 +53,22 @@ public class MinionVisual {
         Color armorColor = def != null ? def.getArmorColor(tier) : (minion.getType() != null ? minion.getType().getArmorColor() : Color.fromRGB(120, 120, 120));
         ItemStack handItem = def != null ? def.getHandItem(tier) : (minion.getType() != null ? new ItemStack(minion.getType().getToolMaterial()) : new ItemStack(Material.STONE_PICKAXE));
 
+        // Cosmetic Minion Skin Override
+        if (minion.getSkinId() != null) {
+            com.skyblock.minions.api.MinionSkin skin = minion.getSkin();
+            if (skin != null) {
+                if (skin.getSkullTexture() != null) {
+                    skullTexture = skin.getSkullTexture();
+                }
+                if (skin.hasArmorColor()) {
+                    armorColor = skin.getArmorColor();
+                }
+            }
+        }
+
+        final String finalSkullTexture = skullTexture;
+        final Color finalArmorColor = armorColor;
+
         ArmorStand stand = loc.getWorld().spawn(loc, ArmorStand.class, as -> {
             as.setSmall(true);
             as.setArms(true);
@@ -66,10 +82,10 @@ public class MinionVisual {
             as.getPersistentDataContainer().set(MINION_ENTITY_KEY, PersistentDataType.STRING, minion.getMinionId().toString());
 
             // Skull
-            as.getEquipment().setHelmet(createCustomSkull(skullTexture));
+            as.getEquipment().setHelmet(createCustomSkull(finalSkullTexture));
 
             // Armor (full set: chestplate, leggings, boots)
-            equipMinionArmor(as, armorMat, armorColor);
+            equipMinionArmor(as, armorMat, finalArmorColor);
 
             // Hand Tool / Weapon
             as.getEquipment().setItemInMainHand(handItem);

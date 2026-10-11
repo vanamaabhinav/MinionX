@@ -6,7 +6,13 @@ import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.bukkit.inventory.ItemStack;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 import java.io.File;
 import java.io.IOException;
@@ -368,6 +374,45 @@ public class MinionRegistry {
                 Material.LEATHER_CHESTPLATE, Color.fromRGB(180, 130, 90), new ItemStack(Material.IRON_SWORD),
                 null, "RABBIT", new ItemStack(Material.RABBIT), new ItemStack(Material.RABBIT_HIDE), 0.5, 3, 14.0, 1));
         DEFAULT_IDS.addAll(DEFINITIONS.keySet());
+        loadHypixelHeads();
+    }
+
+    private static void loadHypixelHeads() {
+        InputStream in = MinionRegistry.class.getClassLoader().getResourceAsStream("hypixel_minion_heads.json");
+        if (in == null) return;
+        try (InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+            JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
+            for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
+                String minionId = entry.getKey().toLowerCase();
+                MinionDefinition def = DEFINITIONS.get(minionId);
+                if (def == null) continue;
+
+                JsonObject tiersObj = entry.getValue().getAsJsonObject();
+                String tier1Texture = null;
+                for (int tier = 1; tier <= 12; tier++) {
+                    String tierStr = String.valueOf(tier);
+                    if (tiersObj.has(tierStr)) {
+                        String texture = tiersObj.get(tierStr).getAsString();
+                        if (tier == 1) {
+                            tier1Texture = texture;
+                        }
+                        def.addTierStyle(tier, new MinionDefinition.TierStyle(
+                                texture,
+                                def.getArmorMaterial(tier),
+                                def.getArmorColor(tier),
+                                def.getHandItem(tier)
+                        ));
+                    }
+                }
+                if (tier1Texture != null) {
+                    def.setDefaultSkullTexture(tier1Texture);
+                }
+            }
+        } catch (Exception e) {
+            if (SkyBlockMinions.getInstance() != null) {
+                SkyBlockMinions.getInstance().getLogger().log(Level.WARNING, "Failed to load hypixel_minion_heads.json", e);
+            }
+        }
     }
 
     public static MinionDefinition get(String id) {

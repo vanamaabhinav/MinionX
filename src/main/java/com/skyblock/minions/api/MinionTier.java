@@ -35,7 +35,7 @@ public class MinionTier {
     }
 
     private static final Map<Integer, TierData> TIERS = new ConcurrentHashMap<>();
-    private static int maxTier = 11;
+    private static int maxTier = 12;
 
     static {
         registerDefaults();
@@ -68,9 +68,9 @@ public class MinionTier {
     }
 
     private static void registerDefaults() {
-        double[] defaultDelays = {14.0, 14.0, 12.5, 12.5, 11.0, 11.0, 9.5, 9.5, 8.0, 8.0, 7.0};
-        int[] defaultSlots = {1, 3, 3, 6, 6, 9, 9, 12, 12, 15, 15};
-        int[] defaultCosts = {80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480, 40960, 0};
+        double[] defaultDelays = {14.0, 14.0, 12.5, 12.5, 11.0, 11.0, 9.5, 9.5, 8.0, 8.0, 7.0, 6.0};
+        int[] defaultSlots = {1, 3, 3, 6, 6, 9, 9, 12, 12, 15, 15, 15};
+        int[] defaultCosts = {80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480, 40960, 81920, 0};
 
         for (int i = 0; i < defaultDelays.length; i++) {
             TIERS.put(i + 1, new TierData(defaultDelays[i], defaultSlots[i], defaultCosts[i]));

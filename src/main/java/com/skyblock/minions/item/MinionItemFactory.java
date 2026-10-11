@@ -34,6 +34,7 @@ public class MinionItemFactory {
     public static final NamespacedKey CUSTOM_MINION_ID_KEY = new NamespacedKey("skyblockminions", "custom_minion_id");
     public static final NamespacedKey UPGRADE_KEY = new NamespacedKey("skyblockminions", "upgrade_type");
     public static final NamespacedKey FUEL_KEY = new NamespacedKey("skyblockminions", "fuel_type");
+    public static final NamespacedKey SKIN_KEY = new NamespacedKey("skyblockminions", "skin_type");
 
     /**
      * Creates a placeable minion item for a built-in MinionType.
@@ -44,7 +45,8 @@ public class MinionItemFactory {
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
 
         if (meta != null) {
-            String texture = type.getSkullTexture();
+            MinionDefinition def = MinionRegistry.get(type.name().toLowerCase());
+            String texture = def != null ? def.getSkullTexture(tier) : type.getSkullTexture();
             if (texture != null && !texture.isEmpty()) {
                 try {
                     PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
@@ -190,6 +192,48 @@ public class MinionItemFactory {
         if (!isMinionItem(item)) return 0;
         Integer count = item.getItemMeta().getPersistentDataContainer().get(MINION_HARVESTED_KEY, PersistentDataType.INTEGER);
         return count != null ? count : 0;
+    }
+
+    public static String getSkinId(ItemStack item) {
+        if (item == null) return null;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return null;
+        return meta.getPersistentDataContainer().get(SKIN_KEY, PersistentDataType.STRING);
+    }
+
+    /**
+     * Creates a custom Minion Skin item that can be placed into the minion skin slot.
+     */
+    public static ItemStack createSkinItem(MinionSkin skin) {
+        if (skin == null) return new ItemStack(Material.AIR);
+        ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) skull.getItemMeta();
+        if (meta != null) {
+            String texture = skin.getSkullTexture();
+            if (texture != null && !texture.isEmpty()) {
+                try {
+                    PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                    profile.setProperty(new ProfileProperty("textures", texture));
+                    meta.setPlayerProfile(profile);
+                } catch (Exception ignored) {}
+            }
+
+            meta.setDisplayName(ColorUtil.color("&d" + skin.getDisplayName()));
+            List<String> lore = new ArrayList<>();
+            for (String l : skin.getDescription()) {
+                lore.add(ColorUtil.color(l));
+            }
+            lore.add(ColorUtil.color("&7"));
+            lore.add(ColorUtil.color("&ePlace in a Minion's skin slot!"));
+            meta.setLore(lore);
+
+            meta.addEnchant(Enchantment.DURABILITY, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+
+            meta.getPersistentDataContainer().set(SKIN_KEY, PersistentDataType.STRING, skin.getId());
+            skull.setItemMeta(meta);
+        }
+        return skull;
     }
 
     public static String getFuelId(ItemStack item) {

@@ -23,6 +23,7 @@ public class OperatorGUI {
     public static final String FUELS_TITLE = ColorUtil.color("&8MinionX - Fuel Supplies");
     public static final String UPGRADES_TITLE = ColorUtil.color("&8MinionX - Upgrades & Accessories");
     public static final String KITS_TITLE = ColorUtil.color("&8MinionX - Admin Kits");
+    public static final String SKINS_TITLE = ColorUtil.color("&8MinionX - Minion Skins");
 
     /**
      * Opens the categorized Main Hub interface.
@@ -52,6 +53,12 @@ public class OperatorGUI {
                         ColorUtil.color("&7diamond spreading, and boosters."),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to open upgrades"))));
+
+        inv.setItem(28, createNamedItem(Material.LEATHER_CHESTPLATE, ColorUtil.color("&dMinion Skins Catalog"),
+                List.of(ColorUtil.color("&7Explore authentic cosmetic minion skins"),
+                        ColorUtil.color("&7to transform minion appearance."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to open skins catalog"))));
 
         inv.setItem(30, createNamedItem(Material.CHEST, ColorUtil.color("&aAdmin Starter Kits"),
                 List.of(ColorUtil.color("&7Pre-packaged minion combinations"),
@@ -169,11 +176,11 @@ public class OperatorGUI {
         ItemStack border = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) inv.setItem(i, border);
 
-        inv.setItem(4, createNamedItem(Material.CHEST, ColorUtil.color("&b" + type.getDisplayName() + " Minion Tiers (I to XI)"),
+        inv.setItem(4, createNamedItem(Material.CHEST, ColorUtil.color("&b" + type.getDisplayName() + " Minion Tiers (I to XII)"),
                 List.of(ColorUtil.color("&7Click any tier to receive that minion item."),
                         ColorUtil.color("&7Shift-Click to receive a full stack."))));
 
-        int[] tierSlots = {19, 20, 21, 22, 23, 24, 25, 29, 30, 31, 32};
+        int[] tierSlots = {19, 20, 21, 22, 23, 24, 28, 29, 30, 31, 32, 33};
         int max = Math.min(MinionTier.getMaxTier(), tierSlots.length);
         for (int tier = 1; tier <= max; tier++) {
             ItemStack minionItem = MinionItemFactory.createMinionItem(type, tier, 0);
@@ -200,11 +207,11 @@ public class OperatorGUI {
         ItemStack border = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) inv.setItem(i, border);
 
-        inv.setItem(4, createNamedItem(Material.CHEST, ColorUtil.color("&b" + def.getDisplayName() + " Minion Tiers (I to XI)"),
+        inv.setItem(4, createNamedItem(Material.CHEST, ColorUtil.color("&b" + def.getDisplayName() + " Minion Tiers (I to XII)"),
                 List.of(ColorUtil.color("&7Click any tier to receive that minion item."),
                         ColorUtil.color("&7Shift-Click to receive a full stack."))));
 
-        int[] tierSlots = {19, 20, 21, 22, 23, 24, 25, 29, 30, 31, 32};
+        int[] tierSlots = {19, 20, 21, 22, 23, 24, 28, 29, 30, 31, 32, 33};
         int max = Math.min(MinionTier.getMaxTier(), tierSlots.length);
         for (int tier = 1; tier <= max; tier++) {
             ItemStack minionItem = MinionItemFactory.createCustomMinionItem(def, tier, 0);
@@ -320,7 +327,65 @@ public class OperatorGUI {
         player.openInventory(inv);
     }
 
-    private static ItemStack createPane(Material material, String name) {
+    /**
+     * Opens the Minion Skins Catalog.
+     */
+    public static void openSkinsCatalog(Player player) {
+        openSkinsCatalog(player, 0);
+    }
+
+    /**
+     * Opens the Minion Skins Catalog at a specific page.
+     */
+    public static void openSkinsCatalog(Player player, int page) {
+        List<MinionSkin> allSkins = new ArrayList<>(MinionSkinRegistry.getAll());
+        int pageSize = 28;
+        int totalPages = Math.max(1, (int) Math.ceil((double) allSkins.size() / pageSize));
+        int currentPage = Math.clamp(page, 0, totalPages - 1);
+
+        OperatorHolder holder = new OperatorHolder(OperatorHolder.ViewType.SKINS_CATALOG, currentPage);
+        Inventory inv = Bukkit.createInventory(holder, 54, SKINS_TITLE + (totalPages > 1 ? ColorUtil.color(" &8(" + (currentPage + 1) + "/" + totalPages + ")") : ""));
+
+        ItemStack border = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 54; i++) inv.setItem(i, border);
+
+        inv.setItem(4, createNamedItem(Material.LEATHER_CHESTPLATE, ColorUtil.color("&dMinion Skins Catalog"),
+                List.of(ColorUtil.color("&7Click any skin below to receive it directly."),
+                        ColorUtil.color("&7Place skins in Slot 37 of any minion"),
+                        ColorUtil.color("&7to transform its head & armor appearance!"))));
+
+        int[] contentSlots = {
+                10, 11, 12, 13, 14, 15, 16,
+                19, 20, 21, 22, 23, 24, 25,
+                28, 29, 30, 31, 32, 33, 34,
+                37, 38, 39, 40, 41, 42, 43
+        };
+
+        int startIndex = currentPage * pageSize;
+        int endIndex = Math.min(startIndex + pageSize, allSkins.size());
+        for (int i = startIndex; i < endIndex; i++) {
+            MinionSkin skin = allSkins.get(i);
+            int slot = contentSlots[i - startIndex];
+            inv.setItem(slot, MinionItemFactory.createSkinItem(skin));
+        }
+
+        if (currentPage > 0) {
+            inv.setItem(45, createNamedItem(Material.ARROW, ColorUtil.color("&ePrevious Page"),
+                    List.of(ColorUtil.color("&7Go to page " + currentPage + "."))));
+        }
+
+        inv.setItem(49, createNamedItem(Material.ARROW, ColorUtil.color("&cBack to Main Menu"),
+                List.of(ColorUtil.color("&7Return to the main operator interface."))));
+
+        if (currentPage < totalPages - 1) {
+            inv.setItem(53, createNamedItem(Material.ARROW, ColorUtil.color("&eNext Page"),
+                    List.of(ColorUtil.color("&7Go to page " + (currentPage + 2) + "."))));
+        }
+
+        player.openInventory(inv);
+    }
+
+        private static ItemStack createPane(Material material, String name) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {

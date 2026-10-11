@@ -92,6 +92,14 @@ public class MinionGUIListener implements Listener {
                     return;
                 }
 
+                // Shift-click Skin item -> auto-apply into skin slot
+                String skinId = com.skyblock.minions.item.MinionItemFactory.getSkinId(clicked);
+                if (skinId != null) {
+                    event.setCancelled(true);
+                    handleSkinApply(player, minion, clicked, skinId);
+                    return;
+                }
+
                 // Normal player inventory item shift-click
                 event.setCancelled(false);
                 return;
@@ -141,11 +149,68 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
+        // 7.5. Minion Skin Slot Click (Slot 37)
+        if (slot == MinionGUIConfig.getSkinSlot()) {
+            handleSkinSlot(player, minion, event);
+            return;
+        }
+
         // 8. Individual Storage Slot Clicks (Slots 12-16, 21-25, 30-34)
         int storageIndex = MinionGUIConfig.getStorageIndex(slot);
         if (storageIndex >= 0) {
             handleStorageSlotClick(player, minion, storageIndex);
         }
+    }
+
+    private void handleSkinSlot(Player player, Minion minion, org.bukkit.event.inventory.InventoryClickEvent event) {
+        ItemStack cursor = event.getCursor();
+        String skinId = com.skyblock.minions.item.MinionItemFactory.getSkinId(cursor);
+
+        if (skinId != null) {
+            // Apply skin from cursor
+            handleSkinApply(player, minion, cursor, skinId);
+            return;
+        }
+
+        // Click with empty hand on active skin -> retrieve skin
+        if (minion.hasSkin()) {
+            com.skyblock.minions.api.MinionSkin oldSkin = minion.getSkin();
+            minion.setSkinId(null);
+            ItemStack skinItem = com.skyblock.minions.item.MinionItemFactory.createSkinItem(oldSkin);
+            java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(skinItem);
+            for (ItemStack item : leftover.values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), item);
+            }
+            com.skyblock.minions.visual.MinionVisual.spawnOrUpdate(minion);
+            MinionGUI.open(player, minion);
+            player.sendMessage(ColorUtil.color("&6[MinionX] &aRemoved &d" + oldSkin.getDisplayName() + " &afrom minion!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+        } else {
+            player.sendMessage(ColorUtil.color("&e[MinionX] &7Place a Minion Skin into this slot to transform your minion's appearance!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.2f);
+        }
+    }
+
+    private void handleSkinApply(Player player, Minion minion, ItemStack skinItem, String skinId) {
+        com.skyblock.minions.api.MinionSkin newSkin = com.skyblock.minions.api.MinionSkinRegistry.get(skinId);
+        if (newSkin == null) return;
+
+        // If minion already has a skin, return old skin first
+        if (minion.hasSkin()) {
+            com.skyblock.minions.api.MinionSkin oldSkin = minion.getSkin();
+            ItemStack oldItem = com.skyblock.minions.item.MinionItemFactory.createSkinItem(oldSkin);
+            java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(oldItem);
+            for (ItemStack item : leftover.values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), item);
+            }
+        }
+
+        minion.setSkinId(skinId);
+        skinItem.setAmount(skinItem.getAmount() - 1);
+        com.skyblock.minions.visual.MinionVisual.spawnOrUpdate(minion);
+        MinionGUI.open(player, minion);
+        player.sendMessage(ColorUtil.color("&6[MinionX] &aApplied &d" + newSkin.getDisplayName() + " &ato minion!"));
+        player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1.0f, 1.2f);
     }
 
     private void handleCollectAll(Player player, Minion minion) {
