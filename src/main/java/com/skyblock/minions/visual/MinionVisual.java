@@ -22,7 +22,7 @@ import java.util.UUID;
  */
 public class MinionVisual {
 
-    public static final NamespacedKey MINION_ENTITY_KEY = new NamespacedKey(SkyBlockMinions.getInstance(), "minion_entity_id");
+    public static final NamespacedKey MINION_ENTITY_KEY = new NamespacedKey("skyblockminions", "minion_entity_id");
 
     /**
      * Spawns or updates the visual ArmorStand for a minion.

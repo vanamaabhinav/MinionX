@@ -323,13 +323,13 @@ public class Minion {
         if (location == null || location.getWorld() == null) return blocks;
 
         int centerX = location.getBlockX();
-        int centerY = location.getBlockY();
+        int resourceY = location.getBlockY() - 1;
         int centerZ = location.getBlockZ();
 
         for (int x = -2; x <= 2; x++) {
             for (int z = -2; z <= 2; z++) {
                 if (x == 0 && z == 0) continue; // Skip center where minion stands
-                Block block = location.getWorld().getBlockAt(centerX + x, centerY, centerZ + z);
+                Block block = location.getWorld().getBlockAt(centerX + x, resourceY, centerZ + z);
                 blocks.add(block);
             }
         }

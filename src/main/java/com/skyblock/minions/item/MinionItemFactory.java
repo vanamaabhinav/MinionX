@@ -4,9 +4,11 @@ import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
+import com.skyblock.minions.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -20,17 +22,17 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Creates custom items for Minions, Upgrades, and Fuels tagged with PersistentDataContainer.
+ * Creates custom items representing Minions, Upgrades, and Fuels.
+ * Supports configurable lores from config.yml.
  */
 public class MinionItemFactory {
 
-    public static final NamespacedKey IS_MINION_KEY = new NamespacedKey(SkyBlockMinions.getInstance(), "is_minion");
-    public static final NamespacedKey MINION_TYPE_KEY = new NamespacedKey(SkyBlockMinions.getInstance(), "minion_type");
-    public static final NamespacedKey MINION_TIER_KEY = new NamespacedKey(SkyBlockMinions.getInstance(), "minion_tier");
-    public static final NamespacedKey MINION_HARVESTED_KEY = new NamespacedKey(SkyBlockMinions.getInstance(), "minion_harvested");
-
-    public static final NamespacedKey UPGRADE_KEY = new NamespacedKey(SkyBlockMinions.getInstance(), "upgrade_type");
-    public static final NamespacedKey FUEL_KEY = new NamespacedKey(SkyBlockMinions.getInstance(), "fuel_type");
+    public static final NamespacedKey IS_MINION_KEY = new NamespacedKey("skyblockminions", "is_minion");
+    public static final NamespacedKey MINION_TYPE_KEY = new NamespacedKey("skyblockminions", "minion_type");
+    public static final NamespacedKey MINION_TIER_KEY = new NamespacedKey("skyblockminions", "minion_tier");
+    public static final NamespacedKey MINION_HARVESTED_KEY = new NamespacedKey("skyblockminions", "minion_harvested");
+    public static final NamespacedKey UPGRADE_KEY = new NamespacedKey("skyblockminions", "upgrade_type");
+    public static final NamespacedKey FUEL_KEY = new NamespacedKey("skyblockminions", "fuel_type");
 
     /**
      * Creates a placeable minion item.
@@ -49,16 +51,32 @@ public class MinionItemFactory {
             }
 
             String roman = MinionTier.toRoman(tier);
-            meta.setDisplayName("§a" + type.getDisplayName() + " Minion " + roman);
+            meta.setDisplayName(ColorUtil.color("&a" + type.getDisplayName() + " Minion " + roman));
+
+            FileConfiguration config = SkyBlockMinions.getInstance().getConfig();
+            List<String> configuredLore = config.getStringList("item-lore.minion-item");
 
             List<String> lore = new ArrayList<>();
-            lore.add("§7Time Between Actions: §a" + MinionTier.getActionDelay(tier) + "s");
-            lore.add("§7Max Storage: §e" + MinionTier.getMaxCapacity(tier) + " items §7(" + MinionTier.getStorageSlots(tier) + " slots)");
-            lore.add("§7");
-            lore.add("§7Place this minion down to generate");
-            lore.add("§7and harvest resources on your island!");
-            lore.add("§7");
-            lore.add("§eRight-click on the ground to place!");
+            if (configuredLore != null && !configuredLore.isEmpty()) {
+                for (String line : configuredLore) {
+                    lore.add(ColorUtil.color(line
+                            .replace("%type%", type.getDisplayName())
+                            .replace("%tier%", String.valueOf(tier))
+                            .replace("%tier_roman%", roman)
+                            .replace("%delay%", String.format("%.1f", MinionTier.getActionDelay(tier)))
+                            .replace("%capacity%", String.valueOf(MinionTier.getMaxCapacity(tier)))
+                            .replace("%slots%", String.valueOf(MinionTier.getStorageSlots(tier)))
+                            .replace("%harvested%", String.valueOf(harvested))));
+                }
+            } else {
+                lore.add(ColorUtil.color("&7Time Between Actions: &a" + MinionTier.getActionDelay(tier) + "s"));
+                lore.add(ColorUtil.color("&7Max Storage: &e" + MinionTier.getMaxCapacity(tier) + " items &7(" + MinionTier.getStorageSlots(tier) + " slots)"));
+                lore.add(ColorUtil.color("&7"));
+                lore.add(ColorUtil.color("&7Place this minion down to generate"));
+                lore.add(ColorUtil.color("&7and harvest resources on your island!"));
+                lore.add(ColorUtil.color("&7"));
+                lore.add(ColorUtil.color("&eRight-click on the ground to place!"));
+            }
 
             meta.setLore(lore);
 
@@ -121,10 +139,10 @@ public class MinionItemFactory {
         ItemStack item = new ItemStack(upgrade.getMaterial());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(upgrade.getDisplayName());
+            meta.setDisplayName(ColorUtil.color(upgrade.getDisplayName()));
             List<String> lore = new ArrayList<>(upgrade.getLore());
-            lore.add("§7");
-            lore.add("§ePlace in a Minion's upgrade slot!");
+            lore.add(ColorUtil.color("&7"));
+            lore.add(ColorUtil.color("&ePlace in a Minion's upgrade slot!"));
             meta.setLore(lore);
 
             if (upgrade.isGlowing()) {
@@ -153,11 +171,11 @@ public class MinionItemFactory {
         ItemStack item = new ItemStack(upgrade.getIcon());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§6" + upgrade.getDisplayName());
+            meta.setDisplayName(ColorUtil.color("&6" + upgrade.getDisplayName()));
             List<String> lore = new ArrayList<>();
-            lore.add("§7" + upgrade.getDescription());
-            lore.add("§7");
-            lore.add("§ePlace in a Minion's upgrade slot!");
+            lore.add(ColorUtil.color("&7" + upgrade.getDescription()));
+            lore.add(ColorUtil.color("&7"));
+            lore.add(ColorUtil.color("&ePlace in a Minion's upgrade slot!"));
             meta.setLore(lore);
 
             meta.addEnchant(Enchantment.DURABILITY, 1, true);
@@ -177,10 +195,10 @@ public class MinionItemFactory {
         ItemStack item = new ItemStack(fuel.getMaterial());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(fuel.getDisplayName());
+            meta.setDisplayName(ColorUtil.color(fuel.getDisplayName()));
             List<String> lore = new ArrayList<>(fuel.getLore());
-            lore.add("§7");
-            lore.add("§ePlace in a Minion's fuel slot!");
+            lore.add(ColorUtil.color("&7"));
+            lore.add(ColorUtil.color("&ePlace in a Minion's fuel slot!"));
             meta.setLore(lore);
 
             if (fuel.isGlowing()) {
@@ -209,12 +227,12 @@ public class MinionItemFactory {
         ItemStack item = new ItemStack(fuel.getMaterial());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§b" + fuel.getDisplayName());
+            meta.setDisplayName(ColorUtil.color("&b" + fuel.getDisplayName()));
             List<String> lore = new ArrayList<>();
-            lore.add("§7Increases minion speed by §a+" + (int) (fuel.getSpeedBuff() * 100) + "%§7.");
-            lore.add("§7Duration: §e" + (fuel.isPermanent() ? "Permanent" : (fuel.getDurationMillis() / (3600 * 1000L)) + " hours"));
-            lore.add("§7");
-            lore.add("§ePlace in a Minion's fuel slot!");
+            lore.add(ColorUtil.color("&7Increases minion speed by &a+" + (int) (fuel.getSpeedBuff() * 100) + "%&7."));
+            lore.add(ColorUtil.color("&7Duration: &e" + (fuel.isPermanent() ? "Permanent" : (fuel.getDurationMillis() / (3600 * 1000L)) + " hours")));
+            lore.add(ColorUtil.color("&7"));
+            lore.add(ColorUtil.color("&ePlace in a Minion's fuel slot!"));
             meta.setLore(lore);
 
             meta.addEnchant(Enchantment.DURABILITY, 1, true);

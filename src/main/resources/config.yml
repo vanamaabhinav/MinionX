@@ -1,19 +1,85 @@
 # ==============================================================================
-# SkyBlock Minions Configuration
-# Inspired by Hypixel SkyBlock
+# MinionX - Hypixel SkyBlock Inspired Minions Configuration
 # ==============================================================================
 
 settings:
-  # Size of the minion's working area (radius in blocks from center, 2 = 5x5 area)
-  working-radius: 2
-  # Auto-save interval in ticks (6000 ticks = 5 minutes)
-  auto-save-interval: 6000
-  # Minion tick cycle check interval in ticks (20 ticks = 1 second)
+  # Tick interval for the minion AI task (20 ticks = 1 second)
   tick-interval: 20
-  # Play animation and sound effects
+  # Periodic auto-save interval in ticks (6000 ticks = 5 minutes)
+  auto-save-interval: 6000
+  # Visual animations, sounds, and particles
   enable-animations: true
   enable-sounds: true
   enable-particles: true
+
+# ==============================================================================
+# FLOATING NAMETAGS (Holograms)
+# ==============================================================================
+nametags:
+  # Display mode:
+  # ALWAYS    - Hologram is always visible floating above the minion.
+  # TARGETED  - Nametag only shows when looking/pointing directly at the minion (reduces visual clutter).
+  # DISABLED  - Disables nametags completely (eliminates all hologram entities, zero lag).
+  mode: ALWAYS
+
+  # Nametag format. Supported Placeholders:
+  # %tier%        - Numeric tier level (e.g., 1, 5, 11)
+  # %tier_roman%  - Roman numeral level (e.g., I, V, XI)
+  # %minion_name% - Display name of the minion (e.g., Cobblestone, Iron, Diamond)
+  # %status%      - Current minion state (e.g., Working..., Full, Blocked)
+  # %total%       - Total items harvested by this minion
+  format: "&e[Lv.%tier_roman%] &a%minion_name% Minion &7(%status%&7)"
+
+# ==============================================================================
+# MINION TIERS (Action Speeds, Storage Slots & Upgrade Costs)
+# ==============================================================================
+# Fully customizable! Non-coders can change speeds, capacities, upgrade costs,
+# or even add Tier 12, Tier 13, etc. by appending new numbered sections below.
+tiers:
+  1:
+    action-delay: 14.0
+    storage-slots: 1
+    upgrade-cost: 80
+  2:
+    action-delay: 14.0
+    storage-slots: 3
+    upgrade-cost: 160
+  3:
+    action-delay: 12.5
+    storage-slots: 3
+    upgrade-cost: 320
+  4:
+    action-delay: 12.5
+    storage-slots: 6
+    upgrade-cost: 640
+  5:
+    action-delay: 11.0
+    storage-slots: 6
+    upgrade-cost: 1280
+  6:
+    action-delay: 11.0
+    storage-slots: 9
+    upgrade-cost: 2560
+  7:
+    action-delay: 9.5
+    storage-slots: 9
+    upgrade-cost: 5120
+  8:
+    action-delay: 9.5
+    storage-slots: 12
+    upgrade-cost: 10240
+  9:
+    action-delay: 8.0
+    storage-slots: 12
+    upgrade-cost: 20480
+  10:
+    action-delay: 8.0
+    storage-slots: 15
+    upgrade-cost: 40960
+  11:
+    action-delay: 7.0
+    storage-slots: 15
+    upgrade-cost: 0
 
 # Minion Player Head Textures (Base64 skins)
 heads:
@@ -22,17 +88,36 @@ heads:
   diamond: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTRmODcxMThjZGEyMmQ0OWU4OTU1ZTZiYWY4Nzg2MzIxMzAxYWI5N2M3YjU3Mzg4YTFhMjAxYjU2YTUxZiJ9fX0="
 
 # ==============================================================================
+# CUSTOM ITEM LORE (Fully editable item descriptions)
+# ==============================================================================
+item-lore:
+  minion-item:
+    - "&7Time Between Actions: &a%delay%s"
+    - "&7Max Storage: &e%capacity% items &7(%slots% slots)"
+    - "&7"
+    - "&7Place this minion down to generate"
+    - "&7and harvest resources on your island!"
+    - "&7"
+    - "&eRight-click on the ground to place!"
+
+gui:
+  head-lore:
+    - "&7Time Between Actions: &a%delay%s"
+    - "&7Total Harvested: &e%harvested% items"
+    - "&7Storage: &e%stored% / %capacity% items"
+    - "&7Status: %status%"
+
+# ==============================================================================
 # CUSTOM FUELS (Add new fuels here without writing any Java code!)
 # ==============================================================================
-# Non-coders can easily add new fuels below by copying an entry.
-# Supported Options:
-#   display-name: The item display name (supports color codes like & or §)
-#   material: Minecraft Material name (e.g., COAL, LAVA_BUCKET, BLAZE_POWDER)
-#   speed-buff: Speed increase as a decimal (e.g. 0.05 = +5%, 0.25 = +25%, 0.50 = +50%)
-#   duration: How long the fuel lasts (e.g., "30m", "2h", "1d", "permanent", or "-1")
-#   glow: true/false (enchanted glow effect)
-#   custom-model-data: Optional integer for custom resource packs (0 to disable)
-#   lore: List of lore lines displayed on the fuel item
+# Options:
+#   display-name: Item display name (supports '&' color codes)
+#   material: Minecraft Material name (e.g. COAL, LAVA_BUCKET, DAYLIGHT_DETECTOR)
+#   speed-buff: Speed increase as decimal (0.05 = +5%, 0.25 = +25%)
+#   duration: Duration ("30m", "36h", "permanent", or "-1")
+#   glow: true/false
+#   custom-model-data: 0
+#   lore: List of lore lines
 fuels:
   coal:
     display-name: "&fCoal"
@@ -95,21 +180,15 @@ fuels:
       - "&7Duration: &bPermanent"
 
 # ==============================================================================
-# CUSTOM UPGRADES / ACCESSORIES (Add new accessories with config only!)
+# CUSTOM UPGRADES / ACCESSORIES
 # ==============================================================================
-# Non-coders can easily add new accessories below by copying an entry.
-# Supported Options:
-#   display-name: The item display name
-#   material: Minecraft Material name (e.g. FURNACE, DROPPER, DIAMOND, PISTON, STRING)
-#   type: Behavior type:
-#         - SPEED_BUFF (grants a passive production speed increase)
-#         - AUTO_SMELTER (automatically smelts cobblestone -> stone, iron ore -> iron ingot)
-#         - COMPACTOR (compacts items into mineral/storage blocks)
-#         - DIAMOND_SPREADING (chance on harvest to generate diamonds)
-#   speed-buff: Speed increase as a decimal (e.g. 0.05 = +5%, 0.20 = +20%)
-#   chance: Probability for chance-based upgrades (e.g. 0.10 = 10%)
+# Options:
+#   display-name: Item display name
+#   material: Minecraft Material name
+#   type: SPEED_BUFF, AUTO_SMELTER, COMPACTOR, DIAMOND_SPREADING
+#   speed-buff: Speed increase (e.g. 0.05 = +5%)
+#   chance: Probability for chance upgrades (e.g. 0.10 = 10%)
 #   glow: true/false
-#   custom-model-data: 0
 #   lore: List of lore lines
 upgrades:
   auto_smelter:
@@ -168,60 +247,28 @@ upgrades:
 # ==============================================================================
 # COLLECTION COMMANDS (Skill EXP, Collections, Economy integration)
 # ==============================================================================
-# Executed from console whenever a player collects items from a minion (via Quick Collect
-# or individual storage slot click).
-#
-# Available Placeholders:
-#   %player%           - Player name (e.g., Steve)
-#   %player_uuid%      - Player UUID
-#   %amount%           - Number of items just collected (e.g., 64)
-#   %item%             - Material name collected (e.g., COBBLESTONE, IRON_INGOT, DIAMOND)
-#   %minion_type%      - Minion display name (e.g., Cobblestone, Iron, Diamond)
-#   %minion_type_id%   - Minion internal ID (e.g., cobblestone, iron, diamond)
-#   %minion_tier%      - Current tier number (e.g., 1 to 11)
-#   %minion_tier_roman%- Roman numeral tier (e.g., I, V, XI)
-#   %total_harvested%  - Total items ever produced by this minion
-#   %stored%           - Items currently left inside the minion
-#   %max_capacity%     - Maximum capacity of this minion tier
-#   %world%, %x%, %y%, %z% - Minion coordinate location
-#   PlaceholderAPI     - Any %placeholder% from PlaceholderAPI is also supported!
-#
-# Inline Math Calculations:
-#   Wrap expressions in curly braces {} using "amount", e.g.:
-#     {amount * 2.5}  -> (64 * 2.5 = 160)
-#     {amount * 10}   -> (64 * 10 = 640)
-#     {amount / 2}    -> (64 / 2 = 32)
-#     {amount + 5}    -> (64 + 5 = 69)
+# Placeholders:
+#   %player%, %player_uuid%, %amount%, %item%, %minion_type%, %minion_tier%,
+#   %minion_tier_roman%, %total_harvested%, %stored%, %max_capacity%, %world%, %x%, %y%, %z%
+# Inline Math Expressions:
+#   {amount * 2.5}, {amount * 10}, {amount / 2}
 collection-commands:
   enabled: true
-  # Global commands triggered whenever ANY minion resource is collected
-  global:
-    # Example: Send a friendly message or add to global statistics
-    # - "eco give %player% {amount * 1.5}"
-  # Minion-type specific commands (triggered only when collecting from that minion)
+  global: []
   types:
-    cobblestone:
-      # Gives 1.0 Mining skill EXP per collected cobblestone (AureliumSkills, MMOItems, MCMMO, etc.)
-      # - "skills addexp %player% mining {amount * 1}"
-      # - "collection add %player% cobblestone %amount%"
-    iron:
-      # Gives 3.0 Mining skill EXP per collected iron
-      # - "skills addexp %player% mining {amount * 3}"
-      # - "collection add %player% iron %amount%"
-    diamond:
-      # Gives 10.0 Mining skill EXP per collected diamond
-      # - "skills addexp %player% mining {amount * 10}"
-      # - "collection add %player% diamond %amount%"
+    cobblestone: []
+    iron: []
+    diamond: []
 
 # Messages
 messages:
-  prefix: "§6[Minions] §r"
-  placed: "§aYou placed a %minion%!"
-  picked-up: "§eYou picked up your %minion%!"
-  upgraded: "§aUpgraded %minion% to Tier %tier%!"
-  not-enough-resources: "§cYou don't have enough resources to upgrade this minion!"
-  already-max-tier: "§cThis minion is already at maximum tier!"
-  collected: "§aCollected %amount% items from your minion!"
-  inventory-full: "§cYour inventory is too full to collect all items!"
-  area-blocked: "§cCannot place minion here! Ensure a flat 5x5 platform is available."
-  no-permission: "§cYou do not have permission to do this."
+  prefix: "&6[Minions] &r"
+  placed: "&aYou placed a %minion%!"
+  picked-up: "&eYou picked up your %minion%!"
+  upgraded: "&aUpgraded %minion% to Tier %tier%!"
+  not-enough-resources: "&cYou don't have enough resources to upgrade this minion!"
+  already-max-tier: "&cThis minion is already at maximum tier!"
+  collected: "&aCollected %amount% items from your minion!"
+  inventory-full: "&cYour inventory is too full to collect all items!"
+  area-blocked: "&cCannot place minion here! Ensure a flat 5x5 platform is available."
+  no-permission: "&cYou do not have permission to do this."

@@ -3,6 +3,7 @@ package com.skyblock.minions.gui;
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
 import com.skyblock.minions.item.MinionItemFactory;
+import com.skyblock.minions.util.ColorUtil;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -14,7 +15,7 @@ import org.bukkit.inventory.ItemStack;
 import java.util.HashMap;
 
 /**
- * Handles interactions inside the MinionX Operator GUI.
+ * Handles interactions inside the categorized MinionX Operator GUI.
  */
 public class OperatorGUIListener implements Listener {
 
@@ -31,94 +32,155 @@ public class OperatorGUIListener implements Listener {
         }
 
         ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) {
+        if (clicked == null || clicked.getType() == Material.AIR || clicked.getType() == Material.BLACK_STAINED_GLASS_PANE || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) {
             return;
         }
 
         int slot = event.getRawSlot();
 
-        // Close button (Slot 45 in main view)
-        if (slot == 45 && clicked.getType() == Material.BARRIER) {
-            player.closeInventory();
+        // 1. Main Hub View
+        if (holder.getViewType() == OperatorHolder.ViewType.MAIN) {
+            handleMainClick(player, slot, clicked);
             return;
         }
 
-        if (holder.getViewType() == OperatorHolder.ViewType.MAIN) {
-            handleMainClick(player, slot, clicked, event);
-        } else if (holder.getViewType() == OperatorHolder.ViewType.MINION_TIERS) {
-            handleTierClick(player, slot, clicked, event, (MinionType) holder.getContext());
+        // 2. Minions Catalog View
+        if (holder.getViewType() == OperatorHolder.ViewType.MINIONS_CATALOG) {
+            handleMinionsCatalogClick(player, slot, clicked, event);
+            return;
+        }
+
+        // 3. Minion Tiers View
+        if (holder.getViewType() == OperatorHolder.ViewType.MINION_TIERS) {
+            handleTierClick(player, slot, clicked, event);
+            return;
+        }
+
+        // 4. Fuels Catalog View
+        if (holder.getViewType() == OperatorHolder.ViewType.FUELS_CATALOG) {
+            handleFuelsCatalogClick(player, slot, clicked, event);
+            return;
+        }
+
+        // 5. Upgrades Catalog View
+        if (holder.getViewType() == OperatorHolder.ViewType.UPGRADES_CATALOG) {
+            handleUpgradesCatalogClick(player, slot, clicked, event);
+            return;
+        }
+
+        // 6. Kits Catalog View
+        if (holder.getViewType() == OperatorHolder.ViewType.KITS_CATALOG) {
+            handleKitsCatalogClick(player, slot, clicked);
         }
     }
 
-    private void handleMainClick(Player player, int slot, ItemStack clicked, InventoryClickEvent event) {
-        // Hot-reload config & registries
-        if (slot == 53 && clicked.getType() == Material.REPEATER) {
+    private void handleMainClick(Player player, int slot, ItemStack clicked) {
+        if (slot == 20) {
+            OperatorGUI.openMinionsCatalog(player);
+        } else if (slot == 22) {
+            OperatorGUI.openFuelsCatalog(player);
+        } else if (slot == 24) {
+            OperatorGUI.openUpgradesCatalog(player);
+        } else if (slot == 31) {
+            OperatorGUI.openKitsCatalog(player);
+        } else if (slot == 45 && clicked.getType() == Material.BARRIER) {
+            player.closeInventory();
+        } else if (slot == 53 && clicked.getType() == Material.REPEATER) {
             SkyBlockMinions.getInstance().reloadConfig();
             SkyBlockMinions.getInstance().loadRegistries();
-            player.sendMessage("§6[MinionX] §aConfiguration and registries reloaded successfully.");
+            player.sendMessage(ColorUtil.color("&6[MinionX] &aConfiguration and registries reloaded successfully."));
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.5f);
             OperatorGUI.openMain(player);
-            return;
         }
-
-        // Minion heads showcase (Slots 11, 13, 15)
-        if (slot == 11 || slot == 13 || slot == 15) {
-            MinionType type = (slot == 11) ? MinionType.COBBLESTONE : (slot == 13 ? MinionType.IRON : MinionType.DIAMOND);
-            if (event.isRightClick()) {
-                OperatorGUI.openTierBrowser(player, type);
-                return;
-            } else {
-                int amount = event.isShiftClick() ? 16 : 1;
-                giveItem(player, MinionItemFactory.createMinionItem(type, 11, 0), amount);
-                return;
-            }
-        }
-
-        // Admin presets (Slots 38, 40, 42)
-        if (slot == 38) {
-            giveItem(player, MinionItemFactory.createMinionItem(MinionType.COBBLESTONE, 1, 0), 1);
-            giveItem(player, MinionItemFactory.createFuelItem(FuelRegistry.get("coal")), 1);
-            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("auto_smelter")), 1);
-            player.sendMessage("§6[MinionX] §aReceived: §fCobblestone Starter Kit§a.");
-            return;
-        } else if (slot == 40) {
-            giveItem(player, MinionItemFactory.createMinionItem(MinionType.IRON, 5, 0), 1);
-            giveItem(player, MinionItemFactory.createFuelItem(FuelRegistry.get("enchanted_charcoal")), 1);
-            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("auto_smelter")), 1);
-            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("compactor")), 1);
-            player.sendMessage("§6[MinionX] §aReceived: §fIron Automaton Kit§a.");
-            return;
-        } else if (slot == 42) {
-            giveItem(player, MinionItemFactory.createMinionItem(MinionType.DIAMOND, 11, 0), 1);
-            giveItem(player, MinionItemFactory.createFuelItem(FuelRegistry.get("enchanted_lava_bucket")), 1);
-            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("auto_smelter")), 1);
-            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("diamond_spreading")), 1);
-            player.sendMessage("§6[MinionX] §aReceived: §fDiamond Maxed Producer Kit§a.");
-            return;
-        }
-
-        // Informational header items (Slots 2, 4, 6, 49)
-        if (slot == 2 || slot == 4 || slot == 6 || slot == 49) {
-            return;
-        }
-
-        // Fuels, Upgrades, or generic clicked items
-        int amount = event.isShiftClick() ? 64 : 1;
-        giveItem(player, clicked, amount);
     }
 
-    private void handleTierClick(Player player, int slot, ItemStack clicked, InventoryClickEvent event, MinionType type) {
+    private void handleMinionsCatalogClick(Player player, int slot, ItemStack clicked, InventoryClickEvent event) {
         if (slot == 49 && clicked.getType() == Material.ARROW) {
             OperatorGUI.openMain(player);
             return;
         }
 
-        if (clicked.getType() == Material.CHEST || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) {
+        MinionType type = null;
+        if (slot == 20) type = MinionType.COBBLESTONE;
+        else if (slot == 22) type = MinionType.IRON;
+        else if (slot == 24) type = MinionType.DIAMOND;
+
+        if (type != null) {
+            if (event.isRightClick()) {
+                OperatorGUI.openTierBrowser(player, type);
+            } else {
+                int amount = event.isShiftClick() ? 16 : 1;
+                giveItem(player, MinionItemFactory.createMinionItem(type, 11, 0), amount);
+            }
+        }
+    }
+
+    private void handleTierClick(Player player, int slot, ItemStack clicked, InventoryClickEvent event) {
+        if (slot == 49 && clicked.getType() == Material.ARROW) {
+            OperatorGUI.openMinionsCatalog(player);
+            return;
+        }
+
+        if (clicked.getType() == Material.CHEST) {
             return;
         }
 
         int amount = event.isShiftClick() ? 16 : 1;
         giveItem(player, clicked, amount);
+    }
+
+    private void handleFuelsCatalogClick(Player player, int slot, ItemStack clicked, InventoryClickEvent event) {
+        if (slot == 49 && clicked.getType() == Material.ARROW) {
+            OperatorGUI.openMain(player);
+            return;
+        }
+
+        if (clicked.getType() == Material.LAVA_BUCKET && slot == 4) {
+            return;
+        }
+
+        int amount = event.isShiftClick() ? 64 : 1;
+        giveItem(player, clicked, amount);
+    }
+
+    private void handleUpgradesCatalogClick(Player player, int slot, ItemStack clicked, InventoryClickEvent event) {
+        if (slot == 49 && clicked.getType() == Material.ARROW) {
+            OperatorGUI.openMain(player);
+            return;
+        }
+
+        if (clicked.getType() == Material.NETHER_STAR && slot == 4) {
+            return;
+        }
+
+        int amount = event.isShiftClick() ? 64 : 1;
+        giveItem(player, clicked, amount);
+    }
+
+    private void handleKitsCatalogClick(Player player, int slot, ItemStack clicked) {
+        if (slot == 49 && clicked.getType() == Material.ARROW) {
+            OperatorGUI.openMain(player);
+            return;
+        }
+
+        if (slot == 20) {
+            giveItem(player, MinionItemFactory.createMinionItem(MinionType.COBBLESTONE, 1, 0), 1);
+            giveItem(player, MinionItemFactory.createFuelItem(FuelRegistry.get("coal")), 1);
+            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("auto_smelter")), 1);
+            player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived: &fCobblestone Starter Kit&a."));
+        } else if (slot == 22) {
+            giveItem(player, MinionItemFactory.createMinionItem(MinionType.IRON, 5, 0), 1);
+            giveItem(player, MinionItemFactory.createFuelItem(FuelRegistry.get("enchanted_charcoal")), 1);
+            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("auto_smelter")), 1);
+            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("compactor")), 1);
+            player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived: &fIron Automaton Kit&a."));
+        } else if (slot == 24) {
+            giveItem(player, MinionItemFactory.createMinionItem(MinionType.DIAMOND, 11, 0), 1);
+            giveItem(player, MinionItemFactory.createFuelItem(FuelRegistry.get("enchanted_lava_bucket")), 1);
+            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("auto_smelter")), 1);
+            giveItem(player, MinionItemFactory.createUpgradeItem(UpgradeRegistry.get("diamond_spreading")), 1);
+            player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived: &fDiamond Maxed Producer Kit&a."));
+        }
     }
 
     private void giveItem(Player player, ItemStack item, int amount) {
@@ -135,7 +197,7 @@ public class OperatorGUIListener implements Listener {
                 ? toGive.getItemMeta().getDisplayName()
                 : toGive.getType().name();
 
-        player.sendMessage("§6[MinionX] §aReceived: §f" + displayName + " §7(x" + amount + ")§a.");
+        player.sendMessage(ColorUtil.color("&6[MinionX] &aReceived: &f" + displayName + " &7(x" + amount + ")&a."));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
     }
 }

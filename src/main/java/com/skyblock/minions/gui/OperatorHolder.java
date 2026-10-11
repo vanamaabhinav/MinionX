@@ -10,7 +10,11 @@ public class OperatorHolder implements InventoryHolder {
 
     public enum ViewType {
         MAIN,
-        MINION_TIERS
+        MINIONS_CATALOG,
+        MINION_TIERS,
+        FUELS_CATALOG,
+        UPGRADES_CATALOG,
+        KITS_CATALOG
     }
 
     private final ViewType viewType;

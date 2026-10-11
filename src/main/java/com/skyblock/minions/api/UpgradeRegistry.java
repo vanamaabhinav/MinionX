@@ -1,9 +1,11 @@
 package com.skyblock.minions.api;
 
 import com.skyblock.minions.item.MinionItemFactory;
+import com.skyblock.minions.util.ColorUtil;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,7 +29,7 @@ public class UpgradeRegistry {
                 ConfigurationSection upSec = section.getConfigurationSection(key);
                 if (upSec == null) continue;
 
-                String displayName = upSec.getString("display-name", key);
+                String displayName = ColorUtil.color(upSec.getString("display-name", key));
                 String matName = upSec.getString("material", "IRON_BLOCK");
                 Material mat = Material.matchMaterial(matName);
                 if (mat == null) mat = Material.IRON_BLOCK;
@@ -42,7 +44,8 @@ public class UpgradeRegistry {
 
                 double speedBuff = upSec.getDouble("speed-buff", 0.0);
                 double chance = upSec.getDouble("chance", 0.0);
-                List<String> lore = upSec.getStringList("lore");
+                List<String> rawLore = upSec.getStringList("lore");
+                List<String> lore = ColorUtil.color(rawLore);
                 boolean glow = upSec.getBoolean("glow", false);
                 int customModelData = upSec.getInt("custom-model-data", 0);
 
@@ -55,25 +58,29 @@ public class UpgradeRegistry {
     }
 
     private static void registerDefaults() {
-        registerDefaultIfMissing("auto_smelter", new CustomUpgrade("auto_smelter", "§6Auto-Smelter", Material.FURNACE,
+        registerDefaultIfMissing("auto_smelter", new CustomUpgrade("auto_smelter", ColorUtil.color("&6Auto-Smelter"), Material.FURNACE,
                 CustomUpgrade.UpgradeBehavior.AUTO_SMELTER, 0.0, 0.0,
-                List.of("§7Automatically smelts harvested resources."), true, 0));
+                ColorUtil.color(List.of("&7Automatically smelts harvested resources.")), true, 0));
 
-        registerDefaultIfMissing("compactor", new CustomUpgrade("compactor", "§6Compactor", Material.DROPPER,
+        registerDefaultIfMissing("compactor", new CustomUpgrade("compactor", ColorUtil.color("&6Compactor"), Material.DROPPER,
                 CustomUpgrade.UpgradeBehavior.COMPACTOR, 0.0, 0.0,
-                List.of("§7Automatically compacts resources into blocks."), true, 0));
+                ColorUtil.color(List.of("&7Automatically compacts resources into blocks.")), true, 0));
 
-        registerDefaultIfMissing("diamond_spreading", new CustomUpgrade("diamond_spreading", "§bDiamond Spreading", Material.DIAMOND,
+        registerDefaultIfMissing("diamond_spreading", new CustomUpgrade("diamond_spreading", ColorUtil.color("&bDiamond Spreading"), Material.DIAMOND,
                 CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING, 0.0, 0.10,
-                List.of("§7Adds a 10% chance to generate diamonds when harvesting resources."), true, 0));
+                ColorUtil.color(List.of("&7Adds a 10% chance to generate diamonds", "&7when harvesting resources.")), true, 0));
 
-        registerDefaultIfMissing("minion_expander", new CustomUpgrade("minion_expander", "§aMinion Expander", Material.PISTON,
+        registerDefaultIfMissing("minion_expander", new CustomUpgrade("minion_expander", ColorUtil.color("&aMinion Expander"), Material.PISTON,
                 CustomUpgrade.UpgradeBehavior.SPEED_BUFF, 0.05, 0.0,
-                List.of("§7Increases production speed by +5%."), true, 0));
+                ColorUtil.color(List.of("&7Increases production speed by &a+5%&7.")), true, 0));
 
-        registerDefaultIfMissing("flycatcher", new CustomUpgrade("flycatcher", "§dFlycatcher", Material.STRING,
+        registerDefaultIfMissing("flycatcher", new CustomUpgrade("flycatcher", ColorUtil.color("&dFlycatcher"), Material.STRING,
                 CustomUpgrade.UpgradeBehavior.SPEED_BUFF, 0.20, 0.0,
-                List.of("§7Increases minion speed by §a+20%§7."), true, 0));
+                ColorUtil.color(List.of("&7Increases minion speed by &a+20%&7.")), true, 0));
+
+        registerDefaultIfMissing("hyper_catalyst", new CustomUpgrade("hyper_catalyst", ColorUtil.color("&5Hyper Catalyst"), Material.NETHER_STAR,
+                CustomUpgrade.UpgradeBehavior.SPEED_BUFF, 0.40, 0.0,
+                ColorUtil.color(List.of("&7Increases production speed by &a+40%&7.")), true, 0));
     }
 
     private static void registerDefaultIfMissing(String id, CustomUpgrade upgrade) {
@@ -94,7 +101,8 @@ public class UpgradeRegistry {
     }
 
     /**
-     * Resolves a CustomUpgrade from an item stack via PDC tag or matching material fallback.
+     * Resolves a CustomUpgrade from an item stack.
+     * Matches PDC key first, then meta display name. Plain vanilla materials never match.
      */
     public static CustomUpgrade fromItemStack(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return null;
@@ -104,10 +112,15 @@ public class UpgradeRegistry {
             return UPGRADES.get(pdcId.toLowerCase());
         }
 
-        // Material fallback
-        for (CustomUpgrade upgrade : UPGRADES.values()) {
-            if (upgrade.getMaterial() == item.getType()) {
-                return upgrade;
+        if (item.hasItemMeta()) {
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null && meta.hasDisplayName()) {
+                String name = meta.getDisplayName();
+                for (CustomUpgrade upgrade : UPGRADES.values()) {
+                    if (upgrade.getDisplayName().equalsIgnoreCase(name) || name.contains(upgrade.getId().replace('_', ' '))) {
+                        return upgrade;
+                    }
+                }
             }
         }
 

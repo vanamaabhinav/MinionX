@@ -1,12 +1,11 @@
 package com.skyblock.minions.core;
 
-import com.skyblock.minions.api.*;
+import com.skyblock.minions.api.MinionState;
+import com.skyblock.minions.api.MinionUpgradeType;
 import com.skyblock.minions.visual.MinionAnimation;
 import com.skyblock.minions.visual.MinionHologram;
-import com.skyblock.minions.visual.MinionVisual;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -15,30 +14,32 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Global repeating task executing the autonomous Two-Action Cycle for all active minions.
+ * Global repeating task executing the autonomous action cycle for all active minions.
+ * Fills the 5x5 working radius before beginning resource mining.
  */
 public class MinionTickTask extends BukkitRunnable {
 
-    private final MinionManager manager;
+    private final MinionManager minionManager;
 
-    public MinionTickTask(MinionManager manager) {
-        this.manager = manager;
+    public MinionTickTask(MinionManager minionManager) {
+        this.minionManager = minionManager;
     }
 
     @Override
     public void run() {
-        for (Minion minion : manager.getAllMinions()) {
+        for (Minion minion : minionManager.getAllMinions()) {
             tickMinion(minion);
         }
     }
 
     private void tickMinion(Minion minion) {
-        if (minion == null || minion.getLocation() == null) return;
-        if (!minion.getLocation().isChunkLoaded()) return;
+        if (!minion.getLocation().isChunkLoaded()) {
+            return;
+        }
 
-        // Ensure visual entities are alive
-        if (minion.getArmorStandId() == null || org.bukkit.Bukkit.getEntity(minion.getArmorStandId()) == null) {
-            MinionVisual.spawnOrUpdate(minion);
+        // Check fuel expiration
+        if (minion.getFuelId() != null && !minion.isFuelActive()) {
+            minion.setFuel((com.skyblock.minions.api.CustomFuel) null);
             MinionHologram.updateHologram(minion);
         }
 
@@ -68,44 +69,24 @@ public class MinionTickTask extends BukkitRunnable {
             Material type = block.getType();
             if (type == minion.getType().getTargetMaterial() || type == minion.getType().getPlacedMaterial()) {
                 resourceBlocks.add(block);
-            } else if (type.isAir()) {
-                // Must have a solid block underneath as floor
-                Block floor = block.getRelative(BlockFace.DOWN);
-                if (floor.getType().isSolid()) {
-                    emptySpots.add(block);
-                }
+            } else if (type.isAir() || !type.isSolid()) {
+                emptySpots.add(block);
             }
         }
 
-        // Action Decision
-        if (minion.wasLastActionPlace()) {
-            // Priority: Mine an existing resource block
-            if (!resourceBlocks.isEmpty()) {
-                Collections.shuffle(resourceBlocks);
-                Block target = resourceBlocks.getFirst();
-                executeMine(minion, target, dropMaterial);
-            } else if (!emptySpots.isEmpty()) {
-                // No resource block available, place again
-                Collections.shuffle(emptySpots);
-                Block target = emptySpots.getFirst();
-                executePlace(minion, target);
-            } else {
-                setNoSpaceState(minion);
-            }
+        // Action Decision: Fill the entire 5x5 working area first before mining!
+        if (!emptySpots.isEmpty()) {
+            // Priority 1: Fill any available empty spots with resource blocks
+            Collections.shuffle(emptySpots);
+            Block target = emptySpots.getFirst();
+            executePlace(minion, target);
+        } else if (!resourceBlocks.isEmpty()) {
+            // Priority 2: When 5x5 area is full (or in generator layout), harvest resources!
+            Collections.shuffle(resourceBlocks);
+            Block target = resourceBlocks.getFirst();
+            executeMine(minion, target, dropMaterial);
         } else {
-            // Priority: Place a block if there are empty spots
-            if (!emptySpots.isEmpty()) {
-                Collections.shuffle(emptySpots);
-                Block target = emptySpots.getFirst();
-                executePlace(minion, target);
-            } else if (!resourceBlocks.isEmpty()) {
-                // Generator setup or area full of resources: direct continuous mining!
-                Collections.shuffle(resourceBlocks);
-                Block target = resourceBlocks.getFirst();
-                executeMine(minion, target, dropMaterial);
-            } else {
-                setNoSpaceState(minion);
-            }
+            setNoSpaceState(minion);
         }
     }
 
