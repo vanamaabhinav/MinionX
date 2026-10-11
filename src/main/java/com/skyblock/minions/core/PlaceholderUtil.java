@@ -1,5 +1,8 @@
 package com.skyblock.minions.core;
 
+import com.skyblock.minions.quarantine.QuarantineManager;
+import com.skyblock.minions.api.CustomMinionStorage;
+
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.MinionTier;
 import org.bukkit.Bukkit;
@@ -21,6 +24,12 @@ public class PlaceholderUtil {
         if (input == null) return "";
 
         String result = input;
+
+        // Quarantine placeholders
+        boolean isQuar = QuarantineManager.isQuarantined();
+        result = result.replace("%minions_quarantine_status%", isQuar ? "&cQUARANTINED" : "&aNORMAL")
+                       .replace("%minion_is_quarantined%", String.valueOf(isQuar));
+
 
         // Player placeholders
         if (player != null) {
@@ -53,6 +62,16 @@ public class PlaceholderUtil {
 
         // Minion placeholders
         if (minion != null) {
+            
+            // Minion Storage placeholders
+            boolean hasStorage = minion.hasLinkedStorage();
+            CustomMinionStorage st = minion.getLinkedStorage();
+            result = result.replace("%minion_has_storage%", String.valueOf(hasStorage))
+                           .replace("%minion_storage_name%", (hasStorage && st != null) ? st.getDisplayName() : "None")
+                           .replace("%minion_storage_used%", hasStorage ? String.valueOf(minion.getStorageContents().size()) : "0")
+                           .replace("%minion_storage_capacity%", (hasStorage && st != null) ? String.valueOf(st.getCapacity()) : "0")
+                           .replace("%minion_storage_full%", (hasStorage && st != null) ? String.valueOf(minion.getStorageContents().size() >= st.getCapacity()) : "false");
+
             result = result.replace("%minion_type%", minion.getDisplayName())
                            .replace("%minion_type_id%", minion.getCustomDefinitionId() != null ? minion.getCustomDefinitionId() : (minion.getType() != null ? minion.getType().name().toLowerCase() : "minion"))
                            .replace("%minion_tier%", String.valueOf(minion.getTier()))

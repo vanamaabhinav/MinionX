@@ -36,6 +36,13 @@ public class Minion {
     private int storedXp;
     private String customDefinitionId;
 
+    private Location storageLocation;
+    private String storageId;
+    private final List<ItemStack> storageContents = new ArrayList<>();
+
+    private String activeDialogue;
+    private long dialogueExpiresAt;
+
     public Minion(UUID minionId, UUID ownerId, MinionType type, int tier, Location location) {
         this.minionId = minionId != null ? minionId : UUID.randomUUID();
         this.ownerId = ownerId;
@@ -355,6 +362,33 @@ public class Minion {
             return true;
         }
 
+        // If internal inventory cannot fit all, try overflowing to linked storage chest!
+        if (hasLinkedStorage() && toAdd.getAmount() > 0) {
+            com.skyblock.minions.api.CustomMinionStorage st = getLinkedStorage();
+            int maxStorageSlots = st != null ? st.getCapacity() : 9;
+
+            // Try stacking into existing storage items
+            for (ItemStack stored : storageContents) {
+                if (isSameItem(stored, toAdd)) {
+                    int space = stored.getMaxStackSize() - stored.getAmount();
+                    if (space > 0) {
+                        int addAmount = Math.min(space, toAdd.getAmount());
+                        stored.setAmount(stored.getAmount() + addAmount);
+                        toAdd.setAmount(toAdd.getAmount() - addAmount);
+                        if (toAdd.getAmount() <= 0) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // Add to new slot in storage if space
+            if (storageContents.size() < maxStorageSlots && toAdd.getAmount() > 0) {
+                storageContents.add(toAdd);
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -382,6 +416,11 @@ public class Minion {
     public int getTotalStoredCount() {
         int count = 0;
         for (ItemStack item : inventory) {
+            if (item != null) {
+                count += item.getAmount();
+            }
+        }
+        for (ItemStack item : storageContents) {
             if (item != null) {
                 count += item.getAmount();
             }
@@ -520,4 +559,73 @@ public class Minion {
     public void setHologramId(UUID hologramId) {
         this.hologramId = hologramId;
     }
+
+    // --- Storage System ---
+    public boolean hasLinkedStorage() {
+        return storageLocation != null && storageId != null;
+    }
+
+    public Location getLinkedStorageLocation() {
+        return storageLocation;
+    }
+
+    public String getStorageId() {
+        return storageId;
+    }
+
+    public CustomMinionStorage getLinkedStorage() {
+        if (storageId == null) return null;
+        return MinionStorageRegistry.get(storageId);
+    }
+
+    public List<ItemStack> getStorageContents() {
+        return storageContents;
+    }
+
+    public void linkStorage(Location location, String storageId) {
+        this.storageLocation = location;
+        this.storageId = storageId;
+    }
+
+    public void unlinkStorage() {
+        this.storageLocation = null;
+        this.storageId = null;
+        this.storageContents.clear();
+    }
+
+    // --- Dialogue System ---
+    public boolean hasActiveDialogue() {
+        return activeDialogue != null && System.currentTimeMillis() < dialogueExpiresAt;
+    }
+
+    public String getActiveDialogue() {
+        return hasActiveDialogue() ? activeDialogue : null;
+    }
+
+    public void speak(String message, long durationMillis) {
+        this.activeDialogue = message;
+        this.dialogueExpiresAt = System.currentTimeMillis() + durationMillis;
+    }
+
+    public void clearDialogue() {
+        this.activeDialogue = null;
+        this.dialogueExpiresAt = 0;
+    }
+
+    public boolean checkAndClearExpiredDialogue() {
+        if (activeDialogue != null && System.currentTimeMillis() >= dialogueExpiresAt) {
+            clearDialogue();
+            return true;
+        }
+        return false;
+    }
+
+
+    public MinionDefinition getDefinition() {
+        if (customDefinitionId != null) {
+            return MinionRegistry.get(customDefinitionId);
+        }
+        return type != null ? MinionRegistry.get(type.name().toLowerCase()) : null;
+    }
+
 }

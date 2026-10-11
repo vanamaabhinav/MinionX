@@ -1,5 +1,8 @@
 package com.skyblock.minions.gui;
 
+import com.skyblock.minions.quarantine.QuarantineManager;
+import com.skyblock.minions.listener.MinionStorageListener;
+
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
 import com.skyblock.minions.core.CollectionCommandHandler;
@@ -214,6 +217,11 @@ public class MinionGUIListener implements Listener {
     }
 
     private void handleCollectAll(Player player, Minion minion) {
+        if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
+            player.sendMessage(ColorUtil.color("&c[Quarantine] Item collection is disabled during emergency quarantine mode!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
         if (minion.getInventory().isEmpty()) {
             player.sendMessage(ColorUtil.color("&cYour minion has no items to collect!"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
@@ -298,6 +306,12 @@ public class MinionGUIListener implements Listener {
     private void handlePickup(Player player, Minion minion) {
         player.closeInventory();
 
+        if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
+            player.sendMessage(ColorUtil.color("&c[Quarantine] Minion pickup is disabled during emergency quarantine mode!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
         // Check if player has at least 1 free inventory slot
         if (player.getInventory().firstEmpty() == -1) {
             player.sendMessage(ColorUtil.color("&cYour inventory is full! Make space before picking up this minion."));
@@ -352,6 +366,9 @@ public class MinionGUIListener implements Listener {
             minionItem = MinionItemFactory.createMinionItem(minion.getType(), minion.getTier(), minion.getTotalHarvested());
         }
         player.getInventory().addItem(minionItem);
+
+        // If minion has a linked storage chest, remove it from the world and drop storage item + contents
+        MinionStorageListener.removeStorageOnMinionRemoval(minion);
 
         // Unregister and despawn
         SkyBlockMinions.getInstance().getMinionManager().unregister(minion);

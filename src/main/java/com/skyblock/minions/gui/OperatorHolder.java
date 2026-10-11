@@ -15,7 +15,8 @@ public class OperatorHolder implements InventoryHolder {
         FUELS_CATALOG,
         UPGRADES_CATALOG,
         KITS_CATALOG,
-        SKINS_CATALOG
+        SKINS_CATALOG,
+        STORAGES_CATALOG
     }
 
     private final ViewType viewType;

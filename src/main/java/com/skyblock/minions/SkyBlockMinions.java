@@ -20,6 +20,10 @@ import com.skyblock.minions.listener.ChunkLifecycleListener;
 import com.skyblock.minions.listener.CustomItemProtectionListener;
 import com.skyblock.minions.listener.MinionInteractListener;
 import com.skyblock.minions.listener.MinionPlaceListener;
+import com.skyblock.minions.api.MinionStorageRegistry;
+import com.skyblock.minions.listener.MinionStorageListener;
+import com.skyblock.minions.quarantine.QuarantineManager;
+
 import com.skyblock.minions.storage.MinionStorage;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -57,6 +61,7 @@ public class SkyBlockMinions extends JavaPlugin {
 
         // Register Listeners
         getServer().getPluginManager().registerEvents(new MinionPlaceListener(), this);
+        getServer().getPluginManager().registerEvents(new MinionStorageListener(), this);
         getServer().getPluginManager().registerEvents(new MinionInteractListener(), this);
         getServer().getPluginManager().registerEvents(new MinionGUIListener(), this);
         getServer().getPluginManager().registerEvents(new MinionCreatorListener(), this);

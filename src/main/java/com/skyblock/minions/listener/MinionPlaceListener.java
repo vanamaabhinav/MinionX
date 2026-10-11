@@ -1,5 +1,10 @@
 package com.skyblock.minions.listener;
 
+import com.skyblock.minions.quarantine.QuarantineManager;
+import org.bukkit.block.TileState;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.MinionType;
 import com.skyblock.minions.core.Minion;
@@ -44,6 +49,13 @@ public class MinionPlaceListener implements Listener {
         event.setCancelled(true);
 
         Player player = event.getPlayer();
+
+        // Check Emergency Quarantine Mode
+        if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
+            player.sendMessage(ColorUtil.color("&c[Quarantine] Minion placement is disabled during emergency quarantine mode!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
         Block clickedBlock = event.getClickedBlock();
         if (clickedBlock == null) return;
 
@@ -127,6 +139,28 @@ public class MinionPlaceListener implements Listener {
         // Spawn visual representations
         MinionVisual.spawnOrUpdate(minion);
         MinionHologram.updateHologram(minion);
+
+        // Auto-link adjacent unlinked minion storage chest if present
+        for (BlockFace face : new BlockFace[]{BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST}) {
+            Block adj = placeBlock.getRelative(face);
+            if (adj.getState() instanceof TileState tile) {
+                PersistentDataContainer pdc = tile.getPersistentDataContainer();
+                if (pdc.has(MinionStorageListener.STORAGE_BLOCK_KEY, PersistentDataType.BYTE)) {
+                    String linked = pdc.get(MinionStorageListener.LINKED_MINION_KEY, PersistentDataType.STRING);
+                    if (linked == null || linked.isEmpty() || "unlinked".equalsIgnoreCase(linked)) {
+                        String stId = pdc.get(MinionStorageListener.STORAGE_ID_KEY, PersistentDataType.STRING);
+                        if (stId != null) {
+                            minion.linkStorage(adj.getLocation(), stId);
+                            pdc.set(MinionStorageListener.LINKED_MINION_KEY, PersistentDataType.STRING, minion.getMinionId().toString());
+                            tile.update();
+                            player.sendMessage(ColorUtil.color("&aAutomatically linked adjacent &eMinion Storage &ato this minion!"));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
 
         // Consume 1 item from hand
         if (item.getAmount() > 1) {

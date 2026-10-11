@@ -1,5 +1,12 @@
 package com.skyblock.minions.command;
 
+import com.skyblock.minions.quarantine.QuarantineManager;
+import com.skyblock.minions.api.MinionStorageRegistry;
+import com.skyblock.minions.api.CustomMinionStorage;
+import com.skyblock.minions.gui.MinionSkinCreatorGUI;
+import com.skyblock.minions.gui.MinionStorageCreatorGUI;
+
+
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
 import com.skyblock.minions.core.Minion;
@@ -41,7 +48,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase();
 
         switch (sub) {
-            case "create" -> handleCreate(sender);
+            case "create" -> handleCreate(sender, args);
+            case "quarantine" -> handleQuarantine(sender, args);
             case "give" -> handleGive(sender, args);
             case "list" -> handleList(sender);
             case "limit" -> handleLimit(sender, args);
@@ -52,15 +60,25 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private void handleCreate(CommandSender sender) {
+    private void handleCreate(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(ColorUtil.color("&cOnly players can open the Minion Creator Studio."));
+            sender.sendMessage(ColorUtil.color("&cOnly players can open Creator Studios."));
             return;
         }
 
         if (!player.hasPermission("skyblockminions.admin")) {
-            player.sendMessage(ColorUtil.color("&cYou do not have permission to use the minion creator."));
+            player.sendMessage(ColorUtil.color("&cYou do not have permission to use creator studios."));
             return;
+        }
+
+        if (args.length >= 2) {
+            if ("skin".equalsIgnoreCase(args[1])) {
+                MinionSkinCreatorGUI.open(player, null);
+                return;
+            } else if ("storage".equalsIgnoreCase(args[1])) {
+                MinionStorageCreatorGUI.open(player, null);
+                return;
+            }
         }
 
         MinionCreatorGUI.open(player, null);
@@ -84,6 +102,38 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         String itemArg = args[2].toLowerCase();
+
+        
+        // Check Minion Storage item (/minion give <player> storage <storage_id> [amount])
+        if (itemArg.equalsIgnoreCase("storage") && args.length >= 4) {
+            String storageId = args[3].toLowerCase();
+            CustomMinionStorage st = MinionStorageRegistry.get(storageId);
+            if (st != null) {
+                int amount = 1;
+                if (args.length >= 5) {
+                    try { amount = Math.max(1, Integer.parseInt(args[4])); } catch (NumberFormatException ignored) {}
+                }
+                target.getInventory().addItem(MinionItemFactory.createStorageItem(st, amount));
+                sender.sendMessage(ColorUtil.color("&aGave " + amount + "x " + st.getDisplayName() + " &ato " + target.getName() + "."));
+                target.sendMessage(ColorUtil.color("&6[Minions] &aYou received " + amount + "x " + st.getDisplayName() + "!"));
+                return;
+            } else {
+                sender.sendMessage(ColorUtil.color("&cUnknown minion storage: " + args[3]));
+                return;
+            }
+        }
+
+        CustomMinionStorage directStorage = MinionStorageRegistry.get(itemArg);
+        if (directStorage != null) {
+            int amount = 1;
+            if (args.length >= 4) {
+                try { amount = Math.max(1, Integer.parseInt(args[3])); } catch (NumberFormatException ignored) {}
+            }
+            target.getInventory().addItem(MinionItemFactory.createStorageItem(directStorage, amount));
+            sender.sendMessage(ColorUtil.color("&aGave " + amount + "x " + directStorage.getDisplayName() + " &ato " + target.getName() + "."));
+            target.sendMessage(ColorUtil.color("&6[Minions] &aYou received " + amount + "x " + directStorage.getDisplayName() + "!"));
+            return;
+        }
 
         // 0. Check skin item (/minion give <player> skin <skin_id> or /minion give <player> <skin_id>)
         if (itemArg.equalsIgnoreCase("skin") && args.length >= 4) {
@@ -350,4 +400,34 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
         return matches;
     }
+
+    private void handleQuarantine(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("skyblockminions.admin")) {
+            sender.sendMessage(ColorUtil.color("&cYou do not have permission to manage quarantine mode."));
+            return;
+        }
+
+        if (args.length == 1 || "status".equalsIgnoreCase(args[1])) {
+            boolean active = QuarantineManager.isQuarantined();
+            sender.sendMessage(ColorUtil.color("&6[Minions Quarantine] &7Status: " + (active ? "&c&lACTIVE (Anti-Dupe Lockdown)" : "&a&lINACTIVE (Normal Operation)")));
+            sender.sendMessage(ColorUtil.color("&7Use &e/minion quarantine on &7or &e/minion quarantine off &7to toggle."));
+            return;
+        }
+
+        String action = args[1].toLowerCase();
+        if ("on".equals(action) || "enable".equals(action)) {
+            QuarantineManager.setQuarantined(true);
+            sender.sendMessage(ColorUtil.color("&c[Minions Quarantine] &lQuarantine mode has been ACTIVATED globally!"));
+        } else if ("off".equals(action) || "disable".equals(action)) {
+            QuarantineManager.setQuarantined(false);
+            sender.sendMessage(ColorUtil.color("&a[Minions Quarantine] &lQuarantine mode has been DEACTIVATED. Normal operation restored."));
+        } else if ("toggle".equals(action)) {
+            boolean newState = !QuarantineManager.isQuarantined();
+            QuarantineManager.setQuarantined(newState);
+            sender.sendMessage(ColorUtil.color("&6[Minions Quarantine] &7Toggled quarantine mode to: " + (newState ? "&c&lACTIVE" : "&a&lINACTIVE")));
+        } else {
+            sender.sendMessage(ColorUtil.color("&cUsage: /minion quarantine [on|off|status|toggle]"));
+        }
+    }
+
 }

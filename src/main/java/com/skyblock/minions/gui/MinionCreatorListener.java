@@ -6,6 +6,12 @@ import com.skyblock.minions.api.MinionDefinition;
 import com.skyblock.minions.api.MinionRegistry;
 import com.skyblock.minions.item.MinionItemFactory;
 import com.skyblock.minions.util.ColorUtil;
+import com.destroystokyo.paper.profile.ProfileProperty;
+import com.skyblock.minions.api.CustomMinionStorage;
+import com.skyblock.minions.api.MinionSkin;
+import com.skyblock.minions.api.MinionSkinRegistry;
+import com.skyblock.minions.api.MinionStorageRegistry;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Material;
@@ -124,6 +130,14 @@ public class MinionCreatorListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getHolder() instanceof MinionSkinCreatorHolder skinHolder) {
+            handleSkinCreatorClick(event, (Player) event.getWhoClicked(), skinHolder.getSession());
+            return;
+        }
+        if (event.getInventory().getHolder() instanceof MinionStorageCreatorHolder storageHolder) {
+            handleStorageCreatorClick(event, (Player) event.getWhoClicked(), storageHolder.getSession());
+            return;
+        }
         if (!(event.getInventory().getHolder() instanceof MinionCreatorHolder holder)) {
             return;
         }
@@ -577,4 +591,253 @@ public class MinionCreatorListener implements Listener {
             callback.accept(event.getMessage());
         }
     }
+
+    private void handleSkinCreatorClick(InventoryClickEvent event, Player player, MinionSkinCreatorSession session) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot < 0 || slot >= 54) return;
+        ItemStack cursor = event.getCursor();
+
+        if (slot == 2) {
+            promptChat(player, () -> MinionSkinCreatorGUI.open(player, session),
+                    "Enter Skin ID & Display Name: 'skin_id &6My Skin' (or 'cancel'):", input -> {
+                String[] parts = input.trim().split(" ", 2);
+                if (parts.length > 0 && !parts[0].isEmpty()) session.setId(parts[0].toLowerCase());
+                if (parts.length > 1 && !parts[1].isEmpty()) session.setDisplayName(ColorUtil.color(parts[1]));
+            });
+            return;
+        }
+
+        if (slot == 10) {
+            if (cursor != null && cursor.getType() == Material.PLAYER_HEAD) {
+                if (cursor.getItemMeta() instanceof SkullMeta sm && sm.getPlayerProfile() != null) {
+                    for (ProfileProperty prop : sm.getPlayerProfile().getProperties()) {
+                        if ("textures".equalsIgnoreCase(prop.getName())) {
+                            session.setSkullTexture(prop.getValue());
+                            player.sendMessage(ColorUtil.color("&aCopied skull texture from held player head!"));
+                            MinionSkinCreatorGUI.open(player, session);
+                            return;
+                        }
+                    }
+                }
+            }
+            promptChat(player, () -> MinionSkinCreatorGUI.open(player, session),
+                    "Enter Skull Base64 texture value (or 'cancel'):", input -> {
+                session.setSkullTexture(input.trim());
+            });
+            return;
+        }
+
+        if (slot == 12) {
+            Material[] armors = {
+                    Material.LEATHER_CHESTPLATE,
+                    Material.CHAINMAIL_CHESTPLATE,
+                    Material.IRON_CHESTPLATE,
+                    Material.GOLDEN_CHESTPLATE,
+                    Material.DIAMOND_CHESTPLATE,
+                    Material.NETHERITE_CHESTPLATE
+            };
+            int curIdx = 0;
+            for (int i = 0; i < armors.length; i++) {
+                if (armors[i] == session.getArmorMaterial()) {
+                    curIdx = i;
+                    break;
+                }
+            }
+            session.setArmorMaterial(armors[(curIdx + 1) % armors.length]);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            MinionSkinCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 14) {
+            if (event.isRightClick()) {
+                promptChat(player, () -> MinionSkinCreatorGUI.open(player, session),
+                        "Enter RGB values 'R G B' (e.g. '255 100 50') or Hex ('#FF6432'):", input -> {
+                    try {
+                        String clean = input.trim().replace("#", "");
+                        if (clean.contains(" ")) {
+                            String[] rgb = clean.split("\\s+");
+                            session.setLeatherColor(Color.fromRGB(Integer.parseInt(rgb[0]), Integer.parseInt(rgb[1]), Integer.parseInt(rgb[2])));
+                        } else if (clean.length() == 6) {
+                            int r = Integer.parseInt(clean.substring(0, 2), 16);
+                            int g = Integer.parseInt(clean.substring(2, 4), 16);
+                            int b = Integer.parseInt(clean.substring(4, 6), 16);
+                            session.setLeatherColor(Color.fromRGB(r, g, b));
+                        }
+                    } catch (Exception ignored) {}
+                });
+                return;
+            } else {
+                int curIdx = 0;
+                for (int i = 0; i < COLOR_PRESETS.length; i++) {
+                    if (COLOR_PRESETS[i].equals(session.getLeatherColor())) {
+                        curIdx = i;
+                        break;
+                    }
+                }
+                session.setLeatherColor(COLOR_PRESETS[(curIdx + 1) % COLOR_PRESETS.length]);
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                MinionSkinCreatorGUI.open(player, session);
+                return;
+            }
+        }
+
+        if (slot == 16) {
+            if (cursor != null && cursor.getType() != Material.AIR) {
+                session.setHandItem(cursor.clone());
+                player.sendMessage(ColorUtil.color("&aSet custom held hand tool to: &e" + cursor.getType().name()));
+            } else {
+                Material[] tools = {
+                        Material.DIAMOND_SWORD,
+                        Material.NETHERITE_SWORD,
+                        Material.DIAMOND_PICKAXE,
+                        Material.NETHERITE_PICKAXE,
+                        Material.DIAMOND_AXE,
+                        Material.NETHERITE_AXE,
+                        Material.DIAMOND_SHOVEL,
+                        Material.DIAMOND_HOE,
+                        Material.BOW,
+                        Material.FISHING_ROD
+                };
+                Material cur = session.getHandItem() != null ? session.getHandItem().getType() : Material.DIAMOND_SWORD;
+                int idx = 0;
+                for (int i = 0; i < tools.length; i++) {
+                    if (tools[i] == cur) {
+                        idx = i;
+                        break;
+                    }
+                }
+                session.setHandItem(new ItemStack(tools[(idx + 1) % tools.length]));
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            MinionSkinCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 45) {
+            player.closeInventory();
+            return;
+        }
+
+        if (slot == 49) {
+            MinionSkin skin = new MinionSkin(
+                    session.getId(),
+                    session.getDisplayName(),
+                    session.getSkullTexture(),
+                    session.getLeatherColor(),
+                    session.getArmorMaterial(),
+                    session.getHandItem(),
+                    session.getDescription()
+            );
+            MinionSkinRegistry.saveCustomSkin(skin);
+            player.sendMessage(ColorUtil.color("&a[MinionX] Saved custom skin: &e" + skin.getDisplayName() + "&a!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
+            player.closeInventory();
+            return;
+        }
+    }
+
+    private void handleStorageCreatorClick(InventoryClickEvent event, Player player, MinionStorageCreatorSession session) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot < 0 || slot >= 54) return;
+
+        if (slot == 0) {
+            player.closeInventory();
+            return;
+        }
+
+        if (slot == 2) {
+            promptChat(player, () -> MinionStorageCreatorGUI.open(player, session),
+                    "Enter Storage ID & Display Name: 'storage_id &6My Storage' (or 'cancel'):", input -> {
+                String[] parts = input.trim().split(" ", 2);
+                if (parts.length > 0 && !parts[0].isEmpty()) session.setId(parts[0].toLowerCase());
+                if (parts.length > 1 && !parts[1].isEmpty()) session.setDisplayName(ColorUtil.color(parts[1]));
+            });
+            return;
+        }
+
+        if (slot == 4) {
+            Material[] mats = {Material.CHEST, Material.BARREL, Material.ENDER_CHEST, Material.TRAPPED_CHEST};
+            int curIdx = 0;
+            for (int i = 0; i < mats.length; i++) {
+                if (mats[i] == session.getMaterial()) {
+                    curIdx = i;
+                    break;
+                }
+            }
+            session.setMaterial(mats[(curIdx + 1) % mats.length]);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            MinionStorageCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 6) {
+            CustomMinionStorage testDef = new CustomMinionStorage(session.getId(), session.getDisplayName(), session.getCapacity(), session.getMaterial(), session.getLore());
+            MinionStorageGUI.open(player, null, testDef);
+            return;
+        }
+
+        if (slot == 19) {
+            session.setCapacity(session.getCapacity() - 5);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+            MinionStorageCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 20) {
+            session.setCapacity(session.getCapacity() - 1);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+            MinionStorageCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 24) {
+            session.setCapacity(session.getCapacity() + 1);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.4f);
+            MinionStorageCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 25) {
+            session.setCapacity(session.getCapacity() + 5);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.4f);
+            MinionStorageCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 8) {
+            CustomMinionStorage storage = new CustomMinionStorage(
+                    session.getId(),
+                    session.getDisplayName(),
+                    session.getCapacity(),
+                    session.getMaterial(),
+                    session.getLore()
+            );
+            MinionStorageRegistry.saveCustomStorage(storage);
+            ItemStack stItem = MinionItemFactory.createStorageItem(storage, 1);
+            player.getInventory().addItem(stItem);
+            player.sendMessage(ColorUtil.color("&a[MinionX] Saved custom storage: &e" + storage.getDisplayName() + " &aand gave you 1x item!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
+            player.closeInventory();
+            return;
+        }
+    }
+
+    private void promptChat(Player player, Runnable reopen, String message, Consumer<String> action) {
+        player.closeInventory();
+        player.sendMessage(ColorUtil.color("&6[MinionX] &e" + message));
+        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
+
+        PENDING_PROMPTS.put(player.getUniqueId(), input -> {
+            if (!"cancel".equalsIgnoreCase(input.trim())) {
+                action.accept(input);
+            }
+            if (reopen != null) {
+                Bukkit.getScheduler().runTask(SkyBlockMinions.getInstance(), reopen);
+            }
+        });
+    }
+
 }

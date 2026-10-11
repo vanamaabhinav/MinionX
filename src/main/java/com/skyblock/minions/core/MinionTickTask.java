@@ -1,4 +1,6 @@
 package com.skyblock.minions.core;
+import com.skyblock.minions.listener.MinionStorageListener;
+import com.skyblock.minions.quarantine.QuarantineManager;
 
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
@@ -43,6 +45,22 @@ public class MinionTickTask extends BukkitRunnable {
         if (!minion.getLocation().isChunkLoaded()) {
             return;
         }
+
+        // Check dialogue expiration: if dialogue just ended, clean up hologram
+        if (minion.checkAndClearExpiredDialogue()) {
+            MinionHologram.updateHologram(minion);
+        }
+
+        // Emergency Quarantine Mode: freeze minion operations if quarantine-freeze-ticks is enabled
+        if (QuarantineManager.isQuarantined()) {
+            org.bukkit.configuration.file.FileConfiguration qCfg = SkyBlockMinions.getInstance() != null ? SkyBlockMinions.getInstance().getConfig() : null;
+            if (qCfg != null && qCfg.getBoolean("settings.quarantine-freeze-ticks", false)) {
+                return;
+            }
+        }
+
+        // Periodic minion speech/dialogues
+        triggerOccasionalDialogue(minion);
 
         // If the chunk is loaded and the visual armor stand was killed or despawned,
         // automatically resynchronize the visual stand and hologram so it is never an invisible ghost minion!
@@ -113,6 +131,9 @@ public class MinionTickTask extends BukkitRunnable {
         Material targetBlock = def.getTargetBlock();
 
         for (Block block : workingBlocks) {
+            if (isStorageBlock(block, minion)) {
+                continue;
+            }
             Material type = block.getType();
             if (isMatchingTargetBlock(type, targetBlock, minion)) {
                 resourceBlocks.add(block);
@@ -189,6 +210,9 @@ public class MinionTickTask extends BukkitRunnable {
 
         Location minionLoc = minion.getLocation();
         for (Block block : cropSpots) {
+            if (isStorageBlock(block, minion) || isStorageBlock(block.getRelative(BlockFace.DOWN), minion)) {
+                continue;
+            }
             Material mat = block.getType();
             Block ground = block.getRelative(BlockFace.DOWN); // Y - 1
 
@@ -382,6 +406,9 @@ public class MinionTickTask extends BukkitRunnable {
         boolean isNetherWart = cropMat == Material.NETHER_WART;
 
         for (Block cropBlock : cropSpots) {
+            if (isStorageBlock(cropBlock, minion) || isStorageBlock(cropBlock.getRelative(BlockFace.DOWN), minion)) {
+                continue;
+            }
             Block ground = cropBlock.getRelative(BlockFace.DOWN); // Y - 1
             Material groundType = ground.getType();
 
@@ -519,6 +546,9 @@ public class MinionTickTask extends BukkitRunnable {
         List<Block> untilledStemSoil = new ArrayList<>();
 
         for (Block b : cropSpots) {
+            if (isStorageBlock(b, minion) || isStorageBlock(b.getRelative(BlockFace.DOWN), minion)) {
+                continue;
+            }
             Block ground = b.getRelative(BlockFace.DOWN);
             if (ground.getType() == Material.DIRT || ground.getType() == Material.GRASS_BLOCK || ground.getType() == Material.COARSE_DIRT) {
                 if (b.getType().isAir()) {
@@ -626,6 +656,9 @@ public class MinionTickTask extends BukkitRunnable {
         List<Block> plantableSpots = new ArrayList<>();
 
         for (Block b : cropSpots) {
+            if (isStorageBlock(b, minion) || isStorageBlock(b.getRelative(BlockFace.DOWN), minion)) {
+                continue;
+            }
             Block ground = b.getRelative(BlockFace.DOWN);
             Material groundMat = ground.getType();
             boolean validSoil = (groundMat == Material.DIRT || groundMat == Material.GRASS_BLOCK || groundMat == Material.SAND || groundMat == Material.RED_SAND)
@@ -707,6 +740,9 @@ public class MinionTickTask extends BukkitRunnable {
         List<Block> plantableSpots = new ArrayList<>();
 
         for (Block b : cropSpots) {
+            if (isStorageBlock(b, minion) || isStorageBlock(b.getRelative(BlockFace.DOWN), minion)) {
+                continue;
+            }
             Block ground = b.getRelative(BlockFace.DOWN);
             Material groundMat = ground.getType();
             if (groundMat != Material.SAND && groundMat != Material.RED_SAND) continue;
@@ -788,6 +824,9 @@ public class MinionTickTask extends BukkitRunnable {
         List<Block> plantableSpots = new ArrayList<>();
 
         for (Block b : cropSpots) {
+            if (isStorageBlock(b, minion) || isStorageBlock(b.getRelative(BlockFace.DOWN), minion)) {
+                continue;
+            }
             Block ground = b.getRelative(BlockFace.DOWN);
             Material groundMat = ground.getType();
             if (groundMat != Material.PODZOL && groundMat != Material.MYCELIUM) continue;
@@ -861,6 +900,9 @@ public class MinionTickTask extends BukkitRunnable {
             List<Block> working = minion.getWorkingCropBlocks(); // at Y!
             List<Location> validLocs = new ArrayList<>();
             for (Block b : working) {
+                if (isStorageBlock(b, minion) || isStorageBlock(b.getRelative(BlockFace.DOWN), minion)) {
+                    continue;
+                }
                 if (b.getType().isAir() || !b.getType().isSolid()) {
                     validLocs.add(b.getLocation().add(0.5, 0.0, 0.5));
                 }
@@ -996,4 +1038,68 @@ public class MinionTickTask extends BukkitRunnable {
         }
         return drop;
     }
+
+    private boolean isStorageBlock(Block block, Minion minion) {
+        if (block == null) return false;
+        if (minion != null && minion.hasLinkedStorage() && minion.getLinkedStorageLocation() != null) {
+            Location sLoc = minion.getLinkedStorageLocation();
+            if (block.getWorld().equals(sLoc.getWorld())
+                    && block.getX() == sLoc.getBlockX()
+                    && block.getY() == sLoc.getBlockY()
+                    && block.getZ() == sLoc.getBlockZ()) {
+                return true;
+            }
+        }
+        Material t = block.getType();
+        if (t == Material.CHEST || t == Material.BARREL || t == Material.ENDER_CHEST || t == Material.TRAPPED_CHEST) {
+            if (MinionStorageListener.getLinkedMinionAt(block) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void triggerOccasionalDialogue(Minion minion) {
+        if (minion == null) return;
+        org.bukkit.configuration.file.FileConfiguration config = SkyBlockMinions.getInstance() != null
+                ? SkyBlockMinions.getInstance().getConfig() : null;
+        if (config != null && !config.getBoolean("dialogues.enabled", true)) {
+            return;
+        }
+
+        // If minion is currently speaking, do not interrupt
+        if (minion.hasActiveDialogue()) {
+            return;
+        }
+
+        // 5% chance per tick to speak
+        if (java.util.concurrent.ThreadLocalRandom.current().nextInt(100) >= 5) {
+            return;
+        }
+
+        List<String> pool = null;
+        if (config != null) {
+            String arch = minion.getDefinition() != null ? minion.getDefinition().getArchetype().name().toLowerCase() : "general";
+            pool = config.getStringList("dialogues.messages." + arch);
+            if (pool == null || pool.isEmpty()) {
+                pool = config.getStringList("dialogues.messages.general");
+            }
+        }
+
+        if (pool == null || pool.isEmpty()) {
+            pool = List.of(
+                    "Hard at work!",
+                    "Look at all these resources!",
+                    "Can't stop, won't stop!",
+                    "Efficiency at its finest!",
+                    "Another one for the collection!"
+            );
+        }
+
+        String msg = pool.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(pool.size()));
+        long durationSec = config != null ? config.getLong("dialogues.duration-seconds", 5L) : 5L;
+        minion.speak(msg, durationSec * 1000L);
+        MinionHologram.updateHologram(minion);
+    }
+
 }

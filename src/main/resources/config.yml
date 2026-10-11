@@ -22,6 +22,10 @@ settings:
   enable-animations: true
   enable-sounds: true
   enable-particles: true
+  # Emergency Quarantine Mode: Anti-Dupe & Exploit Failsafe
+  # Default MUST be false (off)
+  quarantine-mode: false
+  quarantine-freeze-ticks: false
 
   # Combat Minions settings
   combat:
@@ -610,3 +614,43 @@ messages:
   no-island-access-permission: "&cYou do not have permission to access this minion!"
   no-minion-access-permission: "&cYou do not have permission to access this minion!"
   partially-obstructed-status: "&ePartially Obstructed"
+
+# ==============================================================================
+# MINION OCCASIONAL DIALOGUES & SPEECH SYSTEM
+# ==============================================================================
+dialogues:
+  enabled: true
+  format: "&e\"%message%\""
+  duration-seconds: 5
+  messages:
+    general:
+      - "Hard at work!"
+      - "Look at all these resources!"
+      - "Can't stop, won't stop!"
+      - "Efficiency at its finest!"
+      - "Another one for the collection!"
+      - "I love working on this island!"
+    mining:
+      - "Strike the earth!"
+      - "So much cobblestone and ore!"
+      - "Found another vein!"
+      - "My pickaxe never rests!"
+    foraging:
+      - "Chopping away all day!"
+      - "Timber! That was a big tree!"
+      - "Fresh wood collected!"
+    farming:
+      - "Crops are growing fast!"
+      - "Time for a bountiful harvest!"
+      - "Nothing beats fresh produce!"
+    combat:
+      - "Guarding the perimeter!"
+      - "Target eliminated!"
+      - "Keeping the island safe!"
+
+# ==============================================================================
+# MINION STORAGE SYMMETRICAL SLOT CONFIGURATION
+# Centered at Slot 13 (0-indexed) in a 27-slot chest GUI.
+# ==============================================================================
+storage-layouts:
+  use-custom-layouts: false

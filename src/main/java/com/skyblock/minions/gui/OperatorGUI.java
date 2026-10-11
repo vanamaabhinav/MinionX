@@ -1,5 +1,10 @@
 package com.skyblock.minions.gui;
 
+import com.skyblock.minions.quarantine.QuarantineManager;
+import com.skyblock.minions.api.CustomMinionStorage;
+import com.skyblock.minions.api.MinionStorageRegistry;
+
+
 import com.skyblock.minions.api.*;
 import com.skyblock.minions.item.MinionItemFactory;
 import com.skyblock.minions.util.ColorUtil;
@@ -23,6 +28,7 @@ public class OperatorGUI {
     public static final String FUELS_TITLE = ColorUtil.color("&8MinionX - Fuel Supplies");
     public static final String UPGRADES_TITLE = ColorUtil.color("&8MinionX - Upgrades & Accessories");
     public static final String KITS_TITLE = ColorUtil.color("&8MinionX - Admin Kits");
+    public static final String STORAGES_TITLE = ColorUtil.color("&8MinionX - Minion Storages");
     public static final String SKINS_TITLE = ColorUtil.color("&8MinionX - Minion Skins");
 
     /**
@@ -72,6 +78,32 @@ public class OperatorGUI {
                         ColorUtil.color("&7tools, exact drop item clones, and MythicMobs!"),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to open Creator Studio"))));
+
+        // Slot 34: Minion Storages Catalog
+        inv.setItem(34, createNamedItem(Material.BARREL, ColorUtil.color("&6Minion Storages Catalog"),
+                List.of(ColorUtil.color("&7Browse, test, and obtain all Minion Storages"),
+                        ColorUtil.color("&7(Small, Medium, Large, Max, Custom 1-27 slots)."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to open storages catalog"))));
+
+        // Slot 50: In-Game Custom Skin Creator Studio
+        inv.setItem(50, createNamedItem(Material.ARMOR_STAND, ColorUtil.color("&dCustom Skin Creator"),
+                List.of(ColorUtil.color("&7Create custom minion skins in-game"),
+                        ColorUtil.color("&7with Head ID / texture, armor material,"),
+                        ColorUtil.color("&7custom leather RGB tint, and hand tools."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to open Skin Creator"))));
+
+        // Slot 51: Emergency Quarantine Mode Toggle Button
+        boolean isQuar = QuarantineManager.isQuarantined();
+        inv.setItem(51, createNamedItem(isQuar ? Material.REDSTONE_BLOCK : Material.EMERALD_BLOCK,
+                ColorUtil.color(isQuar ? "&c&lQuarantine Mode: ACTIVE" : "&a&lQuarantine Mode: INACTIVE"),
+                List.of(ColorUtil.color("&7Status: " + (isQuar ? "&c&lLOCKDOWN" : "&a&lNORMAL")),
+                        ColorUtil.color("&7When active, item collection, minion"),
+                        ColorUtil.color("&7removal/break, and placement are blocked."),
+                        ColorUtil.color("&7Admins bypass all restrictions."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to toggle Quarantine Mode!"))));
 
         // Bottom Controls
         inv.setItem(45, createNamedItem(Material.BARRIER, ColorUtil.color("&cClose"),
@@ -407,4 +439,45 @@ public class OperatorGUI {
         }
         return item;
     }
+
+    public static void openStoragesCatalog(Player player) {
+        OperatorHolder holder = new OperatorHolder(OperatorHolder.ViewType.STORAGES_CATALOG);
+        Inventory inv = Bukkit.createInventory(holder, 54, STORAGES_TITLE);
+
+        ItemStack border = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 54; i++) inv.setItem(i, border);
+
+        int slot = 10;
+        for (CustomMinionStorage st : MinionStorageRegistry.getAll()) {
+            if (slot > 43) break;
+            if (slot % 9 == 8) slot += 2;
+
+            ItemStack item = MinionItemFactory.createStorageItem(st, 1);
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                lore.add(ColorUtil.color("&7"));
+                lore.add(ColorUtil.color("&eLeft-click to get 1x"));
+                lore.add(ColorUtil.color("&eShift-click to get 64x"));
+                meta.setLore(lore);
+                item.setItemMeta(meta);
+            }
+            inv.setItem(slot++, item);
+        }
+
+        // Slot 45: Back
+        inv.setItem(45, createNamedItem(Material.ARROW, ColorUtil.color("&eBack to Hub"),
+                List.of(ColorUtil.color("&7Return to Main Hub."))));
+
+        // Slot 49: Create Custom Storage Studio Button
+        inv.setItem(49, createNamedItem(Material.ANVIL, ColorUtil.color("&a&lCREATE CUSTOM STORAGE"),
+                List.of(ColorUtil.color("&7Design a brand new minion storage"),
+                        ColorUtil.color("&7with customizable 1-27 slot capacity,"),
+                        ColorUtil.color("&7symmetrical GUI layouts, and block types!"),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to launch Storage Creator Studio"))));
+
+        player.openInventory(inv);
+    }
+
 }

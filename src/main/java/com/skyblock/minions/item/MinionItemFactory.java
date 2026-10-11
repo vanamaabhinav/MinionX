@@ -35,6 +35,7 @@ public class MinionItemFactory {
     public static final NamespacedKey UPGRADE_KEY = new NamespacedKey("skyblockminions", "upgrade_type");
     public static final NamespacedKey FUEL_KEY = new NamespacedKey("skyblockminions", "fuel_type");
     public static final NamespacedKey SKIN_KEY = new NamespacedKey("skyblockminions", "skin_type");
+    public static final NamespacedKey STORAGE_KEY = new NamespacedKey("skyblockminions", "storage_type");
 
     /**
      * Creates a placeable minion item for a built-in MinionType.
@@ -204,6 +205,40 @@ public class MinionItemFactory {
     /**
      * Creates a custom Minion Skin item that can be placed into the minion skin slot.
      */
+
+    /**
+     * Creates a placeable Minion Storage item.
+     */
+    public static ItemStack createStorageItem(com.skyblock.minions.api.CustomMinionStorage storage) {
+        if (storage == null) return new ItemStack(Material.CHEST);
+        ItemStack item = new ItemStack(storage.getMaterial() != null ? storage.getMaterial() : Material.CHEST);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ColorUtil.color(storage.getDisplayName()));
+            List<String> lore = new ArrayList<>();
+            for (String line : storage.getLore()) {
+                lore.add(ColorUtil.color(line.replace("%capacity%", String.valueOf(storage.getCapacity()))));
+            }
+            lore.add(ColorUtil.color("&7"));
+            lore.add(ColorUtil.color("&7Capacity: &e" + storage.getCapacity() + " slots"));
+            lore.add(ColorUtil.color("&8Place adjacent to an unlinked minion to expand storage."));
+            meta.setLore(lore);
+
+            meta.getPersistentDataContainer().set(STORAGE_KEY, PersistentDataType.STRING, storage.getId());
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    public static String getStorageId(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return null;
+        return item.getItemMeta().getPersistentDataContainer().get(STORAGE_KEY, PersistentDataType.STRING);
+    }
+
+    public static boolean isStorageItem(ItemStack item) {
+        return getStorageId(item) != null;
+    }
+
     public static ItemStack createSkinItem(MinionSkin skin) {
         if (skin == null) return new ItemStack(Material.AIR);
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
@@ -362,4 +397,13 @@ public class MinionItemFactory {
         }
         return item;
     }
+
+    public static ItemStack createStorageItem(CustomMinionStorage def, int amount) {
+        ItemStack item = createStorageItem(def);
+        if (item != null && amount > 1) {
+            item.setAmount(amount);
+        }
+        return item;
+    }
+
 }

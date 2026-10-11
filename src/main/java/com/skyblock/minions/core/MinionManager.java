@@ -1,5 +1,7 @@
 package com.skyblock.minions.core;
 
+import com.skyblock.minions.listener.MinionStorageListener;
+
 import com.skyblock.minions.visual.MinionHologram;
 import com.skyblock.minions.visual.MinionVisual;
 import org.bukkit.Chunk;

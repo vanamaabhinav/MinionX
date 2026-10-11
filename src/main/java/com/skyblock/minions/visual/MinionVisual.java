@@ -60,14 +60,22 @@ public class MinionVisual {
                 if (skin.getSkullTexture() != null) {
                     skullTexture = skin.getSkullTexture();
                 }
+                if (skin.hasArmorMaterial()) {
+                    armorMat = skin.getArmorMaterial();
+                }
                 if (skin.hasArmorColor()) {
                     armorColor = skin.getArmorColor();
+                }
+                if (skin.hasHandItem()) {
+                    handItem = skin.getHandItem();
                 }
             }
         }
 
         final String finalSkullTexture = skullTexture;
+        final Material finalArmorMat = armorMat;
         final Color finalArmorColor = armorColor;
+        final ItemStack finalHandItem = handItem;
 
         ArmorStand stand = loc.getWorld().spawn(loc, ArmorStand.class, as -> {
             as.setSmall(true);
@@ -85,10 +93,10 @@ public class MinionVisual {
             as.getEquipment().setHelmet(createCustomSkull(finalSkullTexture));
 
             // Armor (full set: chestplate, leggings, boots)
-            equipMinionArmor(as, armorMat, finalArmorColor);
+            equipMinionArmor(as, finalArmorMat, finalArmorColor);
 
             // Hand Tool / Weapon
-            as.getEquipment().setItemInMainHand(handItem);
+            as.getEquipment().setItemInMainHand(finalHandItem);
         });
 
         minion.setArmorStandId(stand.getUniqueId());

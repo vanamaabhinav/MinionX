@@ -1,5 +1,9 @@
 package com.skyblock.minions.gui;
 
+import com.skyblock.minions.quarantine.QuarantineManager;
+import com.skyblock.minions.api.MinionStorageRegistry;
+import com.skyblock.minions.api.CustomMinionStorage;
+
 import com.skyblock.minions.SkyBlockMinions;
 import com.skyblock.minions.api.*;
 import com.skyblock.minions.item.MinionItemFactory;
@@ -65,6 +69,12 @@ public class OperatorGUIListener implements Listener {
         // 5. Upgrades Catalog View
         if (holder.getViewType() == OperatorHolder.ViewType.UPGRADES_CATALOG) {
             handleUpgradesCatalogClick(player, slot, clicked, event);
+            return;
+        }
+
+        // 6. Storages Catalog View
+        if (holder.getViewType() == OperatorHolder.ViewType.STORAGES_CATALOG) {
+            handleStoragesCatalogClick(player, slot, clicked, event);
             return;
         }
 
@@ -285,4 +295,29 @@ public class OperatorGUIListener implements Listener {
 
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.2f);
     }
+
+    private void handleStoragesCatalogClick(Player player, int slot, ItemStack clicked, InventoryClickEvent event) {
+        if (slot == 45) {
+            OperatorGUI.openMain(player);
+            return;
+        }
+
+        if (slot == 49) {
+            player.closeInventory();
+            MinionStorageCreatorGUI.open(player, null);
+            return;
+        }
+
+        String stId = MinionItemFactory.getStorageId(clicked);
+        if (stId != null) {
+            CustomMinionStorage def = MinionStorageRegistry.get(stId);
+            if (def != null) {
+                int amount = event.isShiftClick() ? 64 : 1;
+                player.getInventory().addItem(MinionItemFactory.createStorageItem(def, amount));
+                player.sendMessage(ColorUtil.color("&aGiven &f" + amount + "x " + def.getDisplayName() + "&a!"));
+                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
+            }
+        }
+    }
+
 }

@@ -84,6 +84,17 @@ public class MinionStorage {
             config.set(path + ".xp", minion.getStoredXp());
             config.set(path + ".custom_id", minion.getCustomDefinitionId());
             config.set(path + ".items", minion.getInventory());
+
+            // Linked storage persistence
+            if (minion.hasLinkedStorage() && minion.getLinkedStorageLocation() != null) {
+                config.set(path + ".storage.id", minion.getStorageId());
+                Location sl = minion.getLinkedStorageLocation();
+                config.set(path + ".storage.world", sl.getWorld() != null ? sl.getWorld().getName() : "world");
+                config.set(path + ".storage.x", sl.getBlockX());
+                config.set(path + ".storage.y", sl.getBlockY());
+                config.set(path + ".storage.z", sl.getBlockZ());
+                config.set(path + ".storage.items", minion.getStorageContents());
+            }
         }
 
         try {
