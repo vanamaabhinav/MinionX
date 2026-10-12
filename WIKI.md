@@ -10,6 +10,11 @@
 1. [Overview & Quick Start Guide](#1-overview--quick-start-guide)
 2. [How Minions Work (Core Gameplay Mechanics)](#2-how-minions-work-core-gameplay-mechanics)
 3. [In-Game Creator Studios (No YAML Editing Needed)](#3-in-game-creator-studios-no-yaml-editing-needed)
+   * [1. Minion Creator Studio (`/minion create`)](#1-minion-creator-studio-minion-create)
+   * [2. Fuel Creator Studio (`/minion create fuel`)](#2-fuel-creator-studio-minion-create-fuel)
+   * [3. Skin Creator Studio (`/minion create skin`)](#3-skin-creator-studio-minion-create-skin)
+   * [4. Storage Creator Studio (`/minion create storage`)](#4-storage-creator-studio-minion-create-storage)
+   * [5. Tier Studio (`/minion tier` & `/minion tier <minion_id>`)](#5-tier-studio-minion-tier-or-minion-tier-minion_id)
 4. [Operator Control Panel (`/minionsx`)](#4-operator-control-panel-minionsx)
 5. [Complete Minion Archetypes & Types](#5-complete-minion-archetypes--types)
 6. [Upgrades System](#6-upgrades-system)
@@ -32,23 +37,36 @@
 
 Welcome to **MinionX**! MinionX brings fully autonomous, upgradeable, and highly optimized minions to your Minecraft server. Minions automate resource gathering (mining, farming, foraging, and mob hunting) even when players are offline, all while running cleanly at a solid 20 TPS.
 
+Whether you run a **SkyBlock network**, **Prison empire**, **Survival SMP**, or **custom RPG server**, MinionX gives your players the ultimate progression experience while giving server administrators effortless control.
+
+### 🌟 Why Server Owners Choose MinionX:
+| Advantage | Typical Minion Plugins | MinionX Enterprise Engine |
+|---|---|---|
+| **Server Performance** | Armor stands tick constantly, lagging servers past 50 minions. | **20.0 TPS Guaranteed**: Armor stands use Paper `setCanTick(false)`; billboard holograms use client-side display entities. |
+| **Configuration** | Thousands of lines of YAML files; syntax errors break the plugin. | **5 In-Game Visual Studios**: Create Minions, Fuels, Tiers, Skins, and Storages directly in-game without touching YAML! |
+| **Offline Progress** | Simulates tick-by-tick or lags chunk loads. | **Deterministic O(1) Offline Math**: Instantly calculates up to 30 days of offline production upon chunk load. |
+| **Head Textures** | Fetches skins from Mojang API on placement; hits rate limits and defaults to Steve heads. | **Bundled Offline Textures**: Authentic heads for all 37 minions across Tiers I–XII bundled offline (Zero API lag). |
+| **Custom RPG Items** | Only supports vanilla items or breaks custom metadata. | **Unified Custom Item Engine**: Full support for **ItemsAdder**, **MMOItems**, **Oraxen**, PDC keys, and CustomModelData. |
+| **Dupe Security** | Prone to hopper/inventory glitching during crashes. | **Transaction Locks & Emergency Quarantine**: One-click network-wide freeze switch (`/minion quarantine on`). |
+
 ### Requirements:
 * **Server Software:** Paper, Purpur, or Pufferfish (1.20.4 – 1.21+).
-* **Java Version:** Java 21 or higher.
-* **Optional Hooks:** Vault (for economy/hoppers), WorldGuard/GriefPrevention/Towny/Lands/BentoBox (for land claims), MythicMobs (for custom combat mobs).
+* **Java Version:** Java 21 LTS or higher.
+* **Optional Hooks:** Vault (for economy/hoppers), WorldGuard/GriefPrevention/Towny/Lands/BentoBox (for land claims), MythicMobs (for custom combat mobs), ItemsAdder/MMOItems/Oraxen (for custom items).
 
 ### Installation:
-1. Place `MinionX-0.2.0.jar` (or `MinionX-0.2.0-SNAPSHOT.jar`) into your server's `plugins/` folder.
-2. Restart your server (or load it using a plug-man alternative).
-3. The default configurations and registries will automatically generate in `plugins/MinionX/`.
+1. Place `MinionX-0.2.0-SNAPSHOT.jar` into your server's `plugins/` folder.
+2. Restart your server.
+3. The default configurations, registries, and offline texture caches will automatically generate in `plugins/MinionX/`.
 
 ### Placing Your First Minion (In 3 Simple Steps):
 1. Give yourself a minion:
    ```text
-   /minion give <your_username> diamond 1
+   /minion give <your_username> diamond 11
    ```
 2. Place the minion item onto any solid block in the world.
 3. Watch it wake up! It will spawn its tools, set up its nametag, and start generating and harvesting resources within its 5×5 working area.
+4. Right-click the minion to open its 54-slot interactive GUI dashboard.
 
 ---
 
@@ -117,10 +135,23 @@ Allows you to create an entirely custom minion archetype in 30 seconds:
 2. Enter an ID (e.g., `amethyst`) and display name (`&dAmethyst Minion`).
 3. Select the minion's archetype: `MINING`, `FARMING`, `FORAGING`, or `COMBAT`.
 4. Pick the block/crop to place, tool to hold in hand, and primary/secondary item drops.
-5. Set custom base delay and skull texture base64.
-6. Click **Confirm & Save** — the minion is immediately registered and ready to use with `/minion give`!
+5. **Slot 33 (Max Tier Cap)**: Configure individual maximum tier limits (1 to 12+).
+6. **Slot 35 (Per-Minion Tier Studio)**: Directly jump to per-tier speeds, storage slots, and upgrade costs.
+7. Set custom base delay and skull texture base64.
+8. Click **Confirm & Save** — the minion is immediately registered and ready to use with `/minion give`!
 
-### 2. Skin Creator Studio (`/minion create skin`)
+### 2. Fuel Creator Studio (`/minion create fuel`)
+Design custom minion fuels and catalysts in seconds without config editing:
+1. Run `/minion create fuel` (or click Slot 50 in `/minionsx` Fuels Vault).
+2. Set Fuel ID and formatted display name with color codes.
+3. Select fuel material icon (Blaze Powder, Lava Bucket, Charcoal, Dragon Breath, etc.).
+4. Adjust speed multiplier: Use interactive step buttons (`+5%`, `+10%`, `-5%`, `-10%`).
+5. Toggle **Temporary** (burns over time) vs **Permanent** (infinite duration).
+6. Cycle duration presets: `30m`, `1h`, `2h`, `6h`, `12h`, `1d`, `3d`, `7d`.
+7. Toggle enchantment glint (`glow: true/false`).
+8. Grab a live test copy instantly into your inventory, and click **Save** to persist directly to `fuels.yml`.
+
+### 3. Skin Creator Studio (`/minion create skin`)
 Design cosmetic visual skins for minions:
 1. Run `/minion create skin`.
 2. Input a skin ID (e.g., `cyber_knight`) and display name (`&bCyber Knight`).
@@ -129,14 +160,14 @@ Design cosmetic visual skins for minions:
 5. Pick a held weapon/tool (e.g., Diamond Sword, Netherite Axe).
 6. Click **Save** — automatically saved to `skins.yml` and added to the skins catalog.
 
-### 3. Storage Creator Studio (`/minion create storage`)
+### 4. Storage Creator Studio (`/minion create storage`)
 Create custom storage expansion chest models:
 1. Run `/minion create storage`.
 2. Define storage capacity (e.g., 9 slots, 18 slots, 27 slots).
 3. Set custom item icon, display name, and lore.
 4. Save directly into `storages.yml` with instant in-game availability.
 
-### 4. Tier Studio (`/minion tier` or `/minion tier <minion_id>`)
+### 5. Tier Studio (`/minion tier` or `/minion tier <minion_id>`)
 Configure and customize minion progression in real time without restarting:
 1. **Commands & Access**:
    * Run `/minion tier` to open the **Global Tier Studio** (affects default tiers saved to `tiers.yml`).
