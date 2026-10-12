@@ -221,7 +221,7 @@ public class MinionGUI {
 
     private static ItemStack createUpgradeButtonItem(Minion minion) {
         int currentTier = minion.getTier();
-        if (currentTier >= MinionTier.getMaxTier()) {
+        if (currentTier >= minion.getMaxTier()) {
             return createNamedItem(Material.BEDROCK, ColorUtil.color("&cMax Tier Reached"),
                     List.of(ColorUtil.color("&7This minion has attained its"),
                             ColorUtil.color("&7absolute maximum tier (" + MinionTier.toRoman(currentTier) + ")!")));

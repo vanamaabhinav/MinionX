@@ -65,6 +65,19 @@ public class Minion {
         return minionId;
     }
 
+    public int getMaxTier() {
+        if (customDefinitionId != null) {
+            com.minionx.api.MinionDefinition def = com.minionx.api.MinionRegistry.get(customDefinitionId);
+            if (def != null && def.getMaxTier() > 0) {
+                return def.getMaxTier();
+            }
+        }
+        if (type != null) {
+            return type.getMaxTier();
+        }
+        return com.minionx.api.MinionTier.getMaxTier();
+    }
+
     public UUID getOwnerId() {
         return ownerId;
     }
@@ -78,7 +91,7 @@ public class Minion {
     }
 
     public void setTier(int tier) {
-        this.tier = Math.clamp(tier, 1, MinionTier.getMaxTier());
+        this.tier = Math.clamp(tier, 1, getMaxTier());
     }
 
     public Location getLocation() {

@@ -2,7 +2,7 @@
 
 > **MinionX** — Autonomous, High-Performance Minion Plugin for **Paper / Purpur / Pufferfish 1.20.4 – 1.21+**  
 > **Author:** AbhinavVanama  
-> **Current Version:** `v1.0.0`
+> **Current Version:** `v0.2.0` (Pre-Release)
 
 ---
 
@@ -38,7 +38,7 @@ Welcome to **MinionX**! MinionX brings fully autonomous, upgradeable, and highly
 * **Optional Hooks:** Vault (for economy/hoppers), WorldGuard/GriefPrevention/Towny/Lands/BentoBox (for land claims), MythicMobs (for custom combat mobs).
 
 ### Installation:
-1. Place `MinionX-1.0.0.jar` into your server's `plugins/` folder.
+1. Place `MinionX-0.2.0.jar` (or `MinionX-0.2.0-SNAPSHOT.jar`) into your server's `plugins/` folder.
 2. Restart your server (or load it using a plug-man alternative).
 3. The default configurations and registries will automatically generate in `plugins/MinionX/`.
 
@@ -70,10 +70,11 @@ Every minion operates in a 5×5 block area centered on itself:
 * **Foraging Minions**: Plant saplings, grow full trees with natural foliage, fell the logs, collect drops, and replant.
 * **Combat Minions**: Spawn their designated mobs within the 5×5 area (up to a configurable cap) and battle them to harvest mob drops and combat items.
 
-### 2. The 12-Tier Leveling System
-Every minion can be upgraded from **Tier I** up to **Tier XII**:
+### 2. Flexible Leveling & Per-Minion Max Tiers
+Every minion can be upgraded from **Tier I** up to its individually configured maximum tier (Default: **Tier XII**, or custom caps such as Tier V, X, or XI):
 * **Action Speed**: Higher tiers harvest significantly faster.
-* **Internal Storage**: Tiers expand internal capacity from 1 slot up to 15 slots.
+* **Internal Storage**: Tiers expand internal capacity from 1 slot up to 15+ slots.
+* **Per-Minion Max Tier Cap**: Different minions can have different maximum tier caps configured in `minions.yml` (`max-tier: <number>`) or via the In-Game Minion Creator Studio. Once a minion reaches its individual maximum tier, the upgrade button locks with a Bedrock indicator preventing further upgrades.
 * **Upgrading**: Players can upgrade their minion directly through the Minion GUI by providing the required materials and clicking the Upgrade button.
 
 | Tier | Default Delay | Storage Slots | Example Upgrade Cost |
@@ -216,7 +217,30 @@ Every minion features **2 Upgrade Slots** inside its GUI (Slots 21 and 23):
 2. **Compactor**:
    * Automatically crafts 9 harvested items into their condensed block form (e.g., 9 Coal -> 1 Coal Block, 9 Iron -> 1 Iron Block).
 3. **Super Compactor (3000)**:
-   * Advanced condensation: Crafts items into Enchanted forms (e.g., 160 Diamond -> 1 Enchanted Diamond, 160 Cobblestone -> 1 Enchanted Cobblestone).
+   * **Advanced condensation**: Crafts harvested items into Enchanted forms (e.g., 160 Diamond -> 1 Enchanted Diamond, 160 Cobblestone -> 1 Enchanted Cobblestone).
+   * **Custom Items Support**: Full support for custom items! You can define recipes that compress custom items into tier-2 enchanted items or compress vanilla items into custom RPG items.
+     * **Input Matching**: Supports matching by `custom-model-data`, custom `display-name`, or `persistent-data` (NamespacedKey + String value).
+     * **Output Custom Data**: Generated output items can have custom display names, multi-line colored lore, custom model data, enchantment glint, and persistent data tags.
+     * **Anti-Swallowing Protection**: Vanilla recipes strictly ignore custom items (items with custom display names or custom model data), preventing players' rare custom RPG items from being accidentally destroyed or swallowed by vanilla compression recipes!
+   * **Example `recipes.yml` Configuration:**
+     ```yaml
+     super-compactor:
+       # Compressing a custom item into an enchanted custom item
+       enchanted_custom_ruby:
+         input: EMERALD
+         input-custom-model-data: 1001
+         input-display-name: "&cRaw Ruby"
+         input-amount: 160
+         output: EMERALD
+         output-display-name: "&c&lEnchanted Ruby"
+         output-lore:
+           - "&7A condensed, glowing ruby jewel."
+           - "&e&lEPIC ITEM"
+         output-custom-model-data: 2001
+         output-glow: true
+         output-pdc-key: "minionx:custom_item"
+         output-pdc-value: "enchanted_ruby"
+     ```
 4. **Diamond Spreading**:
    * Grants a chance to produce 1 extra Diamond whenever the minion completes any harvest action (works on all mining, farming, and foraging minions).
 5. **Flycatcher**:
@@ -661,8 +685,21 @@ FuelRegistry.register(dragonBreathFuel);
 
 | Version | Date | Changes / Notes |
 | :---: | :---: | :--- |
-| **1.1.0** | 2026-10-12 | **Phase 1 Modular Architecture & Developer API Update**:<br>• **Dynamic Tier Studio**: In-game GUI (`/minion tier` & Operator Beacon) with arbitrary Roman numerals.<br>• **Modular YAML Files**: Split into `tiers.yml`, `minions.yml`, `fuels.yml`, `upgrades.yml`, `recipes.yml`, and `messages.yml`.<br>• **Multi-Drop Engine**: Support for multiple items with individual drop chance percentages.<br>• **Developer API**: `MinionXAPI` plus 8 custom Bukkit events (`MinionPlaceEvent`, `MinionHarvestEvent`, etc.).<br>• **Commercial Proprietary License**: Standardized EULA authored by AbhinavVanama. |
-| **1.0.0** | 2026-10-12 | Initial complete rebrand to MinionX by AbhinavVanama. Native Paper `setCanTick(false)` performance boost, modern `TextDisplay` billboard holograms, thread-safe atomic saves, anti-dupe hardening, and in-game creator studios. |
+| **0.2.0** | 2026-10-12 | **Phase 2 Expansion (Current Pre-Release)**:<br>• **Per-Minion Max Tier Caps**: Minions can now possess independent maximum tiers (e.g., Flower minion up to Tier XII, custom combat minion capped at Tier V or XI). Configurable in `minions.yml` (`max-tier`) and directly in the In-Game Minion Creator Studio.<br>• **Super Compactor Custom Items Support**: Enhanced Super Compactor 3000 to compress custom items (PDC keys, CustomModelData, display names, lore, and glint) with strict isolation so vanilla recipes never consume custom RPG items.<br>• **Pre-Release Semantic Versioning**: Locked versioning to `v0.x.x` pre-release format starting from `v0.0.0`. |
+| **0.1.3** | 2026-10-12 | **Phase 1 Modular Architecture & Developer API**:<br>• **Dynamic Tier Studio**: In-game GUI (`/minion tier` & Operator Beacon) with arbitrary Roman numerals.<br>• **Modular YAML Files**: Split into `tiers.yml`, `minions.yml`, `fuels.yml`, `upgrades.yml`, `recipes.yml`, and `messages.yml`.<br>• **Multi-Drop Engine**: Support for multiple items with individual drop chance percentages.<br>• **Developer API**: `MinionXAPI` plus 8 custom Bukkit events (`MinionPlaceEvent`, `MinionHarvestEvent`, etc.).<br>• **Commercial Proprietary License**: Standardized EULA authored by AbhinavVanama. |
+| **0.1.2** | 2026-10-12 | **MinionX Rebrand & Paper Optimizations**:<br>• Rebrand to MinionX by AbhinavVanama.<br>• Paper native `setCanTick(false)` performance boost, modern `TextDisplay` billboard holograms, thread-safe atomic saves, anti-dupe hardening.<br>• Comprehensive `WIKI.md` documentation guide for server owners and developers. |
+| **0.1.1** | 2026-10-12 | **Minion Storages & Emergency Quarantine**:<br>• Added Small (+3), Medium (+9), and Large (+15) storage chests with adjacent detection and GUI access.<br>• In-Game Skin Creator Studio to design custom skins.<br>• Emergency Quarantine Mode (`/minion quarantine`) to halt all minion actions during emergencies.<br>• Occasional floating NPC speech bubbles and owner interactions. |
+| **0.1.0** | 2026-10-12 | **Authentic Minion Heads & Tier XII**:<br>• Bundled head textures for all 37 built-in minions across all tiers (Tiers I–XII).<br>• Added Tier XII progression with 5.0s delay and 15 storage slots.<br>• Minion Skin cosmetic system with 51 custom skins, dedicated GUI slot 37, and operator browser. |
+| **0.0.9** | 2026-10-12 | **Operator Properties Editing & Entity AI Fixes**:<br>• Live editing of minion properties directly in `/minionsx`.<br>• Non-adjacent sapling spacing, farming animal archetype refinements.<br>• Added `/minion killall` purge and desync recovery tools. |
+| **0.0.8** | 2026-10-12 | **Armor Sets & Duplicate Prevention**:<br>• Full armor set styling, grid-filling priority (debris/canes), mob gravity/AI defaults.<br>• Anti-stacking protection preventing multiple minions in the same block. |
+| **0.0.7** | 2026-10-12 | **Farming & Foraging Enhancements**:<br>• 1-by-1 farmland tilling, perimeter tree growth, full tree felling, sugarcane hoe fix, authentic minion heads. |
+| **0.0.6** | 2026-10-12 | **Geyser & Bedrock Support**:<br>• Touch screen optimization and Floodgate support.<br>• Stackable fuel duration calculation and one-time use fuel toggle. |
+| **0.0.5** | 2026-10-12 | **Foraging & Farming Archetypes**:<br>• Woodchopping and crop harvesting automation with animal husbandry support.<br>• In-Game Minion Creator Studio GUI upgrades and categorized operator catalog. |
+| **0.0.4** | 2026-10-12 | **Database Persistence & Integrations**:<br>• SQLite & MySQL storage support with thread-safe data synchronization.<br>• Land claim hooks: WorldGuard, GriefPrevention, Towny, Lands, SuperiorSkyblock.<br>• Economy & Skills hooks: Vault, RoyaleEconomy, AuraSkills, and EcoSkills integration.<br>• Deterministic O(1) offline production calculation. |
+| **0.0.3** | 2026-10-12 | **In-Game Minion Creator & MythicMobs**:<br>• In-Game Minion Creator Studio to create custom minions dynamically.<br>• MythicMobs custom combat archetype integration.<br>• BentoBox island protection hooks and per-player minion limits. |
+| **0.0.2** | 2026-10-12 | **5x5 Working Zone Mechanics**:<br>• Fill-before-mine mechanics, Y-1 elevation, anti-exploit protection.<br>• Categorized operator hub and toggleable nametags. |
+| **0.0.1** | 2026-10-12 | **Operator Interface**:<br>• `/minionsx` panel with minion, fuel, and upgrade browsers. |
+| **0.0.0** | 2026-10-12 | **Initial Core Engine**:<br>• Autonomous mining and combat archetypes, armor stand rendering, two-action cycle. |
 
 > [!TIP]
 > **Documentation Maintenance Rule Active**: Any future feature additions, command expansions, or configuration changes in MinionX will automatically be updated directly into this `WIKI.md` file.

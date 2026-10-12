@@ -44,7 +44,7 @@ public class MinionItemFactory {
      * Creates a placeable minion item for a built-in MinionType.
      */
     public static ItemStack createMinionItem(MinionType type, int tier, int harvested) {
-        tier = Math.clamp(tier, 1, MinionTier.getMaxTier());
+        tier = Math.clamp(tier, 1, type != null ? type.getMaxTier() : 12);
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
 
@@ -106,7 +106,7 @@ public class MinionItemFactory {
      */
     public static ItemStack createCustomMinionItem(MinionDefinition def, int tier, int harvested) {
         if (def == null) return new ItemStack(Material.PLAYER_HEAD);
-        tier = Math.clamp(tier, 1, MinionTier.getMaxTier());
+        tier = Math.clamp(tier, 1, def.getMaxTier());
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
 

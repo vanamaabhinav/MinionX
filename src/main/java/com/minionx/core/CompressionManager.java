@@ -5,48 +5,122 @@ import com.minionx.api.CustomUpgrade;
 import com.minionx.api.MinionUpgradeType;
 import com.minionx.util.ColorUtil;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
 
 /**
  * Handles Super Compactor recipe compression in Minion inventories.
+ * Supports vanilla items and custom items with PDC, CustomModelData, display names, and lore.
  */
 @SuppressWarnings("deprecation")
 public class CompressionManager {
 
     public static class CompressionRecipe {
+        private final String id;
         private final Material inputMaterial;
         private final int inputAmount;
         private final ItemStack outputItem;
 
+        // Custom matching parameters
+        private final Integer inputCustomModelData;
+        private final String inputDisplayName;
+        private final String inputPdcKey;
+        private final String inputPdcValue;
+        private final boolean isCustomInput;
+
         public CompressionRecipe(Material inputMaterial, int inputAmount, ItemStack outputItem) {
+            this("vanilla_" + (inputMaterial != null ? inputMaterial.name().toLowerCase() : "unknown"),
+                    inputMaterial, inputAmount, outputItem, null, null, null, null, false);
+        }
+
+        public CompressionRecipe(String id, Material inputMaterial, int inputAmount, ItemStack outputItem,
+                                 Integer inputCustomModelData, String inputDisplayName,
+                                 String inputPdcKey, String inputPdcValue, boolean isCustomInput) {
+            this.id = id;
             this.inputMaterial = inputMaterial;
-            this.inputAmount = inputAmount;
-            this.outputItem = outputItem;
+            this.inputAmount = Math.max(1, inputAmount);
+            this.outputItem = outputItem != null ? outputItem.clone() : new ItemStack(Material.COBBLESTONE);
+            this.inputCustomModelData = inputCustomModelData;
+            this.inputDisplayName = inputDisplayName;
+            this.inputPdcKey = inputPdcKey;
+            this.inputPdcValue = inputPdcValue;
+            this.isCustomInput = isCustomInput;
         }
 
-        public Material getInputMaterial() {
-            return inputMaterial;
-        }
+        public String getId() { return id; }
+        public Material getInputMaterial() { return inputMaterial; }
+        public int getInputAmount() { return inputAmount; }
+        public ItemStack createOutput() { return outputItem.clone(); }
+        public Integer getInputCustomModelData() { return inputCustomModelData; }
+        public String getInputDisplayName() { return inputDisplayName; }
+        public String getInputPdcKey() { return inputPdcKey; }
+        public String getInputPdcValue() { return inputPdcValue; }
+        public boolean isCustomInput() { return isCustomInput; }
 
-        public int getInputAmount() {
-            return inputAmount;
-        }
+        public boolean matches(ItemStack item) {
+            if (item == null || item.getAmount() <= 0) return false;
+            if (item.getType() != inputMaterial) return false;
 
-        public ItemStack createOutput() {
-            return outputItem.clone();
+            if (org.bukkit.Bukkit.getServer() == null) {
+                return true;
+            }
+
+            ItemMeta meta = item.getItemMeta();
+            if (isCustomInput) {
+                if (meta == null) return false;
+                if (inputCustomModelData != null) {
+                    if (!meta.hasCustomModelData() || meta.getCustomModelData() != inputCustomModelData.intValue()) return false;
+                }
+                if (inputDisplayName != null && !inputDisplayName.isEmpty()) {
+                    if (!meta.hasDisplayName()) return false;
+                    String expected = ColorUtil.color(inputDisplayName);
+                    if (!expected.equals(meta.getDisplayName())) return false;
+                }
+                if (inputPdcKey != null && !inputPdcKey.isEmpty() && inputPdcValue != null) {
+                    try {
+                        String[] parts = inputPdcKey.split(":", 2);
+                        NamespacedKey key = parts.length == 2 ? new NamespacedKey(parts[0], parts[1]) : NamespacedKey.minecraft(parts[0]);
+                        String val = meta.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+                        if (!inputPdcValue.equals(val)) return false;
+                    } catch (Exception ignored) {
+                        return false;
+                    }
+                }
+                return true;
+            } else {
+                // Vanilla matching: avoid consuming items with custom display names or custom model data
+                if (meta != null && (meta.hasDisplayName() || meta.hasCustomModelData())) {
+                    return false;
+                }
+                return true;
+            }
         }
     }
 
-    private static final Map<Material, CompressionRecipe> RECIPES = new HashMap<>();
+    private static final Map<String, CompressionRecipe> RECIPES = new LinkedHashMap<>();
+
+    public static CompressionRecipe getRecipe(String id) {
+        return RECIPES.get(id);
+    }
 
     public static CompressionRecipe getRecipe(Material material) {
-        return RECIPES.get(material);
+        for (CompressionRecipe r : RECIPES.values()) {
+            if (r.getInputMaterial() == material && !r.isCustomInput()) {
+                return r;
+            }
+        }
+        return null;
+    }
+
+    public static Collection<CompressionRecipe> getAllRecipes() {
+        return Collections.unmodifiableCollection(RECIPES.values());
     }
 
     static {
@@ -72,34 +146,86 @@ public class CompressionManager {
             ConfigurationSection recSec = section.getConfigurationSection(key);
             if (recSec == null) continue;
 
-            String inMatName = recSec.getString("input", "COBBLESTONE");
-            Material inMat = Material.matchMaterial(inMatName);
-            if (inMat == null) continue;
+            Material inMat;
+            Integer inCmd = null;
+            String inName = null;
+            String inPdcKey = null;
+            String inPdcVal = null;
+            boolean isCustom = false;
 
+            if (recSec.isConfigurationSection("input")) {
+                ConfigurationSection inSec = recSec.getConfigurationSection("input");
+                String inMatName = inSec != null ? inSec.getString("material", "COBBLESTONE") : "COBBLESTONE";
+                inMat = Material.matchMaterial(inMatName != null ? inMatName : "COBBLESTONE");
+                if (inSec != null && inSec.contains("custom-model-data")) {
+                    inCmd = inSec.getInt("custom-model-data");
+                    isCustom = true;
+                }
+                if (inSec != null && inSec.contains("display-name")) {
+                    inName = inSec.getString("display-name");
+                    isCustom = true;
+                }
+                if (inSec != null && inSec.contains("pdc-key")) {
+                    inPdcKey = inSec.getString("pdc-key");
+                    inPdcVal = inSec.getString("pdc-value", "");
+                    isCustom = true;
+                }
+            } else {
+                String inMatName = recSec.getString("input", "COBBLESTONE");
+                inMat = Material.matchMaterial(inMatName != null ? inMatName : "COBBLESTONE");
+            }
+
+            if (inMat == null) continue;
             int amount = recSec.getInt("input-amount", 160);
 
             ConfigurationSection outSec = recSec.getConfigurationSection("output");
             if (outSec == null) continue;
 
-            String outMatName = outSec.getString("material", inMatName);
-            Material outMat = Material.matchMaterial(outMatName);
+            String outMatName = outSec.getString("material", inMat.name());
+            Material outMat = Material.matchMaterial(outMatName != null ? outMatName : inMat.name());
             if (outMat == null) outMat = inMat;
 
             String dispName = outSec.getString("display-name", "&aEnchanted " + inMat.name());
             boolean glow = outSec.getBoolean("glow", true);
+            List<String> lore = outSec.getStringList("lore");
+            Integer outCmd = outSec.contains("custom-model-data") ? outSec.getInt("custom-model-data") : null;
+            String outPdcKey = outSec.getString("pdc-key");
+            String outPdcVal = outSec.getString("pdc-value");
 
             ItemStack output = new ItemStack(outMat, 1);
-            ItemMeta meta = output.getItemMeta();
-            if (meta != null) {
-                meta.setDisplayName(ColorUtil.color(dispName));
-                if (glow) {
-                    meta.addEnchant(Enchantment.DURABILITY, 1, true);
-                    meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            if (org.bukkit.Bukkit.getServer() != null) {
+                ItemMeta meta = output.getItemMeta();
+                if (meta != null) {
+                    if (dispName != null && !dispName.isEmpty()) {
+                        meta.setDisplayName(ColorUtil.color(dispName));
+                    }
+                    if (lore != null && !lore.isEmpty()) {
+                        List<String> coloredLore = new ArrayList<>();
+                        for (String l : lore) {
+                            coloredLore.add(ColorUtil.color(l));
+                        }
+                        meta.setLore(coloredLore);
+                    }
+                    if (glow) {
+                        meta.addEnchant(Enchantment.DURABILITY, 1, true);
+                        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                    }
+                    if (outCmd != null) {
+                        meta.setCustomModelData(outCmd);
+                    }
+                    if (outPdcKey != null && !outPdcKey.isEmpty() && outPdcVal != null) {
+                        try {
+                            String[] parts = outPdcKey.split(":", 2);
+                            NamespacedKey nKey = parts.length == 2 ? new NamespacedKey(parts[0], parts[1]) : NamespacedKey.minecraft(parts[0]);
+                            meta.getPersistentDataContainer().set(nKey, PersistentDataType.STRING, outPdcVal);
+                        } catch (Exception ignored) {}
+                    }
+                    output.setItemMeta(meta);
                 }
-                output.setItemMeta(meta);
             }
 
-            RECIPES.put(inMat, new CompressionRecipe(inMat, amount, output));
+            CompressionRecipe recipe = new CompressionRecipe(key, inMat, amount, output, inCmd, inName, inPdcKey, inPdcVal, isCustom);
+            RECIPES.put(key, recipe);
         }
     }
 
@@ -110,23 +236,21 @@ public class CompressionManager {
         if (!hasSuperCompactor(minion)) return;
 
         for (CompressionRecipe recipe : RECIPES.values()) {
-            Material inMat = recipe.getInputMaterial();
             int req = recipe.getInputAmount();
 
             int count = 0;
             for (ItemStack item : minion.getInventory()) {
-                if (item != null && item.getType() == inMat && (!item.hasItemMeta() || (item.getItemMeta() != null && !item.getItemMeta().hasDisplayName()))) {
+                if (recipe.matches(item)) {
                     count += item.getAmount();
                 }
             }
 
             while (count >= req) {
-                // Deduct req raw items
                 int remainingToDeduct = req;
                 Iterator<ItemStack> it = minion.getInventory().iterator();
                 while (it.hasNext()) {
                     ItemStack item = it.next();
-                    if (item != null && item.getType() == inMat && (!item.hasItemMeta() || (item.getItemMeta() != null && !item.getItemMeta().hasDisplayName()))) {
+                    if (recipe.matches(item)) {
                         int take = Math.min(remainingToDeduct, item.getAmount());
                         item.setAmount(item.getAmount() - take);
                         remainingToDeduct -= take;
@@ -137,7 +261,6 @@ public class CompressionManager {
                     }
                 }
 
-                // Add compressed item
                 minion.addItem(recipe.createOutput());
                 count -= req;
             }

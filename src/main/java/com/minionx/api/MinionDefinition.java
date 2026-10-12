@@ -93,6 +93,7 @@ public class MinionDefinition {
     private final double defaultActionDelay;
     private final int defaultStorageSlots;
 
+    private int maxTier = 12;
     private final Map<Integer, TierStyle> tierStyles;
 
     public MinionDefinition(String id, String displayName, MinionArchetype archetype,
@@ -318,5 +319,18 @@ public class MinionDefinition {
             case WARPED_STEM -> Material.WARPED_WART_BLOCK;
             default -> Material.OAK_LEAVES;
         };
+    }
+
+    public int getMaxTier() {
+        return maxTier > 0 ? maxTier : 12;
+    }
+
+    public void setMaxTier(int maxTier) {
+        this.maxTier = Math.max(1, maxTier);
+    }
+
+    public MinionDefinition withMaxTier(int maxTier) {
+        setMaxTier(maxTier);
+        return this;
     }
 }

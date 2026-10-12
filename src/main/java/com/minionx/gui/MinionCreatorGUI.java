@@ -181,6 +181,14 @@ public class MinionCreatorGUI {
                         ColorUtil.color("&eShift-Left-Click: &f+1 Harvest XP"),
                         ColorUtil.color("&6Shift-Right-Click: &f+1 Storage Slot"))));
 
+        // Slot 33: Max Tier Cap
+        inv.setItem(33, createNamedItem(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE, ColorUtil.color("&6Max Tier Cap"),
+                List.of(ColorUtil.color("&7Maximum Tier: &eTier " + com.minionx.api.MinionTier.toRoman(session.getMaxTier()) + " &7(" + session.getMaxTier() + ")"),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&aLeft-Click: &f+1 Max Tier"),
+                        ColorUtil.color("&cRight-Click: &f-1 Max Tier"),
+                        ColorUtil.color("&7Allows this minion to cap at Tier 5, 10, 11, 12, etc."))));
+
         // Slot 34: Tier Style Customization
         inv.setItem(34, createNamedItem(Material.ANVIL, ColorUtil.color("&bTier Style Configuration"),
                 List.of(ColorUtil.color("&7Mode: &f" + (session.isPerTierMode() ? "&bPer-Tier Overrides" : "&aAll Tiers Identical")),
@@ -200,12 +208,13 @@ public class MinionCreatorGUI {
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to Save & Deploy"))));
 
-        // Slot 50: Deploy Maxed (Tier XI)
-        inv.setItem(50, createNamedItem(Material.NETHER_STAR, ColorUtil.color("&bDeploy Maxed (Tier XI)"),
-                List.of(ColorUtil.color("&7Saves and gives you a maxed Tier XI"),
+        // Slot 50: Deploy Maxed
+        int maxT = session.getMaxTier();
+        inv.setItem(50, createNamedItem(Material.NETHER_STAR, ColorUtil.color("&bDeploy Maxed (Tier " + com.minionx.api.MinionTier.toRoman(maxT) + ")"),
+                List.of(ColorUtil.color("&7Saves and gives you a maxed Tier " + com.minionx.api.MinionTier.toRoman(maxT)),
                         ColorUtil.color("&7minion item for immediate testing."),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick to Deploy Tier XI"))));
+                        ColorUtil.color("&eClick to Deploy Max Tier"))));
 
         player.openInventory(inv);
     }

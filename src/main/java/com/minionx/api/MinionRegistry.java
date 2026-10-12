@@ -34,6 +34,11 @@ public class MinionRegistry {
         return !DEFAULT_IDS.contains(id.toLowerCase());
     }
 
+    public static void register(MinionDefinition def) {
+        if (def == null) return;
+        DEFINITIONS.put(def.getId().toLowerCase(), def);
+    }
+
     static {
         registerDefaults();
     }
@@ -145,9 +150,11 @@ public class MinionRegistry {
             int xp = sec.getInt("xp-per-harvest", 0);
             double delay = sec.getDouble("action-delay", 14.0);
             int slots = sec.getInt("storage-slots", 1);
+            int maxTier = sec.getInt("max-tier", 12);
 
             MinionDefinition def = new MinionDefinition(id, name, archetype, skull, armorMat, armorColor, handItem,
                     targetBlock, targetMob, drops, xp, delay, slots);
+            def.setMaxTier(maxTier);
 
             // Load optional per-tier styles
             ConfigurationSection tierSec = sec.getConfigurationSection("tier-styles");
@@ -205,6 +212,7 @@ public class MinionRegistry {
         config.set(path + ".xp-per-harvest", def.getXpPerHarvest());
         config.set(path + ".action-delay", def.getDefaultActionDelay());
         config.set(path + ".storage-slots", def.getDefaultStorageSlots());
+        config.set(path + ".max-tier", def.getMaxTier());
 
         try {
             config.save(file);

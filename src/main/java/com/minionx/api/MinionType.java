@@ -82,6 +82,14 @@ public enum MinionType {
         return skullTexture;
     }
 
+    public int getMaxTier() {
+        MinionDefinition def = MinionRegistry.get(name().toLowerCase());
+        if (def != null && def.getMaxTier() > 0) {
+            return def.getMaxTier();
+        }
+        return 12;
+    }
+
     public static MinionType fromString(String name) {
         if (name == null) return null;
         for (MinionType type : values()) {

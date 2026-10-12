@@ -12,6 +12,7 @@
 #     target-mob: <ENTITY_TYPE|ID>   # Used by COMBAT (Vanilla EntityType or MythicMob ID)
 #     held-tool: <MATERIAL>          # Held tool in hand (e.g. DIAMOND_PICKAXE)
 #     skull-texture: "<base64>"      # Optional custom head texture
+#     max-tier: 12                   # Custom maximum tier cap (e.g. 5, 10, 11, 12)
 #     drops:                         # Multi-drop support with individual chances
 #       - item: <MATERIAL|HOOK_ITEM> # e.g. DIAMOND, or itemsadder:namespace:id
 #         amount: 1
@@ -24,6 +25,7 @@ custom-minions:
     archetype: MINING
     target-block: AMETHYST_CLUSTER
     held-tool: DIAMOND_PICKAXE
+    max-tier: 12
     drops:
       - item: AMETHYST_SHARD
         amount: 4
@@ -34,6 +36,7 @@ custom-minions:
     archetype: COMBAT
     target-mob: SPIDER
     held-tool: IRON_SWORD
+    max-tier: 5
     drops:
       - item: STRING
         amount: 2

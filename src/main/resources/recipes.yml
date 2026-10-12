@@ -4,7 +4,10 @@
 # Define recipes used by the Super Compactor 3000 upgrade to compress items
 # into their enchanted or condensed forms.
 #
-# Schema:
+# Supports standard vanilla materials AND custom items (CustomModelData,
+# persistent data tags, custom names, and custom lore).
+#
+# Vanilla Schema:
 #   <key>:
 #     input: MATERIAL_NAME
 #     input-amount: 160
@@ -12,6 +15,25 @@
 #       material: MATERIAL_NAME
 #       display-name: "&aEnchanted Name"
 #       glow: true
+#
+# Custom Item Schema:
+#   <key>:
+#     input:
+#       material: MATERIAL_NAME
+#       custom-model-data: 1001
+#       display-name: "&aRaw Item Name"
+#       pdc-key: "minionx:item_id"
+#       pdc-value: "raw_item"
+#     input-amount: 160
+#     output:
+#       material: MATERIAL_NAME
+#       custom-model-data: 1002
+#       display-name: "&aEnchanted Item Name"
+#       lore:
+#         - "&7Condensed custom essence"
+#       glow: true
+#       pdc-key: "minionx:item_id"
+#       pdc-value: "enchanted_item"
 # ==============================================================================
 
 compression-recipes:

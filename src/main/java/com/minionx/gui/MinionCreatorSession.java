@@ -32,6 +32,7 @@ public class MinionCreatorSession {
 
     private double actionDelay;
     private int storageSlots;
+    private int maxTier = 12;
 
     private boolean perTierMode;
     private int selectedTier;
@@ -56,6 +57,7 @@ public class MinionCreatorSession {
 
         this.actionDelay = 14.0;
         this.storageSlots = 1;
+        this.maxTier = 12;
 
         this.perTierMode = false;
         this.selectedTier = 1;
@@ -107,6 +109,9 @@ public class MinionCreatorSession {
     public int getStorageSlots() { return storageSlots; }
     public void setStorageSlots(int storageSlots) { this.storageSlots = Math.clamp(storageSlots, 1, 15); }
 
+    public int getMaxTier() { return maxTier; }
+    public void setMaxTier(int maxTier) { this.maxTier = Math.clamp(maxTier, 1, com.minionx.api.MinionTier.getMaxTier()); }
+
     public boolean isPerTierMode() { return perTierMode; }
     public void setPerTierMode(boolean perTierMode) { this.perTierMode = perTierMode; }
 
@@ -132,6 +137,7 @@ public class MinionCreatorSession {
         session.setXpPerHarvest(def.getXpPerHarvest());
         session.setActionDelay(def.getDefaultActionDelay());
         session.setStorageSlots(def.getDefaultStorageSlots());
+        session.setMaxTier(def.getMaxTier());
         if (def.getTierStyles() != null && !def.getTierStyles().isEmpty()) {
             session.setPerTierMode(true);
             session.getTierStyles().putAll(def.getTierStyles());
@@ -151,6 +157,7 @@ public class MinionCreatorSession {
                 def.addTierStyle(entry.getKey(), entry.getValue());
             }
         }
+        def.setMaxTier(maxTier);
         return def;
     }
 

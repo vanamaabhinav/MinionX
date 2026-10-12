@@ -525,6 +525,19 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
+        // 9.5 Max Tier Cap Tuning (Slot 33)
+        if (slot == 33) {
+            int currentMax = session.getMaxTier();
+            if (event.isLeftClick()) {
+                session.setMaxTier(Math.min(com.minionx.api.MinionTier.getMaxTier(), currentMax + 1));
+            } else if (event.isRightClick()) {
+                session.setMaxTier(Math.max(1, currentMax - 1));
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.5f);
+            MinionCreatorGUI.open(player, session);
+            return;
+        }
+
         // 10. Tier Customization Mode
         if (slot == 34) {
             if (event.isRightClick()) {
@@ -550,9 +563,9 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 13. Deploy Maxed (Tier XI)
+        // 13. Deploy Maxed
         if (slot == 50) {
-            saveAndDeploy(player, session, 11);
+            saveAndDeploy(player, session, session.getMaxTier());
         }
     }
 

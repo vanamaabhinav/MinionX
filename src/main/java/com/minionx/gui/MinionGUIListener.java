@@ -271,8 +271,8 @@ public class MinionGUIListener implements Listener {
 
     private void handleUpgrade(Player player, Minion minion) {
         int currentTier = minion.getTier();
-        if (currentTier >= MinionTier.getMaxTier()) {
-            player.sendMessage(ColorUtil.color("&cThis minion is already at the maximum tier!"));
+        if (currentTier >= minion.getMaxTier()) {
+            player.sendMessage(ColorUtil.color("&cThis minion is already at the maximum tier (" + MinionTier.toRoman(minion.getMaxTier()) + ")!"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
