@@ -40,7 +40,7 @@ Developed by AbhinavVanama
   - Configurable console command execution upon resource collection (e.g., Skill EXP or collection tracking).
   - Built-in placeholders ```(%player%, %amount%, %minion_type%, %minion_tier%, %total_harvested%, etc.)``` with optional PlaceholderAPI hook.
   - Inline arithmetic evaluation (e.g., {amount * 2.5}, {amount * 10}).
-- **Additive Speed Formulation:** Accurately stacks multiple speed multipliers.
+- **Additive Speed Formulation:** Accurately stacks multiple speed multipliers using $T_{\text{effective}} = \frac{T_{\text{base}}}{1 + \sum \text{Buffs}}$.
 - **Deterministic Offline Simulation:** Simulates accrued production during chunk unloads or server downtime upon player return.
 - **Clean Persistence:** Full YAML state serialization with automatic entity cleanup on server shutdown.
 
@@ -51,7 +51,9 @@ Developed by AbhinavVanama
 Built with Maven 3.9+ and Java 21:
 
 ```bash
+```bash
 mvn clean package
+```
 ```
 
 The shaded production artifact will be generated at `target/MinionX-1.0.0.jar`.
