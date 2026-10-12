@@ -1,34 +1,34 @@
-name: SkyBlockMinions
+name: MinionX
 version: 1.0.0
-main: com.skyblock.minions.SkyBlockMinions
+main: com.minionx.MinionX
 api-version: '1.20'
-author: Antigravity
-description: Autonomous Hypixel SkyBlock Minions plugin for Paper/Purpur 1.20.4 - 1.21+
+author: AbhinavVanama
+description: Autonomous Minion plugin for Paper / Purpur 1.20.4 - 1.21+
 
 commands:
   minion:
-    description: Main command for SkyBlock Minions
-    permission: skyblockminions.use
-    aliases: [minions, sbminion]
+    description: Main command for MinionX
+    permission: minionx.use
+    aliases: [minions, mx, minionx]
     usage: |
-      &6SkyBlock Minions Commands:
+      &6&l[Minion&c&lX&6&l] Commands:
       &e/minion create &7- Open In-Game Minion Creator Studio
       &e/minion give <player> <type> [tier] &7- Give a minion item
       &e/minion list &7- List your placed minions
       &e/minion reload &7- Reload configuration
   minionsx:
     description: Opens the MinionX Operator interface
-    permission: skyblockminions.admin
-    aliases: [minionx]
+    permission: minionx.admin
+    aliases: [mxop]
     usage: /minionsx
 
 permissions:
-  skyblockminions.admin:
+  minionx.admin:
     description: Allows administrative access to give minions, reload plugin, open operator hub and minion creator studio
     default: op
-  skyblockminions.use:
+  minionx.use:
     description: Allows players to interact with, place, and view minions
     default: true
-  minions.bypass.limit:
+  minionx.bypass.limit:
     description: Allows bypassing the per-player minion placement limit
     default: op

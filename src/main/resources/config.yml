@@ -1,5 +1,5 @@
 # ==============================================================================
-# MinionX - Hypixel SkyBlock Inspired Minions Configuration
+# MinionX - Autonomous Minions Configuration
 # ==============================================================================
 
 settings:
@@ -13,8 +13,8 @@ settings:
   # Periodic auto-save interval in ticks (6000 ticks = 5 minutes)
   auto-save-interval: 6000
   # Maximum placed minions per player (-1 for unlimited)
-  # Players with permission "minions.bypass.limit" bypass this restriction
-  # Also supports permission nodes: minions.limit.<number> (e.g. minions.limit.10)
+  # Players with permission "minionx.bypass.limit" bypass this restriction
+  # Also supports permission nodes: minionx.limit.<number> (e.g. minionx.limit.10)
   max-minions-per-player: 5
   # Maximum offline simulation time in hours (default 720 = 30 days)
   max-offline-hours: 720
@@ -49,6 +49,13 @@ storage:
     database: "minions"
     username: "root"
     password: ""
+
+# ==============================================================================
+# MESSAGES & CHAT FORMATTING
+# ==============================================================================
+messages:
+  # The chat and broadcast prefix. Default is bold Minion with red bold X: &6&l[Minion&c&lX&6&l] &r
+  prefix: "&6&l[Minion&c&lX&6&l] "
 
 # ==============================================================================
 # FLOATING NAMETAGS (Holograms)
@@ -556,7 +563,7 @@ collection-commands:
     diamond: []
 
 # ==============================================================================
-# MINION GUI LAYOUT CUSTOMIZATION (Authentic Hypixel SkyBlock Layout)
+# MINION GUI LAYOUT CUSTOMIZATION (Standard MinionX Layout)
 # ==============================================================================
 gui:
   minion-menu:
@@ -594,7 +601,7 @@ messages:
   fuel-burned-out: "&cThe active %fuel% burned out and was consumed!"
   fuel-extended: "&aEquipped &f%amount%x %fuel%&a! Fuel duration: &e%time%&a."
   cannot-stack-permanent-fuel: "&cThis minion already has permanent fuel installed!"
-  prefix: "&6[Minions] &r"
+  prefix: "&6&l[Minion&c&lX&6&l] &r"
   placed: "&aYou placed a %minion%!"
   picked-up: "&eYou picked up your %minion%!"
   upgraded: "&aUpgraded %minion% to Tier %tier%!"

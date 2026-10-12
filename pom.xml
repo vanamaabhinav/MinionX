@@ -3,13 +3,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.skyblock</groupId>
-    <artifactId>SkyBlockMinions</artifactId>
+    <groupId>com.minionx</groupId>
+    <artifactId>MinionX</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>SkyBlockMinions</name>
-    <description>Hypixel SkyBlock Minions for Paper / Purpur 1.20.4 - 1.21+</description>
+    <name>MinionX</name>
+    <description>Autonomous Minion plugin for Paper / Purpur 1.20.4 - 1.21+</description>
 
     <properties>
         <java.version>21</java.version>
@@ -58,6 +58,9 @@
                 <version>3.13.0</version>
                 <configuration>
                     <release>${java.version}</release>
+                    <compilerArgs>
+                        <arg>-Xlint:-deprecation</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
