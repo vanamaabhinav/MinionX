@@ -1,0 +1,63 @@
+# ==============================================================================
+# MinionX - Language & Messages Configuration (messages.yml)
+# ==============================================================================
+# Customize all plugin messages and chat prefixes.
+# Placeholders: %player%, %minion%, %tier%, %amount%, %time%, %xp%, %limit%, %fuel%
+# ==============================================================================
+
+prefix: "&6&l[Minion&c&lX&6&l] &r"
+
+messages:
+  prefix: "&6&l[Minion&c&lX&6&l] &r"
+  fuel-burned-out: "&cThe active %fuel% burned out and was consumed!"
+  fuel-extended: "&aEquipped &f%amount%x %fuel%&a! Fuel duration: &e%time%&a."
+  cannot-stack-permanent-fuel: "&cThis minion already has permanent fuel installed!"
+  placed: "&aYou placed a %minion%!"
+  picked-up: "&eYou picked up your %minion%!"
+  upgraded: "&aUpgraded %minion% to Tier %tier%!"
+  not-enough-resources: "&cYou don't have enough resources to upgrade this minion!"
+  already-max-tier: "&cThis minion is already at maximum tier!"
+  collected: "&aCollected %amount% items and &e+%xp% XP &afrom your minion!"
+  inventory-full: "&cYour inventory is too full to collect all items!"
+  area-blocked: "&cCannot place minion here! Ensure a flat 5x5 platform is available."
+  no-permission: "&cYou do not have permission to do this."
+
+  # Security & Limits Messages
+  minion-limit-reached: "&cYou have reached your maximum minion limit of %limit%!"
+  minion-already-exists: "&cThere is already a minion here! Only one minion may occupy a block."
+  cannot-place-fuel-or-upgrade: "&cYou cannot place minion items or fuels in the world!"
+  cannot-craft-with-minion-item: "&cYou cannot use minion items or upgrades in crafting recipes!"
+  no-island-place-permission: "&cYou do not have permission to place minions here!"
+  no-island-access-permission: "&cYou do not have permission to access this minion!"
+  no-minion-access-permission: "&cYou do not have permission to access this minion!"
+  partially-obstructed-status: "&ePartially Obstructed"
+
+dialogues:
+  enabled: true
+  format: "&e\"%message%\""
+  duration-seconds: 5
+  messages:
+    general:
+      - "Hard at work!"
+      - "Look at all these resources!"
+      - "Can't stop, won't stop!"
+      - "Efficiency at its finest!"
+      - "Another one for the collection!"
+      - "I love working on this island!"
+    mining:
+      - "Strike the earth!"
+      - "So much cobblestone and ore!"
+      - "Found another vein!"
+      - "My pickaxe never rests!"
+    foraging:
+      - "Chopping away all day!"
+      - "Timber! That was a big tree!"
+      - "Fresh wood collected!"
+    farming:
+      - "Crops are growing fast!"
+      - "Time for a bountiful harvest!"
+      - "Nothing beats fresh produce!"
+    combat:
+      - "Guarding the perimeter!"
+      - "Target eliminated!"
+      - "Keeping the island safe!"

@@ -1,0 +1,88 @@
+# ==============================================================================
+# MinionX - Custom Fuels Configuration (fuels.yml)
+# ==============================================================================
+# Define temporary or permanent fuels to boost minion harvest speeds.
+# Duration formats: "30m", "1h", "12h", "1d", "permanent"
+# ==============================================================================
+
+fuels:
+  coal:
+    display-name: "&fCoal"
+    material: COAL
+    speed-buff: 0.05
+    duration: "30m"
+    glow: false
+    lore:
+      - "&7Increases minion speed by &a+5%&7."
+      - "&7Duration: &e30 minutes"
+
+  charcoal:
+    display-name: "&fCharcoal"
+    material: CHARCOAL
+    speed-buff: 0.05
+    duration: "30m"
+    glow: false
+    lore:
+      - "&7Increases minion speed by &a+5%&7."
+      - "&7Duration: &e30 minutes"
+
+  enchanted_bread:
+    display-name: "&aEnchanted Bread"
+    material: BREAD
+    speed-buff: 0.05
+    duration: "12h"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+5%&7."
+      - "&7Duration: &e12 hours"
+
+  enchanted_charcoal:
+    display-name: "&aEnchanted Charcoal"
+    material: CHARCOAL
+    speed-buff: 0.20
+    duration: "1d"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+20%&7."
+      - "&7Duration: &e1 day"
+
+  solar_panel:
+    display-name: "&eSolar Panel"
+    material: DAYLIGHT_DETECTOR
+    speed-buff: 0.25
+    duration: "permanent"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+25%&7"
+      - "&7during daytime."
+      - "&7Duration: &bPermanent"
+
+  enchanted_lava_bucket:
+    display-name: "&6Enchanted Lava Bucket"
+    material: LAVA_BUCKET
+    speed-buff: 0.25
+    duration: "permanent"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+25%&7."
+      - "&7Duration: &bPermanent"
+
+  magma_bucket:
+    display-name: "&cMagma Bucket"
+    material: LAVA_BUCKET
+    speed-buff: 0.30
+    duration: "permanent"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+30%&7."
+      - "&7Duration: &bPermanent"
+
+  plasma_bucket:
+    display-name: "&dPlasma Bucket"
+    material: LAVA_BUCKET
+    speed-buff: 0.35
+    duration: "permanent"
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+35%&7."
+      - "&7Duration: &bPermanent"

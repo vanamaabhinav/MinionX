@@ -1,0 +1,91 @@
+# ==============================================================================
+# MinionX - Custom Upgrades Configuration (upgrades.yml)
+# ==============================================================================
+# Upgrades placed into Slots 27 and 36 of any Minion GUI.
+# Supported types:
+#   AUTO_SMELTER, COMPACTOR, SUPER_COMPACTOR, DIAMOND_SPREADING, SPEED_BUFF,
+#   BUDGET_HOPPER, ENCHANTED_HOPPER
+# ==============================================================================
+
+upgrades:
+  auto_smelter:
+    display-name: "&6Auto-Smelter"
+    material: FURNACE
+    type: AUTO_SMELTER
+    glow: true
+    lore:
+      - "&7Automatically smelts harvested resources."
+
+  compactor:
+    display-name: "&6Compactor"
+    material: DROPPER
+    type: COMPACTOR
+    glow: true
+    lore:
+      - "&7Automatically compacts resources into blocks."
+
+  super_compactor:
+    display-name: "&dSuper Compactor 3000"
+    material: DISPENSER
+    type: SUPER_COMPACTOR
+    glow: true
+    lore:
+      - "&7Automatically compresses items into their"
+      - "&7enchanted compressed forms."
+
+  diamond_spreading:
+    display-name: "&bDiamond Spreading"
+    material: DIAMOND
+    type: DIAMOND_SPREADING
+    chance: 0.10
+    glow: true
+    lore:
+      - "&7Adds a 10% chance to generate diamonds"
+      - "&7when harvesting resources."
+
+  minion_expander:
+    display-name: "&aMinion Expander"
+    material: PISTON
+    type: SPEED_BUFF
+    speed-buff: 0.05
+    glow: true
+    lore:
+      - "&7Increases production speed by &a+5%&7."
+
+  flycatcher:
+    display-name: "&dFlycatcher"
+    material: STRING
+    type: SPEED_BUFF
+    speed-buff: 0.20
+    glow: true
+    lore:
+      - "&7Increases minion speed by &a+20%&7."
+
+  hyper_catalyst:
+    display-name: "&5Hyper Catalyst"
+    material: NETHER_STAR
+    type: SPEED_BUFF
+    speed-buff: 0.40
+    glow: true
+    lore:
+      - "&7Increases production speed by &a+40%&7."
+
+  budget_hopper:
+    display-name: "&eBudget Hopper"
+    material: HOPPER
+    type: BUDGET_HOPPER
+    sell-ratio: 0.50
+    glow: true
+    lore:
+      - "&7Automatically sells overflow items at &e50%&7"
+      - "&7value when storage is completely full."
+
+  enchanted_hopper:
+    display-name: "&6Enchanted Hopper"
+    material: HOPPER
+    type: ENCHANTED_HOPPER
+    sell-ratio: 0.90
+    glow: true
+    lore:
+      - "&7Automatically sells overflow items at &690%&7"
+      - "&7value when storage is completely full."

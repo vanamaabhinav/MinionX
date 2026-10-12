@@ -5,14 +5,14 @@ MinionX is a high-performance Minecraft Java plugin providing an autonomous, uni
 ---
 Developed by AbhinavVanama
 
-📖 **Complete Server Owner & Developer Manual:** See [WIKI.md](WIKI.md) for full gameplay guides, in-game creator studio tutorials, commands, configuration breakdown, and developer API documentation.
+ **Complete Server Owner & Developer Manual:** See [WIKI.md](WIKI.md) for full gameplay guides, in-game creator studio tutorials, commands, configuration breakdown, and developer API documentation.
 
-### 🎭 Built-in Minion Heads & Tier XII
+###  Built-in Minion Heads & Tier XII
 - **Custom Head Textures:** All 37 built-in minions wear player heads across every tier (Tiers I–XII), bundled offline with zero external network lag.
 - **Tier XII Progression:** Max tier progression extended to Tier XII (6.0s delay, 15 storage slots, 960 item capacity).
 - **Tier Browser:** Visualized in `/minionsx` Minions Catalog with dedicated 12-slot tier inspection and instant delivery.
 
-### 🎨 Cosmetic Minion Skins
+###  Cosmetic Minion Skins
 - **51 Custom Skins:** Includes Santa, Snowman, Robot, Shark, Penguin, Pufferfish, Dragon, Sloth, Bee, Mummy, and 40+ more.
 - **Dedicated GUI Slot 37:** Insert or retrieve minion skins directly from the Minion GUI to transform appearance and armor styling.
 - **Operator Skins Catalog:** Full paginated browser in `/minionsx` (Slot 28) with 1-click delivery.
@@ -38,7 +38,7 @@ Developed by AbhinavVanama
 - **Config-Driven Extensibility:** Define custom fuels and accessories directly in config.yml without modifying Java code.
 - **Collection Command Dispatcher:**
   - Configurable console command execution upon resource collection (e.g., Skill EXP or collection tracking).
-  - Built-in placeholders (%player%, %amount%, %minion_type%, %minion_tier%, %total_harvested%, etc.) with optional PlaceholderAPI hook.
+  - Built-in placeholders ```(%player%, %amount%, %minion_type%, %minion_tier%, %total_harvested%, etc.)``` with optional PlaceholderAPI hook.
   - Inline arithmetic evaluation (e.g., {amount * 2.5}, {amount * 10}).
 - **Additive Speed Formulation:** Accurately stacks multiple speed multipliers.
 - **Deterministic Offline Simulation:** Simulates accrued production during chunk unloads or server downtime upon player return.

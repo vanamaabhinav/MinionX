@@ -77,8 +77,13 @@ public class MinionTickTask extends BukkitRunnable {
 
         // Check fuel expiration
         if (minion.getFuelId() != null && !minion.isFuelActive()) {
-            minion.setFuel((CustomFuel) null);
-            MinionHologram.updateHologram(minion);
+            com.minionx.api.CustomFuel f = com.minionx.api.FuelRegistry.get(minion.getFuelId());
+            com.minionx.api.event.MinionFuelConsumeEvent fuelEvent = new com.minionx.api.event.MinionFuelConsumeEvent(minion, f, true);
+            org.bukkit.Bukkit.getPluginManager().callEvent(fuelEvent);
+            if (!fuelEvent.isCancelled()) {
+                minion.setFuel((com.minionx.api.CustomFuel) null);
+                MinionHologram.updateHologram(minion);
+            }
         }
 
         // Check action cooldown
@@ -162,7 +167,7 @@ public class MinionTickTask extends BukkitRunnable {
             updateObstructionState(minion, isPartiallyObstructed);
             Collections.shuffle(resourceBlocks);
             Block target = resourceBlocks.getFirst();
-            executeMine(minion, target, dropItem, def.getXpPerHarvest());
+            executeMine(minion, target, def, def.getXpPerHarvest());
             return;
         }
 
@@ -355,16 +360,7 @@ public class MinionTickTask extends BukkitRunnable {
 
         target.getWorld().playSound(target.getLocation(), Sound.BLOCK_WOOD_BREAK, 1.0f, 1.0f);
 
-        ItemStack reward = dropItem.clone();
-        reward.setAmount(dropItem.getAmount() * logsMined);
-        minion.addItem(reward);
-        minion.incrementHarvested(logsMined);
-        int xp = def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1;
-        minion.addStoredXp(xp * logsMined);
-
-        if (def.hasSecondaryDrop() && Math.random() < def.getSecondaryDropChance()) {
-            minion.addItem(def.getSecondaryDropItem().clone());
-        }
+        awardHarvest(minion, def, logsMined, def.getXpPerHarvest());
 
         minion.setLastActionWasPlace(false);
         minion.setLastActionTime(System.currentTimeMillis());
@@ -522,13 +518,7 @@ public class MinionTickTask extends BukkitRunnable {
             target.setType(cropMat);
         }
 
-        minion.addItem(dropItem.clone());
-        minion.incrementHarvested(1);
-        minion.addStoredXp(def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
-
-        if (def.hasSecondaryDrop() && Math.random() < def.getSecondaryDropChance()) {
-            minion.addItem(def.getSecondaryDropItem().clone());
-        }
+        awardHarvest(minion, def, 1, def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
 
         minion.setLastActionWasPlace(false);
         minion.setLastActionTime(System.currentTimeMillis());
@@ -580,9 +570,7 @@ public class MinionTickTask extends BukkitRunnable {
             MinionAnimation.playMineAnimation(minion, target);
             target.setType(Material.AIR);
 
-            minion.addItem(dropItem.clone());
-            minion.incrementHarvested(1);
-            minion.addStoredXp(def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
+            awardHarvest(minion, def, 1, def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
 
             minion.setLastActionWasPlace(false);
             minion.setLastActionTime(System.currentTimeMillis());
@@ -706,9 +694,7 @@ public class MinionTickTask extends BukkitRunnable {
             MinionAnimation.playMineAnimation(minion, target);
             target.setType(Material.AIR);
 
-            minion.addItem(dropItem.clone());
-            minion.incrementHarvested(1);
-            minion.addStoredXp(def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
+            awardHarvest(minion, def, 1, def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
 
             minion.setLastActionWasPlace(false);
             minion.setLastActionTime(System.currentTimeMillis());
@@ -791,9 +777,7 @@ public class MinionTickTask extends BukkitRunnable {
             MinionAnimation.playMineAnimation(minion, target);
             target.setType(Material.AIR);
 
-            minion.addItem(dropItem.clone());
-            minion.incrementHarvested(1);
-            minion.addStoredXp(def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
+            awardHarvest(minion, def, 1, def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
 
             minion.setLastActionWasPlace(false);
             minion.setLastActionTime(System.currentTimeMillis());
@@ -846,9 +830,7 @@ public class MinionTickTask extends BukkitRunnable {
             MinionAnimation.playMineAnimation(minion, target);
             target.setType(Material.AIR);
 
-            minion.addItem(dropItem.clone());
-            minion.incrementHarvested(1);
-            minion.addStoredXp(def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
+            awardHarvest(minion, def, 1, def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
 
             minion.setLastActionWasPlace(false);
             minion.setLastActionTime(System.currentTimeMillis());
@@ -868,9 +850,7 @@ public class MinionTickTask extends BukkitRunnable {
             MinionAnimation.playMineAnimation(minion, target);
             target.setType(Material.AIR);
 
-            minion.addItem(dropItem.clone());
-            minion.incrementHarvested(1);
-            minion.addStoredXp(def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
+            awardHarvest(minion, def, 1, def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1);
 
             minion.setLastActionWasPlace(false);
             minion.setLastActionTime(System.currentTimeMillis());
@@ -927,14 +907,7 @@ public class MinionTickTask extends BukkitRunnable {
             MinionAnimation.playMineAnimation(minion, target.getLocation().getBlock());
             target.remove();
 
-            minion.addItem(dropItem.clone());
-            minion.incrementHarvested(1);
-            int xp = def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 3;
-            minion.addStoredXp(xp);
-
-            if (def.hasSecondaryDrop() && Math.random() < def.getSecondaryDropChance()) {
-                minion.addItem(def.getSecondaryDropItem().clone());
-            }
+            awardHarvest(minion, def, 1, def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 3);
 
             minion.setLastActionWasPlace(false);
             minion.setLastActionTime(System.currentTimeMillis());
@@ -948,6 +921,50 @@ public class MinionTickTask extends BukkitRunnable {
     // =========================================================================
     // HELPER METHODS
     // =========================================================================
+    private void awardHarvest(Minion minion, MinionDefinition def, int harvestCount, int xpPerCount) {
+        List<ItemStack> rolled = def.rollDrops(harvestCount);
+        boolean hasSmelter = minion.hasUpgrade(MinionUpgradeType.AUTO_SMELTER)
+                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.AUTO_SMELTER);
+
+        List<ItemStack> finalDrops = new ArrayList<>();
+        for (ItemStack item : rolled) {
+            ItemStack drop = item.clone();
+            if (hasSmelter) {
+                if (drop.getType() == Material.COBBLESTONE) drop.setType(Material.STONE);
+                else if (drop.getType() == Material.RAW_IRON) drop.setType(Material.IRON_INGOT);
+                else if (drop.getType() == Material.RAW_GOLD) drop.setType(Material.GOLD_INGOT);
+                else if (drop.getType() == Material.RAW_COPPER) drop.setType(Material.COPPER_INGOT);
+                else if (drop.getType().name().endsWith("_LOG") || drop.getType().name().endsWith("_WOOD")) {
+                    drop.setType(Material.CHARCOAL);
+                }
+            }
+            finalDrops.add(drop);
+        }
+
+        // Diamond Spreading check
+        boolean hasSpreading = minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
+                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING);
+        if (hasSpreading && Math.random() < 0.10) {
+            finalDrops.add(new ItemStack(Material.DIAMOND, 1));
+        }
+
+        int totalXp = (xpPerCount > 0 ? xpPerCount : 1) * harvestCount;
+
+        // Fire MinionHarvestEvent
+        com.minionx.api.event.MinionHarvestEvent event = new com.minionx.api.event.MinionHarvestEvent(minion, finalDrops, totalXp);
+        org.bukkit.Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return;
+        }
+
+        for (ItemStack item : event.getDrops()) {
+            minion.addItem(item);
+        }
+        minion.incrementHarvested(harvestCount);
+        minion.addStoredXp(event.getXpGained());
+
+        triggerOccasionalDialogue(minion);
+    }
     private void executePlace(Minion minion, Block target, Material placeMat) {
         target.setType(placeMat);
         MinionAnimation.playPlaceAnimation(minion, target);
@@ -956,19 +973,11 @@ public class MinionTickTask extends BukkitRunnable {
         MinionHologram.updateHologram(minion);
     }
 
-    private void executeMine(Minion minion, Block target, ItemStack dropItem, int xp) {
+    private void executeMine(Minion minion, Block target, MinionDefinition def, int xp) {
         MinionAnimation.playMineAnimation(minion, target);
         target.setType(Material.AIR);
 
-        minion.addItem(dropItem.clone());
-        minion.incrementHarvested(1);
-        minion.addStoredXp(xp);
-
-        boolean hasSpreading = minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
-                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING);
-        if (hasSpreading && Math.random() < 0.10) {
-            minion.addItem(new ItemStack(Material.DIAMOND, 1));
-        }
+        awardHarvest(minion, def, 1, xp);
 
         minion.setLastActionWasPlace(false);
         minion.setLastActionTime(System.currentTimeMillis());

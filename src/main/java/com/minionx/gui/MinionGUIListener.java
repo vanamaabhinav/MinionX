@@ -228,6 +228,14 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
+        // Fire MinionCollectionEvent
+        com.minionx.api.event.MinionCollectionEvent collectEvent = new com.minionx.api.event.MinionCollectionEvent(
+                player, minion, minion.getInventory(), minion.getStoredXp());
+        org.bukkit.Bukkit.getPluginManager().callEvent(collectEvent);
+        if (collectEvent.isCancelled()) {
+            return;
+        }
+
         int collectedCount = 0;
         for (ItemStack item : minion.getInventory()) {
             collectedCount += item.getAmount();
@@ -288,6 +296,14 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
+        // Fire MinionUpgradeEvent
+        com.minionx.api.event.MinionUpgradeEvent upgradeEvent = new com.minionx.api.event.MinionUpgradeEvent(
+                player, minion, currentTier, currentTier + 1);
+        org.bukkit.Bukkit.getPluginManager().callEvent(upgradeEvent);
+        if (upgradeEvent.isCancelled()) {
+            return;
+        }
+
         removeItems(player, required, cost);
         minion.setTier(currentTier + 1);
 
@@ -321,6 +337,13 @@ public class MinionGUIListener implements Listener {
         if (player.getInventory().firstEmpty() == -1) {
             player.sendMessage(ColorUtil.color("&cYour inventory is full! Make space before picking up this minion."));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
+        // Fire MinionPickupEvent
+        com.minionx.api.event.MinionPickupEvent pickupEvent = new com.minionx.api.event.MinionPickupEvent(player, minion);
+        org.bukkit.Bukkit.getPluginManager().callEvent(pickupEvent);
+        if (pickupEvent.isCancelled()) {
             return;
         }
 

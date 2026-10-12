@@ -107,6 +107,14 @@ public class OperatorGUI {
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to toggle Quarantine Mode!"))));
 
+        // Slot 49: Tier Studio GUI
+        inv.setItem(49, createNamedItem(Material.BEACON, ColorUtil.color("&b&lTier Studio &7(Tiers Editor)"),
+                List.of(ColorUtil.color("&7Browse, configure, and customize minion tiers"),
+                        ColorUtil.color("&7(speeds, capacities, costs) with direct"),
+                        ColorUtil.color("&7persistence to &ftiers.yml&7."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to open Tier Studio"))));
+
         // Bottom Controls
         inv.setItem(45, createNamedItem(Material.BARRIER, ColorUtil.color("&cClose"),
                 List.of(ColorUtil.color("&7Close the operator interface."))));

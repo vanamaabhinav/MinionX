@@ -96,6 +96,12 @@ public class UpgradeRegistry {
         UPGRADES.putIfAbsent(id.toLowerCase(), upgrade);
     }
 
+    public static void register(CustomUpgrade upgrade) {
+        if (upgrade != null) {
+            UPGRADES.put(upgrade.getId().toLowerCase(), upgrade);
+        }
+    }
+
     public static CustomUpgrade get(String id) {
         if (id == null) return null;
         return UPGRADES.get(id.toLowerCase());

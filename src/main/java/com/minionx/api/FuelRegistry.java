@@ -71,6 +71,12 @@ public class FuelRegistry {
         FUELS.putIfAbsent(id.toLowerCase(), fuel);
     }
 
+    public static void register(CustomFuel fuel) {
+        if (fuel != null) {
+            FUELS.put(fuel.getId().toLowerCase(), fuel);
+        }
+    }
+
     public static CustomFuel get(String id) {
         if (id == null) return null;
         return FUELS.get(id.toLowerCase());

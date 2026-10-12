@@ -45,6 +45,10 @@ public class QuarantineManager {
 
         if (Bukkit.getServer() != null) {
             try {
+                com.minionx.api.event.MinionQuarantineEvent qEvent = new com.minionx.api.event.MinionQuarantineEvent(null, enabled, "Administrative Quarantine Mode Toggle");
+                Bukkit.getPluginManager().callEvent(qEvent);
+            } catch (Exception ignored) {}
+            try {
                 if (enabled) {
                     Bukkit.broadcast(ColorUtil.component("&4&l[MinionX Emergency] &cServer Minion Quarantine Mode is now &lACTIVE&c! Minion item collection, placement, and pickup are temporarily frozen."));
                     for (Player p : Bukkit.getOnlinePlayers()) {

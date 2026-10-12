@@ -65,6 +65,7 @@ public class MinionX extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new MinionGUIListener(), this);
         getServer().getPluginManager().registerEvents(new MinionCreatorListener(), this);
         getServer().getPluginManager().registerEvents(new OperatorGUIListener(), this);
+        getServer().getPluginManager().registerEvents(new com.minionx.gui.TierEditorListener(), this);
         getServer().getPluginManager().registerEvents(new ChunkLifecycleListener(), this);
         getServer().getPluginManager().registerEvents(new CustomItemProtectionListener(), this);
 
@@ -136,14 +137,87 @@ public class MinionX extends JavaPlugin {
         return playerLimitManager;
     }
 
+    private org.bukkit.configuration.file.FileConfiguration tiersConfig;
+    private org.bukkit.configuration.file.FileConfiguration fuelsConfig;
+    private org.bukkit.configuration.file.FileConfiguration upgradesConfig;
+    private org.bukkit.configuration.file.FileConfiguration recipesConfig;
+    private org.bukkit.configuration.file.FileConfiguration messagesConfig;
+    private org.bukkit.configuration.file.FileConfiguration minionsConfig;
+
+    public org.bukkit.configuration.file.FileConfiguration loadSubConfig(String fileName) {
+        java.io.File file = new java.io.File(getDataFolder(), fileName);
+        if (!file.exists()) {
+            saveResource(fileName, false);
+        }
+        return org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+    }
+
+    public void reloadAllConfigs() {
+        reloadConfig();
+        loadRegistries();
+    }
+
     public void loadRegistries() {
-        MinionTier.load(getConfig().getConfigurationSection("tiers"));
-        FuelRegistry.load(getConfig().getConfigurationSection("fuels"));
-        UpgradeRegistry.load(getConfig().getConfigurationSection("upgrades"));
-        CompressionManager.loadRecipes();
-        MinionRegistry.load();
+        this.tiersConfig = loadSubConfig("tiers.yml");
+        this.fuelsConfig = loadSubConfig("fuels.yml");
+        this.upgradesConfig = loadSubConfig("upgrades.yml");
+        this.recipesConfig = loadSubConfig("recipes.yml");
+        this.messagesConfig = loadSubConfig("messages.yml");
+        this.minionsConfig = loadSubConfig("minions.yml");
+
+        org.bukkit.configuration.ConfigurationSection tiersSec = tiersConfig.contains("tiers")
+                ? tiersConfig.getConfigurationSection("tiers")
+                : getConfig().getConfigurationSection("tiers");
+        MinionTier.load(tiersSec);
+
+        org.bukkit.configuration.ConfigurationSection fuelsSec = fuelsConfig.contains("fuels")
+                ? fuelsConfig.getConfigurationSection("fuels")
+                : getConfig().getConfigurationSection("fuels");
+        FuelRegistry.load(fuelsSec);
+
+        org.bukkit.configuration.ConfigurationSection upgradesSec = upgradesConfig.contains("upgrades")
+                ? upgradesConfig.getConfigurationSection("upgrades")
+                : getConfig().getConfigurationSection("upgrades");
+        UpgradeRegistry.load(upgradesSec);
+
+        org.bukkit.configuration.ConfigurationSection recipesSec = recipesConfig.contains("compression-recipes")
+                ? recipesConfig.getConfigurationSection("compression-recipes")
+                : getConfig().getConfigurationSection("compression-recipes");
+        CompressionManager.loadRecipes(recipesSec);
+
+        MinionRegistry.load(minionsConfig);
         MinionSkinRegistry.loadBuiltinSkins();
         getLogger().info("Loaded " + MinionTier.getMaxTier() + " tiers, " + FuelRegistry.getKeys().size() + " fuels, " +
                 UpgradeRegistry.getKeys().size() + " upgrades, " + MinionSkinRegistry.getAll().size() + " skins, and " + MinionRegistry.getAll().size() + " minion definitions.");
     }
+
+    public String getMessage(String path, String defaultValue) {
+        if (messagesConfig != null && messagesConfig.contains("messages." + path)) {
+            return messagesConfig.getString("messages." + path, defaultValue);
+        }
+        if (messagesConfig != null && messagesConfig.contains(path)) {
+            return messagesConfig.getString(path, defaultValue);
+        }
+        if (getConfig() != null && getConfig().contains("messages." + path)) {
+            return getConfig().getString("messages." + path, defaultValue);
+        }
+        return defaultValue;
+    }
+
+    public java.util.List<String> getDialogues(String archetype) {
+        if (messagesConfig != null && messagesConfig.contains("dialogues.messages." + archetype)) {
+            return messagesConfig.getStringList("dialogues.messages." + archetype);
+        }
+        if (getConfig() != null && getConfig().contains("dialogues.messages." + archetype)) {
+            return getConfig().getStringList("dialogues.messages." + archetype);
+        }
+        return java.util.List.of();
+    }
+
+    public org.bukkit.configuration.file.FileConfiguration getTiersConfig() { return tiersConfig; }
+    public org.bukkit.configuration.file.FileConfiguration getFuelsConfig() { return fuelsConfig; }
+    public org.bukkit.configuration.file.FileConfiguration getUpgradesConfig() { return upgradesConfig; }
+    public org.bukkit.configuration.file.FileConfiguration getRecipesConfig() { return recipesConfig; }
+    public org.bukkit.configuration.file.FileConfiguration getMessagesConfig() { return messagesConfig; }
+    public org.bukkit.configuration.file.FileConfiguration getMinionsConfig() { return minionsConfig; }
 }

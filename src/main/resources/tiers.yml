@@ -1,0 +1,57 @@
+# ==============================================================================
+# MinionX - Tiers Configuration (tiers.yml)
+# ==============================================================================
+# Define speeds (action-delay in seconds), storage-slots, and upgrade-cost.
+# Higher tiers harvest faster and hold more items.
+# Server owners can add arbitrary custom tiers (e.g. Tier 13, 14, 15) below!
+# ==============================================================================
+
+tiers:
+  1:
+    action-delay: 14.0
+    storage-slots: 1
+    upgrade-cost: 80
+  2:
+    action-delay: 14.0
+    storage-slots: 3
+    upgrade-cost: 160
+  3:
+    action-delay: 12.5
+    storage-slots: 3
+    upgrade-cost: 320
+  4:
+    action-delay: 12.5
+    storage-slots: 6
+    upgrade-cost: 512
+  5:
+    action-delay: 11.0
+    storage-slots: 6
+    upgrade-cost: 1024
+  6:
+    action-delay: 11.0
+    storage-slots: 9
+    upgrade-cost: 2048
+  7:
+    action-delay: 9.5
+    storage-slots: 9
+    upgrade-cost: 4096
+  8:
+    action-delay: 9.5
+    storage-slots: 12
+    upgrade-cost: 8192
+  9:
+    action-delay: 8.0
+    storage-slots: 12
+    upgrade-cost: 16384
+  10:
+    action-delay: 8.0
+    storage-slots: 15
+    upgrade-cost: 32768
+  11:
+    action-delay: 7.0
+    storage-slots: 15
+    upgrade-cost: 65536
+  12:
+    action-delay: 6.0
+    storage-slots: 15
+    upgrade-cost: 0

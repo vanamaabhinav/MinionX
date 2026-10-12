@@ -1,0 +1,43 @@
+# ==============================================================================
+# MinionX - Custom Minions Configuration (minions.yml)
+# ==============================================================================
+# Server owners can configure custom minions here.
+# Minions support 4 archetypes: MINING, FARMING, FORAGING, COMBAT.
+#
+# Schema:
+#   <minion_id>:
+#     display-name: "&dDisplay Name"
+#     archetype: MINING | FARMING | FORAGING | COMBAT
+#     target-block: <MATERIAL>       # Used by MINING, FARMING, FORAGING
+#     target-mob: <ENTITY_TYPE|ID>   # Used by COMBAT (Vanilla EntityType or MythicMob ID)
+#     held-tool: <MATERIAL>          # Held tool in hand (e.g. DIAMOND_PICKAXE)
+#     skull-texture: "<base64>"      # Optional custom head texture
+#     drops:                         # Multi-drop support with individual chances
+#       - item: <MATERIAL|HOOK_ITEM> # e.g. DIAMOND, or itemsadder:namespace:id
+#         amount: 1
+#         chance: 1.0                # 1.0 = 100%, 0.5 = 50%, 0.1 = 10%
+# ==============================================================================
+
+custom-minions:
+  amethyst:
+    display-name: "&dAmethyst Minion"
+    archetype: MINING
+    target-block: AMETHYST_CLUSTER
+    held-tool: DIAMOND_PICKAXE
+    drops:
+      - item: AMETHYST_SHARD
+        amount: 4
+        chance: 1.0
+
+  spider_example:
+    display-name: "&cSpider Hunter Minion"
+    archetype: COMBAT
+    target-mob: SPIDER
+    held-tool: IRON_SWORD
+    drops:
+      - item: STRING
+        amount: 2
+        chance: 1.0
+      - item: SPIDER_EYE
+        amount: 1
+        chance: 0.5

@@ -49,6 +49,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         switch (sub) {
             case "create" -> handleCreate(sender, args);
+            case "tier" -> handleTier(sender, args);
             case "quarantine" -> handleQuarantine(sender, args);
             case "give" -> handleGive(sender, args);
             case "list" -> handleList(sender);
@@ -333,9 +334,47 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 MinionRegistry.getAll().size() + " minion definitions)."));
     }
 
+    private void handleTier(CommandSender sender, String[] args) {
+        if (!hasAdminPermission(sender)) {
+            sender.sendMessage(ColorUtil.color("&cYou do not have permission to manage minion tiers."));
+            return;
+        }
+
+        if (args.length >= 2 && "list".equalsIgnoreCase(args[1])) {
+            sender.sendMessage(ColorUtil.color("&6=== MinionX Tier Configuration (" + MinionTier.getMaxTier() + " Tiers) ==="));
+            for (int t = 1; t <= MinionTier.getMaxTier(); t++) {
+                MinionTier.TierData data = MinionTier.getTierData(t);
+                double delay = data != null ? data.getActionDelay() : MinionTier.getActionDelay(t);
+                int slots = data != null ? data.getStorageSlots() : MinionTier.getStorageSlots(t);
+                int cost = data != null ? data.getUpgradeCost() : MinionTier.getUpgradeCost(t);
+                sender.sendMessage(ColorUtil.color("&eTier " + MinionTier.toRoman(t) + " &7(Lv." + t + "): &fSpeed=" +
+                        String.format("%.1f", delay) + "s, Slots=" + slots + ", UpgradeCost=" + cost));
+            }
+            return;
+        }
+
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ColorUtil.color("&cOnly players can open the Tier Studio GUI. Use /minion tier list from console."));
+            return;
+        }
+
+        if (args.length >= 3 && "edit".equalsIgnoreCase(args[1])) {
+            try {
+                int tier = Integer.parseInt(args[2]);
+                if (tier >= 1 && tier <= MinionTier.getMaxTier()) {
+                    com.minionx.gui.TierEditorListener.startEdit(player, tier);
+                    return;
+                }
+            } catch (NumberFormatException ignored) {}
+        }
+
+        com.minionx.gui.TierEditorGUI.openOverview(player);
+    }
+
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(ColorUtil.color("&6=== MinionX Commands ==="));
         sender.sendMessage(ColorUtil.color("&e/minion create &7- Open In-Game Minion Creator Studio"));
+        sender.sendMessage(ColorUtil.color("&e/minion tier [list|edit] &7- Open In-Game Tier Studio GUI"));
         sender.sendMessage(ColorUtil.color("&e/minion give <player> <type|fuel|upgrade|skin> [tier|skin_id] &7- Give a minion, item, or skin"));
         sender.sendMessage(ColorUtil.color("&e/minion limit <check|add|remove|set> <player> [amount] &7- Manage player limits"));
         sender.sendMessage(ColorUtil.color("&e/minion list &7- View your placed minions"));
@@ -346,7 +385,19 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(List.of("create", "give", "limit", "list", "killall", "purge", "reload"), args[0]);
+            return filter(List.of("create", "tier", "give", "limit", "list", "killall", "purge", "reload"), args[0]);
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("tier")) {
+            return filter(List.of("list", "edit"), args[1]);
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("tier") && args[1].equalsIgnoreCase("edit")) {
+            List<String> tiers = new ArrayList<>();
+            for (int i = 1; i <= MinionTier.getMaxTier(); i++) {
+                tiers.add(String.valueOf(i));
+            }
+            return filter(tiers, args[2]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("give")) {

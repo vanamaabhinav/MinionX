@@ -110,6 +110,8 @@ public class OperatorGUIListener implements Listener {
             OperatorGUI.openMain(player);
         } else if (slot == 45 && clicked.getType() == Material.BARRIER) {
             player.closeInventory();
+        } else if (slot == 49 && clicked.getType() == Material.BEACON) {
+            TierEditorGUI.openOverview(player);
         } else if (slot == 53 && clicked.getType() == Material.REPEATER) {
             MinionX.getInstance().reloadConfig();
             MinionX.getInstance().loadRegistries();

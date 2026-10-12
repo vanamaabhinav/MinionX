@@ -117,6 +117,13 @@ public class MinionStorageListener implements Listener {
             }
         }
 
+        // Fire MinionStorageLinkEvent
+        com.minionx.api.event.MinionStorageLinkEvent linkEvent = new com.minionx.api.event.MinionStorageLinkEvent(player, targetMinion, block.getLocation(), true);
+        org.bukkit.Bukkit.getPluginManager().callEvent(linkEvent);
+        if (linkEvent.isCancelled()) {
+            return;
+        }
+
         // Link storage to minion!
         targetMinion.linkStorage(block.getLocation(), storageId);
         if (com.minionx.MinionX.getInstance() != null && com.minionx.MinionX.getInstance().getMinionManager() != null) {

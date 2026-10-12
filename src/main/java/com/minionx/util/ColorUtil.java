@@ -25,8 +25,9 @@ public class ColorUtil {
     }
 
     public static String getPrefix() {
-        if (com.minionx.MinionX.getInstance() != null && com.minionx.MinionX.getInstance().getConfig() != null) {
-            return color(com.minionx.MinionX.getInstance().getConfig().getString("messages.prefix", PREFIX));
+        if (com.minionx.MinionX.getInstance() != null) {
+            String p = com.minionx.MinionX.getInstance().getMessage("prefix", PREFIX);
+            if (p != null) return color(p);
         }
         return color(PREFIX);
     }

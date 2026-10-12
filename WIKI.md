@@ -135,6 +135,18 @@ Create custom storage expansion chest models:
 3. Set custom item icon, display name, and lore.
 4. Save directly into `storages.yml` with instant in-game availability.
 
+### 4. Tier Studio (`/minion tier` or Operator Panel)
+Configure and customize minion progression in real time without restarting:
+1. Run `/minion tier` or click the **Tier Studio (Beacon)** icon in `/minionsx`.
+2. **Overview Menu**: Browse all active tiers (Default I through XII, plus any custom tiers).
+3. **Edit Tier**: Click any tier to adjust:
+   * **Action Delay** (±0.5s or ±5.0s buttons).
+   * **Storage Slots** (from 1 to 27 slots).
+   * **Upgrade Material Cost** (±1,000 or ±10,000 resources).
+4. **Create Custom Tiers**: Click **Create New Tier** to add Tier XIII, XIV, etc. with automatic dynamic Roman numeral conversion!
+5. **Delete Custom Tiers**: Right-click any custom tier (>12) to delete it. Core 12 tiers are protected against accidental deletion.
+6. Changes save instantly to `tiers.yml` and hot-reload across all placed minions.
+
 ---
 
 ## 4. Operator Control Panel (`/minionsx`)
@@ -149,7 +161,8 @@ The **MinionX Operator Interface** (command `/minionsx` or `/mxop`) is an all-in
 |   Browse all 1-12    Compact,       Temp & Perm    Cosmetics|
 |   Tier Minions       Hoppers, etc.  Fuels          Catalog  |
 +-------------------------------------------------------------+
-| [Quick Testing Tools]   [Emergency Quarantine]   [Reload]   |
+| [Tier Studio]     [Emergency Quarantine]     [Reload]       |
+|  Dynamic Tiers     Anti-Dupe Lockdown         Configs       |
 +-------------------------------------------------------------+
 ```
 
@@ -157,6 +170,7 @@ The **MinionX Operator Interface** (command `/minionsx` or `/mxop`) is an all-in
 * **Upgrades Hub**: Click to immediately receive Auto-Smelters, Super Compactors, Diamond Spreadings, Flycatchers, and Hoppers.
 * **Fuels Vault**: Instantly grab stacks of Enchanted Coal, Lava Buckets, Plasma Buckets, and Solar Panels.
 * **Skins Catalog**: Browse all custom and built-in skins and receive skin tokens with one click.
+* **Tier Studio (Beacon)**: Open the real-time In-Game Tier Studio to configure action delays, storage sizes, and upgrade costs.
 * **Emergency Quarantine Switch**: Toggle global server anti-dupe freeze instantly.
 
 ---
@@ -374,6 +388,7 @@ If a server admin suspects an economy exploit or dupe bug, they can trigger glob
 | Command Syntax | Permission | Description |
 | :--- | :--- | :--- |
 | `/minion list` | `minionx.use` | Displays a list of all active placed minions owned by you with coordinates and current status. |
+| `/minion tier [list|edit <tier>]` | `minionx.admin` | Opens the In-Game Tier Studio GUI or directly edits an action delay/slots/cost for a tier. |
 | `/minion create` | `minionx.admin` | Opens the In-Game Minion Creator Studio to design a new minion archetype. |
 | `/minion create skin` | `minionx.admin` | Opens the In-Game Skin Creator Studio to design a custom minion skin. |
 | `/minion create storage` | `minionx.admin` | Opens the In-Game Storage Creator Studio to configure custom chests. |
@@ -410,9 +425,21 @@ If a server admin suspects an economy exploit or dupe bug, they can trigger glob
 
 ---
 
-## 15. Configuration Guide (`config.yml`)
+## 15. Modular Configuration Architecture
 
-Here is an overview of the primary settings found in `plugins/MinionX/config.yml`:
+MinionX separates bulky configurations into dedicated YAML files for maximum clarity and effortless editing. Each sub-config can be modified individually and hot-reloaded with `/minion reload`.
+
+| File | Purpose | Default Contents |
+| :--- | :--- | :--- |
+| `config.yml` | Core engine, offline simulation, limits, visual toggles, combat caps. | Performance & system engine settings. |
+| `tiers.yml` | Tier definitions (delays, storage slots, upgrade costs) from 1 to N. | Default 12 tiers + any studio tiers. |
+| `minions.yml` | Custom minion definitions with multi-drop schema & drop chances. | Custom mining, farming, and combat definitions. |
+| `fuels.yml` | Temporary and permanent fuel multipliers and durations. | Coal, Lava, Plasma, Solar Panels, etc. |
+| `upgrades.yml` | Automated production upgrades & item modifiers. | Auto-Smelter, Super Compactor, Flycatcher, etc. |
+| `recipes.yml` | Super Compactor 3000 automated compression recipes. | 160:1 and 9:1 compression recipes. |
+| `messages.yml` | Global chat prefix, all user messages, and NPC speech dialogues. | Fully customizable alerts & minion dialogues. |
+
+### Core Engine Settings (`config.yml`):
 
 ```yaml
 settings:
@@ -448,15 +475,29 @@ settings:
     max-mobs-per-minion: 5
 
     # If true, disables AI wandering on mobs spawned by combat minions.
-    # Saves huge CPU cycles on high-population servers!
     disable-mob-wandering: false
 
 nametags:
-  # ALWAYS: Hologram always visible.
-  # TARGETED: Only visible when the player looks directly at the minion.
-  # DISABLED: No floating holograms (maximum performance).
   mode: ALWAYS
   format: "&e[Lv.%tier_roman%] &a%minion_name% Minion &7(%status%&7)"
+```
+
+### Custom Minion Schema with Multi-Drop Chances (`minions.yml`):
+
+```yaml
+custom-minions:
+  spider_example:
+    display-name: "&cSpider Hunter Minion"
+    archetype: COMBAT
+    target-mob: SPIDER
+    held-tool: IRON_SWORD
+    drops:
+      - item: STRING
+        amount: 2
+        chance: 1.0   # 100% guarantee
+      - item: SPIDER_EYE
+        amount: 1
+        chance: 0.5   # 50% chance
 ```
 
 ---
@@ -522,6 +563,61 @@ for (Minion minion : playerMinions) {
 }
 ```
 
+### Accessing the Static Helper API (`MinionXAPI`)
+```java
+import com.minionx.api.MinionXAPI;
+import com.minionx.core.Minion;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+// Query player's placed minions & placement capacity
+int placedCount = MinionXAPI.getPlacedMinions(player).size();
+int maxLimit = MinionXAPI.getMaxMinions(player);
+boolean allowedToPlace = MinionXAPI.canPlaceMinion(player);
+
+// Inspect minion occupying a block location
+Location loc = player.getLocation().getBlock().getLocation();
+Minion minionAtLoc = MinionXAPI.getMinionAt(loc);
+
+// Generate a valid physical minion item to give or use in shops
+ItemStack diamondMinionX = MinionXAPI.createMinionItem("diamond", 11);
+```
+
+### Custom Bukkit Events (`com.minionx.api.event.*`)
+Other plugins can listen to lifecycle and economy events using standard `@EventHandler` methods:
+
+| Event | Cancellable | Description |
+| :--- | :---: | :--- |
+| `MinionPlaceEvent` | Yes | Fired when a player places a minion block item into the world. |
+| `MinionPickupEvent` | Yes | Fired when an owner or admin breaks/picks up a placed minion. |
+| `MinionHarvestEvent` | Yes | Fired every time a minion harvests resources (modify drops & exp!). |
+| `MinionUpgradeEvent` | Yes | Fired when a minion upgrades to a higher tier (`getPreviousTier()`, `getNewTier()`). |
+| `MinionCollectionEvent` | Yes | Fired when a player claims items or exp from a minion's GUI. |
+| `MinionFuelConsumeEvent` | Yes | Fired when an active fuel burns out and is consumed. |
+| `MinionStorageLinkEvent` | Yes | Fired when a storage chest expands or detaches from a minion. |
+| `MinionQuarantineEvent` | Yes | Fired when global emergency quarantine mode is toggled. |
+
+#### Example: Modifying Drops via `MinionHarvestEvent`
+```java
+import com.minionx.api.event.MinionHarvestEvent;
+import org.bukkit.Material;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.inventory.ItemStack;
+
+public class CustomDropsListener implements Listener {
+    @EventHandler
+    public void onMinionHarvest(MinionHarvestEvent event) {
+        // Double cobblestone drops during weekend server events!
+        if (event.getMinion().getType().getId().equalsIgnoreCase("cobblestone")) {
+            event.getDrops().add(new ItemStack(Material.COBBLESTONE, 2));
+            event.setXpEarned(event.getXpEarned() * 2);
+        }
+    }
+}
+```
+
 ### Registering a Custom Minion Skin Programmatically
 ```java
 import com.minionx.api.MinionSkin;
@@ -565,7 +661,8 @@ FuelRegistry.register(dragonBreathFuel);
 
 | Version | Date | Changes / Notes |
 | :---: | :---: | :--- |
-| **1.0.0** | Current | Complete rebrand to MinionX by AbhinavVanama. Native Paper `setCanTick(false)` performance boost, modern `TextDisplay` billboard holograms, thread-safe atomic saves, anti-dupe hardening, in-game creator studios, and comprehensive wiki documentation. |
+| **1.1.0** | 2026-10-12 | **Phase 1 Modular Architecture & Developer API Update**:<br>• **Dynamic Tier Studio**: In-game GUI (`/minion tier` & Operator Beacon) with arbitrary Roman numerals.<br>• **Modular YAML Files**: Split into `tiers.yml`, `minions.yml`, `fuels.yml`, `upgrades.yml`, `recipes.yml`, and `messages.yml`.<br>• **Multi-Drop Engine**: Support for multiple items with individual drop chance percentages.<br>• **Developer API**: `MinionXAPI` plus 8 custom Bukkit events (`MinionPlaceEvent`, `MinionHarvestEvent`, etc.).<br>• **Commercial Proprietary License**: Standardized EULA authored by AbhinavVanama. |
+| **1.0.0** | 2026-10-12 | Initial complete rebrand to MinionX by AbhinavVanama. Native Paper `setCanTick(false)` performance boost, modern `TextDisplay` billboard holograms, thread-safe atomic saves, anti-dupe hardening, and in-game creator studios. |
 
 > [!TIP]
 > **Documentation Maintenance Rule Active**: Any future feature additions, command expansions, or configuration changes in MinionX will automatically be updated directly into this `WIKI.md` file.

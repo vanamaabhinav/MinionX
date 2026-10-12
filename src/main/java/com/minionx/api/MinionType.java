@@ -91,4 +91,8 @@ public enum MinionType {
         }
         return null;
     }
+
+    public static MinionType fromId(String id) {
+        return fromString(id);
+    }
 }

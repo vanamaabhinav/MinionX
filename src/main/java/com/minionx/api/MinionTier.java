@@ -78,6 +78,14 @@ public class MinionTier {
         maxTier = defaultDelays.length;
     }
 
+    public static TierData getTierData(int tier) {
+        return TIERS.get(tier);
+    }
+
+    public static Map<Integer, TierData> getAllTiers() {
+        return java.util.Collections.unmodifiableMap(TIERS);
+    }
+
     public static double getActionDelay(int tier) {
         TierData data = TIERS.get(Math.clamp(tier, 1, maxTier));
         return data != null ? data.getActionDelay() : 14.0;
@@ -98,12 +106,63 @@ public class MinionTier {
         return data != null ? data.getUpgradeCost() : 0;
     }
 
-    public static String toRoman(int tier) {
-        String[] romans = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"};
-        if (tier >= 1 && tier <= romans.length) {
-            return romans[tier - 1];
+    public static void saveTier(int tier, TierData data) {
+        TIERS.put(tier, data);
+        if (tier > maxTier) {
+            maxTier = tier;
         }
-        return String.valueOf(tier);
+
+        if (com.minionx.MinionX.getInstance() == null) return;
+        java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "tiers.yml");
+        org.bukkit.configuration.file.YamlConfiguration config = file.exists()
+                ? org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file)
+                : new org.bukkit.configuration.file.YamlConfiguration();
+
+        String path = "tiers." + tier;
+        config.set(path + ".action-delay", data.getActionDelay());
+        config.set(path + ".storage-slots", data.getStorageSlots());
+        config.set(path + ".upgrade-cost", data.getUpgradeCost());
+        try {
+            config.save(file);
+        } catch (java.io.IOException e) {
+            com.minionx.MinionX.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Could not save tier " + tier + " to tiers.yml", e);
+        }
+    }
+
+    public static boolean removeTier(int tier) {
+        if (tier <= 12) return false; // Preserve default 12 tiers
+        TIERS.remove(tier);
+        int highest = 1;
+        for (int t : TIERS.keySet()) {
+            if (t > highest) highest = t;
+        }
+        maxTier = highest;
+
+        if (com.minionx.MinionX.getInstance() == null) return true;
+        java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "tiers.yml");
+        if (file.exists()) {
+            org.bukkit.configuration.file.YamlConfiguration config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+            config.set("tiers." + tier, null);
+            try {
+                config.save(file);
+            } catch (java.io.IOException ignored) {}
+        }
+        return true;
+    }
+
+    public static String toRoman(int tier) {
+        if (tier <= 0) return String.valueOf(tier);
+        int[] values = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+        String[] symbols = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
+        StringBuilder sb = new StringBuilder();
+        int remaining = tier;
+        for (int i = 0; i < values.length; i++) {
+            while (remaining >= values[i]) {
+                sb.append(symbols[i]);
+                remaining -= values[i];
+            }
+        }
+        return sb.toString();
     }
 
     public static int getMaxTier() {

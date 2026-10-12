@@ -39,18 +39,25 @@ public class MinionRegistry {
     }
 
     public static void load() {
-        DEFINITIONS.clear();
-        registerDefaults();
-
         if (MinionX.getInstance() == null) return;
         File file = new File(MinionX.getInstance().getDataFolder(), "minions.yml");
         if (!file.exists()) return;
+        load(YamlConfiguration.loadConfiguration(file));
+    }
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+    public static void load(ConfigurationSection config) {
+        DEFINITIONS.clear();
+        registerDefaults();
+
+        if (config == null) return;
+
         ConfigurationSection section = config.getConfigurationSection("custom-minions");
-        if (section == null) return;
+        if (section == null) {
+            section = config;
+        }
 
         for (String id : section.getKeys(false)) {
+            if ("custom-minions".equalsIgnoreCase(id)) continue;
             ConfigurationSection sec = section.getConfigurationSection(id);
             if (sec == null) continue;
 
@@ -72,21 +79,75 @@ public class MinionRegistry {
             int blue = sec.getInt("armor-color.blue", 120);
             Color armorColor = Color.fromRGB(red, green, blue);
 
-            ItemStack handItem = sec.getItemStack("hand-item", new ItemStack(Material.STONE_PICKAXE));
+            ItemStack handItem = sec.getItemStack("hand-item");
+            if (handItem == null) {
+                String heldToolName = sec.getString("held-tool");
+                if (heldToolName != null) {
+                    Material hMat = Material.matchMaterial(heldToolName);
+                    if (hMat != null) handItem = new ItemStack(hMat);
+                }
+            }
+            if (handItem == null) {
+                handItem = new ItemStack(Material.STONE_PICKAXE);
+            }
+
             String targetBlockName = sec.getString("target-block");
             Material targetBlock = targetBlockName != null ? Material.matchMaterial(targetBlockName) : null;
+            String targetMob = sec.getString("target-mob", sec.getString("target-entity"));
 
-            String targetMob = sec.getString("target-mob");
-            ItemStack dropItem = sec.getItemStack("drop-item", new ItemStack(Material.COBBLESTONE));
-            ItemStack secondaryDrop = sec.getItemStack("secondary-drop");
-            double secondaryChance = sec.getDouble("secondary-chance", 0.0);
+            List<MinionDefinition.DropEntry> drops = new ArrayList<>();
+            if (sec.isList("drops")) {
+                List<Map<?, ?>> dropMaps = sec.getMapList("drops");
+                for (Map<?, ?> map : dropMaps) {
+                    Object itemObj = map.get("item");
+                    int amount = 1;
+                    if (map.containsKey("amount")) {
+                        try {
+                            amount = Integer.parseInt(map.get("amount").toString());
+                        } catch (NumberFormatException ignored) {}
+                    }
+                    double chance = 1.0;
+                    if (map.containsKey("chance")) {
+                        try {
+                            chance = Double.parseDouble(map.get("chance").toString());
+                        } catch (NumberFormatException ignored) {}
+                    }
+                    ItemStack stack = null;
+                    if (itemObj instanceof String matName) {
+                        Material m = Material.matchMaterial(matName);
+                        if (m != null) stack = new ItemStack(m, amount);
+                    } else if (itemObj instanceof ItemStack is) {
+                        stack = is.clone();
+                    }
+                    if (stack != null) {
+                        drops.add(new MinionDefinition.DropEntry(stack, amount, chance));
+                    }
+                }
+            }
+
+            if (drops.isEmpty()) {
+                ItemStack dropItem = sec.getItemStack("drop-item");
+                if (dropItem == null) {
+                    String dMat = sec.getString("drop-item", "COBBLESTONE");
+                    Material dm = Material.matchMaterial(dMat);
+                    int dAmount = sec.getInt("drop-amount", 1);
+                    dropItem = new ItemStack(dm != null ? dm : Material.COBBLESTONE, dAmount);
+                }
+                drops.add(new MinionDefinition.DropEntry(dropItem, dropItem.getAmount(), 1.0));
+
+                ItemStack secDrop = sec.getItemStack("secondary-drop");
+                double secChance = sec.getDouble("secondary-chance", 0.0);
+                if (secDrop != null && secChance > 0) {
+                    drops.add(new MinionDefinition.DropEntry(secDrop, secDrop.getAmount(), secChance));
+                }
+            }
 
             int xp = sec.getInt("xp-per-harvest", 0);
             double delay = sec.getDouble("action-delay", 14.0);
             int slots = sec.getInt("storage-slots", 1);
 
             MinionDefinition def = new MinionDefinition(id, name, archetype, skull, armorMat, armorColor, handItem,
-                    targetBlock, targetMob, dropItem, secondaryDrop, secondaryChance, xp, delay, slots);
+                    targetBlock, targetMob, drops, xp, delay, slots);
 
             // Load optional per-tier styles
             ConfigurationSection tierSec = sec.getConfigurationSection("tier-styles");
@@ -130,11 +191,17 @@ public class MinionRegistry {
         config.set(path + ".hand-item", def.getHandItem(1));
         config.set(path + ".target-block", def.getTargetBlock() != null ? def.getTargetBlock().name() : null);
         config.set(path + ".target-mob", def.getTargetMob());
-        config.set(path + ".drop-item", def.getExactDropItem());
-        if (def.hasSecondaryDrop()) {
-            config.set(path + ".secondary-drop", def.getSecondaryDropItem());
-            config.set(path + ".secondary-chance", def.getSecondaryDropChance());
+
+        List<Map<String, Object>> dropList = new ArrayList<>();
+        for (MinionDefinition.DropEntry entry : def.getDrops()) {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("item", entry.getItem().getType().name());
+            map.put("amount", entry.getAmount());
+            map.put("chance", entry.getChance());
+            dropList.add(map);
         }
+        config.set(path + ".drops", dropList);
+
         config.set(path + ".xp-per-harvest", def.getXpPerHarvest());
         config.set(path + ".action-delay", def.getDefaultActionDelay());
         config.set(path + ".storage-slots", def.getDefaultStorageSlots());

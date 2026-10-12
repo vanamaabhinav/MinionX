@@ -54,12 +54,18 @@ public class CompressionManager {
     }
 
     public static void loadRecipes() {
-        RECIPES.clear();
-        if (MinionX.getInstance() == null || MinionX.getInstance().getConfig() == null) {
-            return;
+        ConfigurationSection section = null;
+        if (MinionX.getInstance() != null && MinionX.getInstance().getRecipesConfig() != null) {
+            section = MinionX.getInstance().getRecipesConfig().getConfigurationSection("compression-recipes");
         }
+        if (section == null && MinionX.getInstance() != null && MinionX.getInstance().getConfig() != null) {
+            section = MinionX.getInstance().getConfig().getConfigurationSection("compression-recipes");
+        }
+        loadRecipes(section);
+    }
 
-        ConfigurationSection section = MinionX.getInstance().getConfig().getConfigurationSection("compression-recipes");
+    public static void loadRecipes(ConfigurationSection section) {
+        RECIPES.clear();
         if (section == null) return;
 
         for (String key : section.getKeys(false)) {

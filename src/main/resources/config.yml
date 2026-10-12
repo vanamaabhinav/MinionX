@@ -1,6 +1,17 @@
 # ==============================================================================
 # MinionX - Autonomous Minions Configuration
 # ==============================================================================
+# Welcome to MinionX!
+# To keep this configuration file clean and easy to navigate, modular settings
+# have been organized into dedicated files:
+#
+#   - tiers.yml     : Minion tiers (1-12+), action speeds, storage, and costs
+#   - minions.yml   : Custom minions with multi-drop chances & equipment
+#   - fuels.yml     : Custom fuels, speed buffs, durations & glowing effects
+#   - upgrades.yml  : Custom upgrades, accessories, hoppers & expanders
+#   - recipes.yml   : Super Compactor 3000 compression recipes
+#   - messages.yml  : Chat messages, broadcasts, alerts & minion dialogues
+# ==============================================================================
 
 settings:
   # If true, temporary fuels (Coal, Charcoal, etc.) burn out and disappear when removed.
@@ -23,7 +34,6 @@ settings:
   enable-sounds: true
   enable-particles: true
   # Emergency Quarantine Mode: Anti-Dupe & Exploit Failsafe
-  # Default MUST be false (off)
   quarantine-mode: false
   quarantine-freeze-ticks: false
 
@@ -51,13 +61,6 @@ storage:
     password: ""
 
 # ==============================================================================
-# MESSAGES & CHAT FORMATTING
-# ==============================================================================
-messages:
-  # The chat and broadcast prefix. Default is bold Minion with red bold X: &6&l[Minion&c&lX&6&l] &r
-  prefix: "&6&l[Minion&c&lX&6&l] "
-
-# ==============================================================================
 # FLOATING NAMETAGS (Holograms)
 # ==============================================================================
 nametags:
@@ -74,398 +77,6 @@ nametags:
   # %status%      - Current minion state (e.g., Working..., Full, Blocked)
   # %total%       - Total items harvested by this minion
   format: "&e[Lv.%tier_roman%] &a%minion_name% Minion &7(%status%&7)"
-
-# ==============================================================================
-# MINION TIERS (Action Speeds, Storage Slots & Upgrade Costs)
-# ==============================================================================
-tiers:
-  1:
-    action-delay: 14.0
-    storage-slots: 1
-    upgrade-cost: 80
-  2:
-    action-delay: 14.0
-    storage-slots: 3
-    upgrade-cost: 160
-  3:
-    action-delay: 12.5
-    storage-slots: 3
-    upgrade-cost: 320
-  4:
-    action-delay: 12.5
-    storage-slots: 6
-    upgrade-cost: 512
-  5:
-    action-delay: 11.0
-    storage-slots: 6
-    upgrade-cost: 1024
-  6:
-    action-delay: 11.0
-    storage-slots: 9
-    upgrade-cost: 2048
-  7:
-    action-delay: 9.5
-    storage-slots: 9
-    upgrade-cost: 4096
-  8:
-    action-delay: 9.5
-    storage-slots: 12
-    upgrade-cost: 8192
-  9:
-    action-delay: 8.0
-    storage-slots: 12
-    upgrade-cost: 16384
-  10:
-    action-delay: 8.0
-    storage-slots: 15
-    upgrade-cost: 32768
-  11:
-    action-delay: 7.0
-    storage-slots: 15
-    upgrade-cost: 65536
-  12:
-    action-delay: 6.0
-    storage-slots: 15
-    upgrade-cost: 0
-
-# ==============================================================================
-# CUSTOM FUELS
-# ==============================================================================
-fuels:
-  coal:
-    display-name: "&fCoal"
-    material: COAL
-    speed-buff: 0.05
-    duration: "30m"
-    glow: false
-    lore:
-      - "&7Increases minion speed by &a+5%&7."
-      - "&7Duration: &e30 minutes"
-
-  charcoal:
-    display-name: "&fCharcoal"
-    material: CHARCOAL
-    speed-buff: 0.05
-    duration: "30m"
-    glow: false
-    lore:
-      - "&7Increases minion speed by &a+5%&7."
-      - "&7Duration: &e30 minutes"
-
-  enchanted_charcoal:
-    display-name: "&aEnchanted Charcoal"
-    material: CHARCOAL
-    speed-buff: 0.20
-    duration: "1d"
-    glow: true
-    lore:
-      - "&7Increases minion speed by &a+20%&7."
-      - "&7Duration: &e1 day"
-
-  solar_panel:
-    display-name: "&eSolar Panel"
-    material: DAYLIGHT_DETECTOR
-    speed-buff: 0.25
-    duration: "permanent"
-    glow: true
-    lore:
-      - "&7Increases minion speed by &a+25%&7"
-      - "&7during daytime."
-      - "&7Duration: &bPermanent"
-
-  enchanted_lava_bucket:
-    display-name: "&6Enchanted Lava Bucket"
-    material: LAVA_BUCKET
-    speed-buff: 0.25
-    duration: "permanent"
-    glow: true
-    lore:
-      - "&7Increases minion speed by &a+25%&7."
-      - "&7Duration: &bPermanent"
-
-  plasma_bucket:
-    display-name: "&dPlasma Bucket"
-    material: LAVA_BUCKET
-    speed-buff: 0.35
-    duration: "permanent"
-    glow: true
-    lore:
-      - "&7Increases minion speed by &a+35%&7."
-      - "&7Duration: &bPermanent"
-
-# ==============================================================================
-# CUSTOM UPGRADES / ACCESSORIES
-# ==============================================================================
-upgrades:
-  auto_smelter:
-    display-name: "&6Auto-Smelter"
-    material: FURNACE
-    type: AUTO_SMELTER
-    glow: true
-    lore:
-      - "&7Automatically smelts harvested resources."
-
-  compactor:
-    display-name: "&6Compactor"
-    material: DROPPER
-    type: COMPACTOR
-    glow: true
-    lore:
-      - "&7Automatically compacts resources into blocks."
-
-  super_compactor:
-    display-name: "&dSuper Compactor 3000"
-    material: DISPENSER
-    type: SUPER_COMPACTOR
-    glow: true
-    lore:
-      - "&7Automatically compresses items into their"
-      - "&7enchanted compressed forms."
-
-  diamond_spreading:
-    display-name: "&bDiamond Spreading"
-    material: DIAMOND
-    type: DIAMOND_SPREADING
-    chance: 0.10
-    glow: true
-    lore:
-      - "&7Adds a 10% chance to generate diamonds"
-      - "&7when harvesting resources."
-
-  minion_expander:
-    display-name: "&aMinion Expander"
-    material: PISTON
-    type: SPEED_BUFF
-    speed-buff: 0.05
-    glow: true
-    lore:
-      - "&7Increases production speed by &a+5%&7."
-
-  flycatcher:
-    display-name: "&dFlycatcher"
-    material: STRING
-    type: SPEED_BUFF
-    speed-buff: 0.20
-    glow: true
-    lore:
-      - "&7Increases minion speed by &a+20%&7."
-
-  hyper_catalyst:
-    display-name: "&5Hyper Catalyst"
-    material: NETHER_STAR
-    type: SPEED_BUFF
-    speed-buff: 0.40
-    glow: true
-    lore:
-      - "&7Increases production speed by &a+40%&7."
-
-# ==============================================================================
-# SUPER COMPACTOR RECIPES
-# ==============================================================================
-compression-recipes:
-  cobblestone:
-    input: COBBLESTONE
-    input-amount: 160
-    output:
-      material: COBBLESTONE
-      display-name: "&aEnchanted Cobblestone"
-      glow: true
-  iron:
-    input: IRON_INGOT
-    input-amount: 160
-    output:
-      material: IRON_BLOCK
-      display-name: "&aEnchanted Iron"
-      glow: true
-  diamond:
-    input: DIAMOND
-    input-amount: 160
-    output:
-      material: DIAMOND
-      display-name: "&aEnchanted Diamond"
-      glow: true
-  rotten_flesh:
-    input: ROTTEN_FLESH
-    input-amount: 160
-    output:
-      material: ROTTEN_FLESH
-      display-name: "&aEnchanted Rotten Flesh"
-      glow: true
-  bone:
-    input: BONE
-    input-amount: 160
-    output:
-      material: BONE_BLOCK
-      display-name: "&aEnchanted Bone"
-      glow: true
-  oak_log:
-    input: OAK_LOG
-    input-amount: 160
-    output:
-      material: OAK_LOG
-      display-name: "&aEnchanted Oak Wood"
-      glow: true
-  birch_log:
-    input: BIRCH_LOG
-    input-amount: 160
-    output:
-      material: BIRCH_LOG
-      display-name: "&aEnchanted Birch Wood"
-      glow: true
-  spruce_log:
-    input: SPRUCE_LOG
-    input-amount: 160
-    output:
-      material: SPRUCE_LOG
-      display-name: "&aEnchanted Spruce Wood"
-      glow: true
-  dark_oak_log:
-    input: DARK_OAK_LOG
-    input-amount: 160
-    output:
-      material: DARK_OAK_LOG
-      display-name: "&aEnchanted Dark Oak Wood"
-      glow: true
-  acacia_log:
-    input: ACACIA_LOG
-    input-amount: 160
-    output:
-      material: ACACIA_LOG
-      display-name: "&aEnchanted Acacia Wood"
-      glow: true
-  jungle_log:
-    input: JUNGLE_LOG
-    input-amount: 160
-    output:
-      material: JUNGLE_LOG
-      display-name: "&aEnchanted Jungle Wood"
-      glow: true
-  wheat:
-    input: WHEAT
-    input-amount: 160
-    output:
-      material: HAY_BLOCK
-      display-name: "&aEnchanted Hay Block"
-      glow: true
-  wheat_seeds:
-    input: WHEAT_SEEDS
-    input-amount: 160
-    output:
-      material: WHEAT_SEEDS
-      display-name: "&aEnchanted Seeds"
-      glow: true
-  carrot:
-    input: CARROT
-    input-amount: 160
-    output:
-      material: CARROT
-      display-name: "&aEnchanted Carrot"
-      glow: true
-  potato:
-    input: POTATO
-    input-amount: 160
-    output:
-      material: POTATO
-      display-name: "&aEnchanted Potato"
-      glow: true
-  pumpkin:
-    input: PUMPKIN
-    input-amount: 160
-    output:
-      material: PUMPKIN
-      display-name: "&aEnchanted Pumpkin"
-      glow: true
-  melon:
-    input: MELON_SLICE
-    input-amount: 160
-    output:
-      material: MELON_SLICE
-      display-name: "&aEnchanted Melon"
-      glow: true
-  sugar_cane:
-    input: SUGAR_CANE
-    input-amount: 160
-    output:
-      material: SUGAR
-      display-name: "&aEnchanted Sugar"
-      glow: true
-  cactus:
-    input: CACTUS
-    input-amount: 160
-    output:
-      material: GREEN_DYE
-      display-name: "&aEnchanted Cactus Green"
-      glow: true
-  nether_wart:
-    input: NETHER_WART
-    input-amount: 160
-    output:
-      material: NETHER_WART
-      display-name: "&aEnchanted Nether Wart"
-      glow: true
-  red_mushroom:
-    input: RED_MUSHROOM
-    input-amount: 160
-    output:
-      material: RED_MUSHROOM_BLOCK
-      display-name: "&aEnchanted Red Mushroom"
-      glow: true
-  brown_mushroom:
-    input: BROWN_MUSHROOM
-    input-amount: 160
-    output:
-      material: BROWN_MUSHROOM_BLOCK
-      display-name: "&aEnchanted Brown Mushroom"
-      glow: true
-  beef:
-    input: BEEF
-    input-amount: 160
-    output:
-      material: COOKED_BEEF
-      display-name: "&aEnchanted Cooked Beef"
-      glow: true
-  leather:
-    input: LEATHER
-    input-amount: 160
-    output:
-      material: LEATHER
-      display-name: "&aEnchanted Leather"
-      glow: true
-  porkchop:
-    input: PORKCHOP
-    input-amount: 160
-    output:
-      material: COOKED_PORKCHOP
-      display-name: "&aEnchanted Grilled Pork"
-      glow: true
-  chicken:
-    input: CHICKEN
-    input-amount: 160
-    output:
-      material: COOKED_CHICKEN
-      display-name: "&aEnchanted Cooked Chicken"
-      glow: true
-  feather:
-    input: FEATHER
-    input-amount: 160
-    output:
-      material: FEATHER
-      display-name: "&aEnchanted Feather"
-      glow: true
-  mutton:
-    input: MUTTON
-    input-amount: 160
-    output:
-      material: COOKED_MUTTON
-      display-name: "&aEnchanted Cooked Mutton"
-      glow: true
-  rabbit:
-    input: RABBIT
-    input-amount: 160
-    output:
-      material: COOKED_RABBIT
-      display-name: "&aEnchanted Cooked Rabbit"
-      glow: true
 
 # ==============================================================================
 # RPG SKILL REWARDS (AuraSkills & EcoSkills)
@@ -595,12 +206,9 @@ gui:
         - 34
 
 # ==============================================================================
-# CONFIGURABLE MESSAGES (Non-coders can easily customize all text here)
+# MESSAGES & CHAT FORMATTING (Also configurable in messages.yml)
 # ==============================================================================
 messages:
-  fuel-burned-out: "&cThe active %fuel% burned out and was consumed!"
-  fuel-extended: "&aEquipped &f%amount%x %fuel%&a! Fuel duration: &e%time%&a."
-  cannot-stack-permanent-fuel: "&cThis minion already has permanent fuel installed!"
   prefix: "&6&l[Minion&c&lX&6&l] &r"
   placed: "&aYou placed a %minion%!"
   picked-up: "&eYou picked up your %minion%!"
@@ -611,8 +219,6 @@ messages:
   inventory-full: "&cYour inventory is too full to collect all items!"
   area-blocked: "&cCannot place minion here! Ensure a flat 5x5 platform is available."
   no-permission: "&cYou do not have permission to do this."
-
-  # Security & Limits Messages
   minion-limit-reached: "&cYou have reached your maximum minion limit of %limit%!"
   minion-already-exists: "&cThere is already a minion here! Only one minion may occupy a block."
   cannot-place-fuel-or-upgrade: "&cYou cannot place minion items or fuels in the world!"
@@ -623,41 +229,9 @@ messages:
   partially-obstructed-status: "&ePartially Obstructed"
 
 # ==============================================================================
-# MINION OCCASIONAL DIALOGUES & SPEECH SYSTEM
-# ==============================================================================
-dialogues:
-  enabled: true
-  format: "&e\"%message%\""
-  duration-seconds: 5
-  messages:
-    general:
-      - "Hard at work!"
-      - "Look at all these resources!"
-      - "Can't stop, won't stop!"
-      - "Efficiency at its finest!"
-      - "Another one for the collection!"
-      - "I love working on this island!"
-    mining:
-      - "Strike the earth!"
-      - "So much cobblestone and ore!"
-      - "Found another vein!"
-      - "My pickaxe never rests!"
-    foraging:
-      - "Chopping away all day!"
-      - "Timber! That was a big tree!"
-      - "Fresh wood collected!"
-    farming:
-      - "Crops are growing fast!"
-      - "Time for a bountiful harvest!"
-      - "Nothing beats fresh produce!"
-    combat:
-      - "Guarding the perimeter!"
-      - "Target eliminated!"
-      - "Keeping the island safe!"
-
-# ==============================================================================
 # MINION STORAGE SYMMETRICAL SLOT CONFIGURATION
 # Centered at Slot 13 (0-indexed) in a 27-slot chest GUI.
 # ==============================================================================
 storage-layouts:
   use-custom-layouts: false
+

@@ -1,0 +1,220 @@
+# ==============================================================================
+# MinionX - Super Compactor & Compression Recipes Configuration
+# ==============================================================================
+# Define recipes used by the Super Compactor 3000 upgrade to compress items
+# into their enchanted or condensed forms.
+#
+# Schema:
+#   <key>:
+#     input: MATERIAL_NAME
+#     input-amount: 160
+#     output:
+#       material: MATERIAL_NAME
+#       display-name: "&aEnchanted Name"
+#       glow: true
+# ==============================================================================
+
+compression-recipes:
+  cobblestone:
+    input: COBBLESTONE
+    input-amount: 160
+    output:
+      material: COBBLESTONE
+      display-name: "&aEnchanted Cobblestone"
+      glow: true
+  iron:
+    input: IRON_INGOT
+    input-amount: 160
+    output:
+      material: IRON_BLOCK
+      display-name: "&aEnchanted Iron"
+      glow: true
+  diamond:
+    input: DIAMOND
+    input-amount: 160
+    output:
+      material: DIAMOND
+      display-name: "&aEnchanted Diamond"
+      glow: true
+  rotten_flesh:
+    input: ROTTEN_FLESH
+    input-amount: 160
+    output:
+      material: ROTTEN_FLESH
+      display-name: "&aEnchanted Rotten Flesh"
+      glow: true
+  bone:
+    input: BONE
+    input-amount: 160
+    output:
+      material: BONE_BLOCK
+      display-name: "&aEnchanted Bone"
+      glow: true
+  oak_log:
+    input: OAK_LOG
+    input-amount: 160
+    output:
+      material: OAK_LOG
+      display-name: "&aEnchanted Oak Wood"
+      glow: true
+  birch_log:
+    input: BIRCH_LOG
+    input-amount: 160
+    output:
+      material: BIRCH_LOG
+      display-name: "&aEnchanted Birch Wood"
+      glow: true
+  spruce_log:
+    input: SPRUCE_LOG
+    input-amount: 160
+    output:
+      material: SPRUCE_LOG
+      display-name: "&aEnchanted Spruce Wood"
+      glow: true
+  dark_oak_log:
+    input: DARK_OAK_LOG
+    input-amount: 160
+    output:
+      material: DARK_OAK_LOG
+      display-name: "&aEnchanted Dark Oak Wood"
+      glow: true
+  acacia_log:
+    input: ACACIA_LOG
+    input-amount: 160
+    output:
+      material: ACACIA_LOG
+      display-name: "&aEnchanted Acacia Wood"
+      glow: true
+  jungle_log:
+    input: JUNGLE_LOG
+    input-amount: 160
+    output:
+      material: JUNGLE_LOG
+      display-name: "&aEnchanted Jungle Wood"
+      glow: true
+  wheat:
+    input: WHEAT
+    input-amount: 160
+    output:
+      material: HAY_BLOCK
+      display-name: "&aEnchanted Hay Block"
+      glow: true
+  wheat_seeds:
+    input: WHEAT_SEEDS
+    input-amount: 160
+    output:
+      material: WHEAT_SEEDS
+      display-name: "&aEnchanted Seeds"
+      glow: true
+  carrot:
+    input: CARROT
+    input-amount: 160
+    output:
+      material: CARROT
+      display-name: "&aEnchanted Carrot"
+      glow: true
+  potato:
+    input: POTATO
+    input-amount: 160
+    output:
+      material: POTATO
+      display-name: "&aEnchanted Potato"
+      glow: true
+  pumpkin:
+    input: PUMPKIN
+    input-amount: 160
+    output:
+      material: PUMPKIN
+      display-name: "&aEnchanted Pumpkin"
+      glow: true
+  melon:
+    input: MELON_SLICE
+    input-amount: 160
+    output:
+      material: MELON_SLICE
+      display-name: "&aEnchanted Melon"
+      glow: true
+  sugar_cane:
+    input: SUGAR_CANE
+    input-amount: 160
+    output:
+      material: SUGAR
+      display-name: "&aEnchanted Sugar"
+      glow: true
+  cactus:
+    input: CACTUS
+    input-amount: 160
+    output:
+      material: GREEN_DYE
+      display-name: "&aEnchanted Cactus Green"
+      glow: true
+  nether_wart:
+    input: NETHER_WART
+    input-amount: 160
+    output:
+      material: NETHER_WART
+      display-name: "&aEnchanted Nether Wart"
+      glow: true
+  red_mushroom:
+    input: RED_MUSHROOM
+    input-amount: 160
+    output:
+      material: RED_MUSHROOM_BLOCK
+      display-name: "&aEnchanted Red Mushroom"
+      glow: true
+  brown_mushroom:
+    input: BROWN_MUSHROOM
+    input-amount: 160
+    output:
+      material: BROWN_MUSHROOM_BLOCK
+      display-name: "&aEnchanted Brown Mushroom"
+      glow: true
+  beef:
+    input: BEEF
+    input-amount: 160
+    output:
+      material: COOKED_BEEF
+      display-name: "&aEnchanted Cooked Beef"
+      glow: true
+  leather:
+    input: LEATHER
+    input-amount: 160
+    output:
+      material: LEATHER
+      display-name: "&aEnchanted Leather"
+      glow: true
+  porkchop:
+    input: PORKCHOP
+    input-amount: 160
+    output:
+      material: COOKED_PORKCHOP
+      display-name: "&aEnchanted Grilled Pork"
+      glow: true
+  chicken:
+    input: CHICKEN
+    input-amount: 160
+    output:
+      material: COOKED_CHICKEN
+      display-name: "&aEnchanted Cooked Chicken"
+      glow: true
+  feather:
+    input: FEATHER
+    input-amount: 160
+    output:
+      material: FEATHER
+      display-name: "&aEnchanted Feather"
+      glow: true
+  mutton:
+    input: MUTTON
+    input-amount: 160
+    output:
+      material: COOKED_MUTTON
+      display-name: "&aEnchanted Cooked Mutton"
+      glow: true
+  rabbit:
+    input: RABBIT
+    input-amount: 160
+    output:
+      material: COOKED_RABBIT
+      display-name: "&aEnchanted Cooked Rabbit"
+      glow: true

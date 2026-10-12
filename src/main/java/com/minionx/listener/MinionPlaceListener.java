@@ -133,6 +133,13 @@ public class MinionPlaceListener implements Listener {
         }
         minion.setTotalHarvested(harvested);
 
+        // Fire MinionPlaceEvent
+        com.minionx.api.event.MinionPlaceEvent placeEvent = new com.minionx.api.event.MinionPlaceEvent(player, minion, minionLoc, item);
+        org.bukkit.Bukkit.getPluginManager().callEvent(placeEvent);
+        if (placeEvent.isCancelled()) {
+            return;
+        }
+
         // Register minion
         MinionX.getInstance().getMinionManager().register(minion);
 

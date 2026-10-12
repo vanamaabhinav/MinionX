@@ -4,8 +4,7 @@ import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Data model for dynamically created or configured minions.
@@ -44,6 +43,36 @@ public class MinionDefinition {
         }
     }
 
+    public static class DropEntry {
+        private final ItemStack item;
+        private final int amount;
+        private final double chance; // 0.0 to 1.0 (1.0 = 100%)
+
+        public DropEntry(ItemStack item, int amount, double chance) {
+            this.item = item != null ? item.clone() : new ItemStack(Material.COBBLESTONE);
+            this.amount = Math.max(1, amount);
+            this.chance = Math.clamp(chance, 0.0, 1.0);
+        }
+
+        public ItemStack getItem() {
+            return item.clone();
+        }
+
+        public int getAmount() {
+            return amount;
+        }
+
+        public double getChance() {
+            return chance;
+        }
+
+        public ItemStack createDrop(int multiplier) {
+            ItemStack stack = item.clone();
+            stack.setAmount(Math.max(1, amount * multiplier));
+            return stack;
+        }
+    }
+
     private final String id;
     private final String displayName;
     private final MinionArchetype archetype;
@@ -58,6 +87,7 @@ public class MinionDefinition {
     private final ItemStack exactDropItem; // Exact copy of custom drop item
     private final ItemStack secondaryDropItem; // Secondary drop (Seeds, Leather, Apples)
     private final double secondaryDropChance; // 0.0 to 1.0
+    private final List<DropEntry> drops;
     private final int xpPerHarvest;
 
     private final double defaultActionDelay;
@@ -71,6 +101,34 @@ public class MinionDefinition {
                             double defaultActionDelay, int defaultStorageSlots) {
         this(id, displayName, archetype, defaultSkullTexture, defaultArmorMaterial, defaultArmorColor, defaultHandItem,
                 targetBlock, targetMob, exactDropItem, null, 0.0, xpPerHarvest, defaultActionDelay, defaultStorageSlots);
+    }
+
+    public MinionDefinition(String id, String displayName, MinionArchetype archetype,
+                            String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor, ItemStack defaultHandItem,
+                            Material targetBlock, String targetMob, List<DropEntry> drops,
+                            int xpPerHarvest, double defaultActionDelay, int defaultStorageSlots) {
+        this.id = id.toLowerCase();
+        this.displayName = displayName;
+        this.archetype = archetype != null ? archetype : MinionArchetype.MINER;
+        this.defaultSkullTexture = defaultSkullTexture;
+        this.defaultArmorMaterial = defaultArmorMaterial != null ? defaultArmorMaterial : Material.LEATHER_CHESTPLATE;
+        this.defaultArmorColor = defaultArmorColor != null ? defaultArmorColor : Color.fromRGB(160, 160, 160);
+        this.defaultHandItem = defaultHandItem != null ? defaultHandItem.clone() : new ItemStack(Material.STONE_PICKAXE);
+        this.targetBlock = targetBlock != null ? targetBlock : Material.COBBLESTONE;
+        this.targetMob = targetMob;
+        this.drops = drops != null ? new ArrayList<>(drops) : new ArrayList<>();
+        this.exactDropItem = !this.drops.isEmpty() ? this.drops.get(0).getItem() : new ItemStack(Material.COBBLESTONE);
+        if (this.drops.size() > 1) {
+            this.secondaryDropItem = this.drops.get(1).getItem();
+            this.secondaryDropChance = this.drops.get(1).getChance();
+        } else {
+            this.secondaryDropItem = null;
+            this.secondaryDropChance = 0.0;
+        }
+        this.xpPerHarvest = xpPerHarvest;
+        this.defaultActionDelay = defaultActionDelay > 0 ? defaultActionDelay : 14.0;
+        this.defaultStorageSlots = defaultStorageSlots > 0 ? defaultStorageSlots : 1;
+        this.tierStyles = new HashMap<>();
     }
 
     public MinionDefinition(String id, String displayName, MinionArchetype archetype,
@@ -90,6 +148,13 @@ public class MinionDefinition {
         this.exactDropItem = exactDropItem != null ? exactDropItem.clone() : new ItemStack(Material.COBBLESTONE);
         this.secondaryDropItem = secondaryDropItem != null ? secondaryDropItem.clone() : null;
         this.secondaryDropChance = secondaryDropChance;
+        this.drops = new ArrayList<>();
+        if (this.exactDropItem != null && this.exactDropItem.getType() != Material.AIR) {
+            this.drops.add(new DropEntry(this.exactDropItem, this.exactDropItem.getAmount(), 1.0));
+        }
+        if (this.secondaryDropItem != null && this.secondaryDropChance > 0) {
+            this.drops.add(new DropEntry(this.secondaryDropItem, this.secondaryDropItem.getAmount(), this.secondaryDropChance));
+        }
         this.xpPerHarvest = xpPerHarvest;
         this.defaultActionDelay = defaultActionDelay > 0 ? defaultActionDelay : 14.0;
         this.defaultStorageSlots = defaultStorageSlots > 0 ? defaultStorageSlots : 1;
@@ -138,6 +203,33 @@ public class MinionDefinition {
 
     public String getTargetMob() {
         return targetMob;
+    }
+
+    public List<DropEntry> getDrops() {
+        return java.util.Collections.unmodifiableList(drops);
+    }
+
+    public void addDrop(DropEntry drop) {
+        if (drop != null) {
+            this.drops.add(drop);
+        }
+    }
+
+    public List<ItemStack> rollDrops(int harvestMultiplier) {
+        List<ItemStack> rolled = new ArrayList<>();
+        if (drops != null && !drops.isEmpty()) {
+            for (DropEntry d : drops) {
+                if (java.util.concurrent.ThreadLocalRandom.current().nextDouble() < d.getChance()) {
+                    rolled.add(d.createDrop(harvestMultiplier));
+                }
+            }
+        }
+        if (rolled.isEmpty() && exactDropItem != null && exactDropItem.getType() != Material.AIR) {
+            ItemStack fallback = exactDropItem.clone();
+            fallback.setAmount(Math.max(1, fallback.getAmount() * harvestMultiplier));
+            rolled.add(fallback);
+        }
+        return rolled;
     }
 
     public ItemStack getExactDropItem() {
