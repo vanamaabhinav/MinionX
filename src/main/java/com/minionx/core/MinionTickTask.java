@@ -930,12 +930,12 @@ public class MinionTickTask extends BukkitRunnable {
         for (ItemStack item : rolled) {
             ItemStack drop = item.clone();
             if (hasSmelter) {
-                if (drop.getType() == Material.COBBLESTONE) drop.setType(Material.STONE);
-                else if (drop.getType() == Material.RAW_IRON) drop.setType(Material.IRON_INGOT);
-                else if (drop.getType() == Material.RAW_GOLD) drop.setType(Material.GOLD_INGOT);
-                else if (drop.getType() == Material.RAW_COPPER) drop.setType(Material.COPPER_INGOT);
+                if (drop.getType() == Material.COBBLESTONE) drop = new ItemStack(Material.STONE, drop.getAmount());
+                else if (drop.getType() == Material.RAW_IRON) drop = new ItemStack(Material.IRON_INGOT, drop.getAmount());
+                else if (drop.getType() == Material.RAW_GOLD) drop = new ItemStack(Material.GOLD_INGOT, drop.getAmount());
+                else if (drop.getType() == Material.RAW_COPPER) drop = new ItemStack(Material.COPPER_INGOT, drop.getAmount());
                 else if (drop.getType().name().endsWith("_LOG") || drop.getType().name().endsWith("_WOOD")) {
-                    drop.setType(Material.CHARCOAL);
+                    drop = new ItemStack(Material.CHARCOAL, drop.getAmount());
                 }
             }
             finalDrops.add(drop);

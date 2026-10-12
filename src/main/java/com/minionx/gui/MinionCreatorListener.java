@@ -556,6 +556,18 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
+        // 10.5 Open Per-Minion Tier Studio (Slot 35)
+        if (slot == 35) {
+            com.minionx.api.MinionDefinition def = com.minionx.api.MinionRegistry.get(session.getId());
+            if (def == null) {
+                def = session.buildDefinition();
+                com.minionx.api.MinionRegistry.register(def);
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
+            TierEditorGUI.openOverview(player, def.getId());
+            return;
+        }
+
         // 11. Cancel & Return
         if (slot == 48) {
             player.closeInventory();

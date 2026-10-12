@@ -1,6 +1,7 @@
 package com.minionx.api;
 
 import com.minionx.MinionX;
+import com.minionx.item.CustomItemSpec;
 import com.minionx.util.ColorUtil;
 import org.bukkit.Color;
 import org.bukkit.Material;
@@ -104,29 +105,8 @@ public class MinionRegistry {
             if (sec.isList("drops")) {
                 List<Map<?, ?>> dropMaps = sec.getMapList("drops");
                 for (Map<?, ?> map : dropMaps) {
-                    Object itemObj = map.get("item");
-                    int amount = 1;
-                    if (map.containsKey("amount")) {
-                        try {
-                            amount = Integer.parseInt(map.get("amount").toString());
-                        } catch (NumberFormatException ignored) {}
-                    }
-                    double chance = 1.0;
-                    if (map.containsKey("chance")) {
-                        try {
-                            chance = Double.parseDouble(map.get("chance").toString());
-                        } catch (NumberFormatException ignored) {}
-                    }
-                    ItemStack stack = null;
-                    if (itemObj instanceof String matName) {
-                        Material m = Material.matchMaterial(matName);
-                        if (m != null) stack = new ItemStack(m, amount);
-                    } else if (itemObj instanceof ItemStack is) {
-                        stack = is.clone();
-                    }
-                    if (stack != null) {
-                        drops.add(new MinionDefinition.DropEntry(stack, amount, chance));
-                    }
+                    CustomItemSpec spec = CustomItemSpec.fromMap(map);
+                    drops.add(new MinionDefinition.DropEntry(spec));
                 }
             }
 
@@ -176,6 +156,23 @@ public class MinionRegistry {
                 }
             }
 
+            // Load optional per-minion tier overrides (action-delay, storage-slots, upgrade-cost)
+            ConfigurationSection tiersSec = sec.getConfigurationSection("tiers");
+            if (tiersSec != null) {
+                for (String tKey : tiersSec.getKeys(false)) {
+                    try {
+                        int t = Integer.parseInt(tKey);
+                        ConfigurationSection tDataSec = tiersSec.getConfigurationSection(tKey);
+                        if (tDataSec != null) {
+                            double tDelay = tDataSec.getDouble("action-delay", MinionTier.getActionDelay(t));
+                            int tSlots = tDataSec.getInt("storage-slots", MinionTier.getStorageSlots(t));
+                            int tCost = tDataSec.getInt("upgrade-cost", MinionTier.getUpgradeCost(t));
+                            def.setTierData(t, new MinionTier.TierData(tDelay, tSlots, tCost));
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+
             DEFINITIONS.put(id.toLowerCase(), def);
         }
     }
@@ -201,11 +198,7 @@ public class MinionRegistry {
 
         List<Map<String, Object>> dropList = new ArrayList<>();
         for (MinionDefinition.DropEntry entry : def.getDrops()) {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("item", entry.getItem().getType().name());
-            map.put("amount", entry.getAmount());
-            map.put("chance", entry.getChance());
-            dropList.add(map);
+            dropList.add(entry.toConfigMap());
         }
         config.set(path + ".drops", dropList);
 
@@ -214,10 +207,28 @@ public class MinionRegistry {
         config.set(path + ".storage-slots", def.getDefaultStorageSlots());
         config.set(path + ".max-tier", def.getMaxTier());
 
+        if (!def.getCustomTiers().isEmpty()) {
+            for (Map.Entry<Integer, MinionTier.TierData> entry : def.getCustomTiers().entrySet()) {
+                String tPath = path + ".tiers." + entry.getKey();
+                config.set(tPath + ".action-delay", entry.getValue().getActionDelay());
+                config.set(tPath + ".storage-slots", entry.getValue().getStorageSlots());
+                config.set(tPath + ".upgrade-cost", entry.getValue().getUpgradeCost());
+            }
+        }
+
         try {
             config.save(file);
         } catch (IOException e) {
             MinionX.getInstance().getLogger().log(Level.SEVERE, "Failed to save custom minion to minions.yml", e);
+        }
+    }
+
+    public static void saveMinionTier(String minionId, int tier, MinionTier.TierData data) {
+        if (minionId == null) return;
+        MinionDefinition def = DEFINITIONS.get(minionId.toLowerCase());
+        if (def != null) {
+            def.setTierData(tier, data);
+            saveCustomMinion(def);
         }
     }
 

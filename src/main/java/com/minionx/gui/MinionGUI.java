@@ -77,7 +77,7 @@ public class MinionGUI {
 
         // 6. Storage Slots (Rows 1-3, Columns 3-7: Slots 12-16, 21-25, 30-34)
         int[] storageSlots = MinionGUIConfig.getStorageSlots();
-        int unlockedSlots = MinionTier.getStorageSlots(minion.getTier());
+        int unlockedSlots = minion.getStorageSlots();
         List<ItemStack> items = minion.getInventory();
 
         for (int i = 0; i < storageSlots.length; i++) {
@@ -135,13 +135,13 @@ public class MinionGUI {
                             .replace("%delay%", String.format("%.1f", minion.getEffectiveActionDelay()))
                             .replace("%harvested%", String.valueOf(minion.getTotalHarvested()))
                             .replace("%stored%", String.valueOf(minion.getTotalStoredCount()))
-                            .replace("%capacity%", String.valueOf(MinionTier.getMaxCapacity(minion.getTier())))
+                            .replace("%capacity%", String.valueOf(minion.getMaxCapacity()))
                             .replace("%status%", minion.getState().getDisplayStatus())));
                 }
             } else {
                 lore.add(ColorUtil.color("&7Time Between Actions: &a" + String.format("%.1f", minion.getEffectiveActionDelay()) + "s"));
                 lore.add(ColorUtil.color("&7Total Harvested: &e" + minion.getTotalHarvested()));
-                lore.add(ColorUtil.color("&7Items Stored: &f" + minion.getTotalStoredCount() + " &7/ &e" + MinionTier.getMaxCapacity(minion.getTier())));
+                lore.add(ColorUtil.color("&7Items Stored: &f" + minion.getTotalStoredCount() + " &7/ &e" + minion.getMaxCapacity()));
                 lore.add(ColorUtil.color("&7Status: " + minion.getState().getDisplayStatus()));
             }
 
@@ -228,21 +228,23 @@ public class MinionGUI {
         }
 
         int nextTier = currentTier + 1;
-        int cost = MinionTier.getUpgradeCost(currentTier);
+        int cost = minion.getUpgradeCost();
+        MinionDefinition def = minion.getDefinition();
+        double curDelay = minion.getBaseActionDelay();
+        double nextDelay = def != null ? def.getActionDelay(nextTier) : MinionTier.getActionDelay(nextTier);
+        int curCap = minion.getMaxCapacity();
+        int nextCap = def != null ? def.getMaxCapacity(nextTier) : MinionTier.getMaxCapacity(nextTier);
 
-        Material mat = minion.getType().getDropMaterial();
-        if (minion.getCustomDefinitionId() != null) {
-            MinionDefinition def = MinionRegistry.get(minion.getCustomDefinitionId());
-            if (def != null && def.getExactDropItem() != null) {
-                mat = def.getExactDropItem().getType();
-            }
+        Material mat = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
+        if (def != null && def.getExactDropItem() != null && def.getExactDropItem().getType() != Material.AIR) {
+            mat = def.getExactDropItem().getType();
         }
 
         String matName = mat.name().replace("_", " ").toLowerCase();
 
         return createNamedItem(Material.ANVIL, ColorUtil.color("&aUpgrade to Tier " + MinionTier.toRoman(nextTier)),
-                List.of(ColorUtil.color("&7Action Delay: &f" + MinionTier.getActionDelay(currentTier) + "s &8-> &a" + MinionTier.getActionDelay(nextTier) + "s"),
-                        ColorUtil.color("&7Storage: &f" + MinionTier.getMaxCapacity(currentTier) + " &8-> &a" + MinionTier.getMaxCapacity(nextTier)),
+                List.of(ColorUtil.color("&7Action Delay: &f" + String.format("%.1f", curDelay) + "s &8-> &a" + String.format("%.1f", nextDelay) + "s"),
+                        ColorUtil.color("&7Storage: &f" + curCap + " &8-> &a" + nextCap),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&7Cost: &e" + cost + "x " + matName),
                         ColorUtil.color("&7"),

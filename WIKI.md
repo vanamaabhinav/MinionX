@@ -136,17 +136,19 @@ Create custom storage expansion chest models:
 3. Set custom item icon, display name, and lore.
 4. Save directly into `storages.yml` with instant in-game availability.
 
-### 4. Tier Studio (`/minion tier` or Operator Panel)
+### 4. Tier Studio (`/minion tier` or `/minion tier <minion_id>`)
 Configure and customize minion progression in real time without restarting:
-1. Run `/minion tier` or click the **Tier Studio (Beacon)** icon in `/minionsx`.
-2. **Overview Menu**: Browse all active tiers (Default I through XII, plus any custom tiers).
+1. **Commands & Access**:
+   * Run `/minion tier` to open the **Global Tier Studio** (affects default tiers saved to `tiers.yml`).
+   * Run `/minion tier <minion_id>` or click **Slot 35 (Per-Minion Tier Studio)** in `/minion create` to open the **Per-Minion Tier Studio** (configures individual tiers, speed, capacity, upgrade cost, and max tier for that minion saved to `minions.yml`).
+2. **Overview Menu**: Browse all active tiers (Default I through XII, plus any custom tiers). In per-minion mode, view the active max tier with interactive `+` and `-` adjustment buttons.
 3. **Edit Tier**: Click any tier to adjust:
    * **Action Delay** (±0.5s or ±5.0s buttons).
-   * **Storage Slots** (from 1 to 27 slots).
+   * **Storage Slots** (from 1 to 27 slots with automatic capacity calculation).
    * **Upgrade Material Cost** (±1,000 or ±10,000 resources).
 4. **Create Custom Tiers**: Click **Create New Tier** to add Tier XIII, XIV, etc. with automatic dynamic Roman numeral conversion!
 5. **Delete Custom Tiers**: Right-click any custom tier (>12) to delete it. Core 12 tiers are protected against accidental deletion.
-6. Changes save instantly to `tiers.yml` and hot-reload across all placed minions.
+6. **Dual Persistence**: Global edits save instantly to `tiers.yml`. Per-minion edits write directly to the minion's `tiers:` map in `minions.yml`, hot-reloading across all active placed minions.
 
 ---
 
@@ -218,28 +220,33 @@ Every minion features **2 Upgrade Slots** inside its GUI (Slots 21 and 23):
    * Automatically crafts 9 harvested items into their condensed block form (e.g., 9 Coal -> 1 Coal Block, 9 Iron -> 1 Iron Block).
 3. **Super Compactor (3000)**:
    * **Advanced condensation**: Crafts harvested items into Enchanted forms (e.g., 160 Diamond -> 1 Enchanted Diamond, 160 Cobblestone -> 1 Enchanted Cobblestone).
-   * **Custom Items Support**: Full support for custom items! You can define recipes that compress custom items into tier-2 enchanted items or compress vanilla items into custom RPG items.
-     * **Input Matching**: Supports matching by `custom-model-data`, custom `display-name`, or `persistent-data` (NamespacedKey + String value).
+   * **Custom Items Support**: Full support for custom items! Both `minions.yml` (drops) and `recipes.yml` (super compactor inputs/outputs) share the identical unified custom item schema (`material`/`item`, `amount`/`input-amount`, `display-name`, `custom-model-data`, `lore`, `glow`/`enchanted`, `pdc-key`, `pdc-value`, and hook items `itemsadder:`, `mmoitems:`, etc.).
+     * **Input Matching**: Supports matching by `custom-model-data`, custom `display-name`, and `pdc-key` + `pdc-value`.
      * **Output Custom Data**: Generated output items can have custom display names, multi-line colored lore, custom model data, enchantment glint, and persistent data tags.
      * **Anti-Swallowing Protection**: Vanilla recipes strictly ignore custom items (items with custom display names or custom model data), preventing players' rare custom RPG items from being accidentally destroyed or swallowed by vanilla compression recipes!
    * **Example `recipes.yml` Configuration:**
      ```yaml
-     super-compactor:
+     compression-recipes:
        # Compressing a custom item into an enchanted custom item
        enchanted_custom_ruby:
-         input: EMERALD
-         input-custom-model-data: 1001
-         input-display-name: "&cRaw Ruby"
-         input-amount: 160
-         output: EMERALD
-         output-display-name: "&c&lEnchanted Ruby"
-         output-lore:
-           - "&7A condensed, glowing ruby jewel."
-           - "&e&lEPIC ITEM"
-         output-custom-model-data: 2001
-         output-glow: true
-         output-pdc-key: "minionx:custom_item"
-         output-pdc-value: "enchanted_ruby"
+         input:
+           material: REDSTONE
+           amount: 160
+           display-name: "&cRaw Ruby"
+           custom-model-data: 1001
+           pdc-key: "minionx:item_id"
+           pdc-value: "raw_ruby"
+         output:
+           material: REDSTONE_BLOCK
+           amount: 1
+           display-name: "&c&lEnchanted Ruby Block"
+           custom-model-data: 1002
+           glow: true
+           pdc-key: "minionx:item_id"
+           pdc-value: "enchanted_ruby"
+           lore:
+             - "&7A condensed, glowing ruby jewel."
+             - "&e&lEPIC ITEM"
      ```
 4. **Diamond Spreading**:
    * Grants a chance to produce 1 extra Diamond whenever the minion completes any harvest action (works on all mining, farming, and foraging minions).
@@ -685,7 +692,7 @@ FuelRegistry.register(dragonBreathFuel);
 
 | Version | Date | Changes / Notes |
 | :---: | :---: | :--- |
-| **0.2.0** | 2026-10-12 | **Phase 2 Expansion (Current Pre-Release)**:<br>• **Per-Minion Max Tier Caps**: Minions can now possess independent maximum tiers (e.g., Flower minion up to Tier XII, custom combat minion capped at Tier V or XI). Configurable in `minions.yml` (`max-tier`) and directly in the In-Game Minion Creator Studio.<br>• **Super Compactor Custom Items Support**: Enhanced Super Compactor 3000 to compress custom items (PDC keys, CustomModelData, display names, lore, and glint) with strict isolation so vanilla recipes never consume custom RPG items.<br>• **Pre-Release Semantic Versioning**: Locked versioning to `v0.x.x` pre-release format starting from `v0.0.0`. |
+| **0.2.0** | 2026-10-12 | **Phase 2 Expansion (Current Pre-Release)**:<br>• **Unified Custom Items Schema**: Unified custom items handling between `minions.yml` (drops) and `recipes.yml` (super compactor input/output) supporting `material`/`item`, `amount`/`input-amount`, `chance`, `display-name`, `custom-model-data`, `lore`, `glow`/`enchanted`, `pdc-key`, `pdc-value`, and hook items (`itemsadder:`, `mmoitems:`, etc.) with strict anti-swallowing isolation.<br>• **Per-Minion Tier Studio & Customization**: Different minions can now have independent max tiers, upgrade costs, action delays (speeds), and storage capacities. Fully editable in `minions.yml` (`tiers:`) and in-game via `/minion tier <minion_id>` and Creator Studio Slot 35.<br>• **Pre-Release Semantic Versioning**: Locked versioning to `v0.x.x` pre-release format starting from `v0.0.0`. |
 | **0.1.3** | 2026-10-12 | **Phase 1 Modular Architecture & Developer API**:<br>• **Dynamic Tier Studio**: In-game GUI (`/minion tier` & Operator Beacon) with arbitrary Roman numerals.<br>• **Modular YAML Files**: Split into `tiers.yml`, `minions.yml`, `fuels.yml`, `upgrades.yml`, `recipes.yml`, and `messages.yml`.<br>• **Multi-Drop Engine**: Support for multiple items with individual drop chance percentages.<br>• **Developer API**: `MinionXAPI` plus 8 custom Bukkit events (`MinionPlaceEvent`, `MinionHarvestEvent`, etc.).<br>• **Commercial Proprietary License**: Standardized EULA authored by AbhinavVanama. |
 | **0.1.2** | 2026-10-12 | **MinionX Rebrand & Paper Optimizations**:<br>• Rebrand to MinionX by AbhinavVanama.<br>• Paper native `setCanTick(false)` performance boost, modern `TextDisplay` billboard holograms, thread-safe atomic saves, anti-dupe hardening.<br>• Comprehensive `WIKI.md` documentation guide for server owners and developers. |
 | **0.1.1** | 2026-10-12 | **Minion Storages & Emergency Quarantine**:<br>• Added Small (+3), Medium (+9), and Large (+15) storage chests with adjacent detection and GUI access.<br>• In-Game Skin Creator Studio to design custom skins.<br>• Emergency Quarantine Mode (`/minion quarantine`) to halt all minion actions during emergencies.<br>• Occasional floating NPC speech bubbles and owner interactions. |

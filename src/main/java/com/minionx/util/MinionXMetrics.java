@@ -16,6 +16,7 @@ import java.util.zip.GZIPOutputStream;
  * Lightweight, non-blocking bStats Metrics reporter for MinionX.
  * Sends anonymous statistics to bStats.org if enabled.
  */
+@SuppressWarnings("deprecation")
 public class MinionXMetrics {
 
     public static final int BSTATS_PLUGIN_ID = 21850;

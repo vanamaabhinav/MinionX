@@ -3,6 +3,7 @@ package com.minionx.core;
 import com.minionx.MinionX;
 import com.minionx.api.CustomUpgrade;
 import com.minionx.api.MinionUpgradeType;
+import com.minionx.item.CustomItemSpec;
 import com.minionx.util.ColorUtil;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -24,6 +25,8 @@ public class CompressionManager {
 
     public static class CompressionRecipe {
         private final String id;
+        private final CustomItemSpec inputSpec;
+        private final CustomItemSpec outputSpec;
         private final Material inputMaterial;
         private final int inputAmount;
         private final ItemStack outputItem;
@@ -34,6 +37,20 @@ public class CompressionManager {
         private final String inputPdcKey;
         private final String inputPdcValue;
         private final boolean isCustomInput;
+
+        public CompressionRecipe(String id, CustomItemSpec inputSpec, CustomItemSpec outputSpec) {
+            this.id = id;
+            this.inputSpec = inputSpec;
+            this.outputSpec = outputSpec;
+            this.inputMaterial = inputSpec != null ? inputSpec.getMaterial() : Material.COBBLESTONE;
+            this.inputAmount = inputSpec != null ? inputSpec.getAmount() : 160;
+            this.outputItem = outputSpec != null ? outputSpec.build() : new ItemStack(Material.COBBLESTONE);
+            this.inputCustomModelData = inputSpec != null ? inputSpec.getCustomModelData() : null;
+            this.inputDisplayName = inputSpec != null ? inputSpec.getDisplayName() : null;
+            this.inputPdcKey = inputSpec != null ? inputSpec.getPdcKey() : null;
+            this.inputPdcValue = inputSpec != null ? inputSpec.getPdcValue() : null;
+            this.isCustomInput = inputSpec != null && inputSpec.isCustom();
+        }
 
         public CompressionRecipe(Material inputMaterial, int inputAmount, ItemStack outputItem) {
             this("vanilla_" + (inputMaterial != null ? inputMaterial.name().toLowerCase() : "unknown"),
@@ -52,12 +69,16 @@ public class CompressionManager {
             this.inputPdcKey = inputPdcKey;
             this.inputPdcValue = inputPdcValue;
             this.isCustomInput = isCustomInput;
+            this.inputSpec = new CustomItemSpec(inputMaterial, null, inputAmount, 1.0, inputDisplayName, null, inputCustomModelData, false, inputPdcKey, inputPdcValue);
+            this.outputSpec = CustomItemSpec.fromItemStack(this.outputItem, 1.0);
         }
 
         public String getId() { return id; }
+        public CustomItemSpec getInputSpec() { return inputSpec; }
+        public CustomItemSpec getOutputSpec() { return outputSpec; }
         public Material getInputMaterial() { return inputMaterial; }
         public int getInputAmount() { return inputAmount; }
-        public ItemStack createOutput() { return outputItem.clone(); }
+        public ItemStack createOutput() { return outputSpec != null ? outputSpec.build() : outputItem.clone(); }
         public Integer getInputCustomModelData() { return inputCustomModelData; }
         public String getInputDisplayName() { return inputDisplayName; }
         public String getInputPdcKey() { return inputPdcKey; }
@@ -65,6 +86,9 @@ public class CompressionManager {
         public boolean isCustomInput() { return isCustomInput; }
 
         public boolean matches(ItemStack item) {
+            if (inputSpec != null) {
+                return inputSpec.matches(item);
+            }
             if (item == null || item.getAmount() <= 0) return false;
             if (item.getType() != inputMaterial) return false;
 
@@ -146,85 +170,29 @@ public class CompressionManager {
             ConfigurationSection recSec = section.getConfigurationSection(key);
             if (recSec == null) continue;
 
-            Material inMat;
-            Integer inCmd = null;
-            String inName = null;
-            String inPdcKey = null;
-            String inPdcVal = null;
-            boolean isCustom = false;
+            CustomItemSpec inSpec;
+            int amount = recSec.getInt("input-amount", 160);
 
             if (recSec.isConfigurationSection("input")) {
                 ConfigurationSection inSec = recSec.getConfigurationSection("input");
-                String inMatName = inSec != null ? inSec.getString("material", "COBBLESTONE") : "COBBLESTONE";
-                inMat = Material.matchMaterial(inMatName != null ? inMatName : "COBBLESTONE");
-                if (inSec != null && inSec.contains("custom-model-data")) {
-                    inCmd = inSec.getInt("custom-model-data");
-                    isCustom = true;
-                }
-                if (inSec != null && inSec.contains("display-name")) {
-                    inName = inSec.getString("display-name");
-                    isCustom = true;
-                }
-                if (inSec != null && inSec.contains("pdc-key")) {
-                    inPdcKey = inSec.getString("pdc-key");
-                    inPdcVal = inSec.getString("pdc-value", "");
-                    isCustom = true;
+                inSpec = CustomItemSpec.fromConfigSection(inSec);
+                if (inSpec.getAmount() <= 1 && recSec.contains("input-amount")) {
+                    inSpec = new CustomItemSpec(inSpec.getMaterial(), inSpec.getHookIdentifier(), amount, inSpec.getChance(),
+                            inSpec.getDisplayName(), inSpec.getLore(), inSpec.getCustomModelData(), inSpec.isGlow(), inSpec.getPdcKey(), inSpec.getPdcValue());
                 }
             } else {
                 String inMatName = recSec.getString("input", "COBBLESTONE");
-                inMat = Material.matchMaterial(inMatName != null ? inMatName : "COBBLESTONE");
+                Material inMat = Material.matchMaterial(inMatName != null ? inMatName : "COBBLESTONE");
+                if (inMat == null) inMat = Material.COBBLESTONE;
+                inSpec = new CustomItemSpec(inMat, null, amount, 1.0, null, null, null, false, null, null);
             }
-
-            if (inMat == null) continue;
-            int amount = recSec.getInt("input-amount", 160);
 
             ConfigurationSection outSec = recSec.getConfigurationSection("output");
             if (outSec == null) continue;
 
-            String outMatName = outSec.getString("material", inMat.name());
-            Material outMat = Material.matchMaterial(outMatName != null ? outMatName : inMat.name());
-            if (outMat == null) outMat = inMat;
+            CustomItemSpec outSpec = CustomItemSpec.fromConfigSection(outSec);
 
-            String dispName = outSec.getString("display-name", "&aEnchanted " + inMat.name());
-            boolean glow = outSec.getBoolean("glow", true);
-            List<String> lore = outSec.getStringList("lore");
-            Integer outCmd = outSec.contains("custom-model-data") ? outSec.getInt("custom-model-data") : null;
-            String outPdcKey = outSec.getString("pdc-key");
-            String outPdcVal = outSec.getString("pdc-value");
-
-            ItemStack output = new ItemStack(outMat, 1);
-            if (org.bukkit.Bukkit.getServer() != null) {
-                ItemMeta meta = output.getItemMeta();
-                if (meta != null) {
-                    if (dispName != null && !dispName.isEmpty()) {
-                        meta.setDisplayName(ColorUtil.color(dispName));
-                    }
-                    if (lore != null && !lore.isEmpty()) {
-                        List<String> coloredLore = new ArrayList<>();
-                        for (String l : lore) {
-                            coloredLore.add(ColorUtil.color(l));
-                        }
-                        meta.setLore(coloredLore);
-                    }
-                    if (glow) {
-                        meta.addEnchant(Enchantment.DURABILITY, 1, true);
-                        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-                    }
-                    if (outCmd != null) {
-                        meta.setCustomModelData(outCmd);
-                    }
-                    if (outPdcKey != null && !outPdcKey.isEmpty() && outPdcVal != null) {
-                        try {
-                            String[] parts = outPdcKey.split(":", 2);
-                            NamespacedKey nKey = parts.length == 2 ? new NamespacedKey(parts[0], parts[1]) : NamespacedKey.minecraft(parts[0]);
-                            meta.getPersistentDataContainer().set(nKey, PersistentDataType.STRING, outPdcVal);
-                        } catch (Exception ignored) {}
-                    }
-                    output.setItemMeta(meta);
-                }
-            }
-
-            CompressionRecipe recipe = new CompressionRecipe(key, inMat, amount, output, inCmd, inName, inPdcKey, inPdcVal, isCustom);
+            CompressionRecipe recipe = new CompressionRecipe(key, inSpec, outSpec);
             RECIPES.put(key, recipe);
         }
     }

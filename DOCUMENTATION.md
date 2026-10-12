@@ -133,14 +133,17 @@ MinionX features full-fledged in-game visual GUIs for designing, customizing, an
   * Direct atomic persistence to `fuels.yml`.
 
 ### Tier Creator & Editor Studio
-* **Command:** `/minion tier` (or click Slot 49 inside `/minionsx`)
+* **Commands:**
+  * `/minion tier` — Opens the **Global Tier Studio** (edits default tiers saved to `tiers.yml`).
+  * `/minion tier <minion_id>` — Opens the **Per-Minion Tier Studio** (configures individual tiers, speed, capacity, upgrade cost, and max tier for that minion saved to `minions.yml`).
 * **Features:**
   * Visual overview of all tiers with Roman numeral calculation (I to XII+).
+  * **Per-Minion Max Tier Controls:** Interactive + and - buttons to adjust the minion's maximum tier cap in real time.
   * Click any tier to adjust action speed delay (down to 0.1s increments).
-  * Adjust internal storage slots (1 to 27 slots).
+  * Adjust internal storage slots (1 to 27 slots) with automatic max capacity updates.
   * Adjust item upgrade cost requirements.
   * Add arbitrary custom tiers beyond Tier XII on the fly.
-  * Direct persistence to `tiers.yml`.
+  * Dual-mode persistence: Global edits write to `tiers.yml`, while per-minion edits write directly to the minion's `tiers:` map in `minions.yml`.
 
 ### Skin Creator Studio
 * **Command:** `/minion create skin` (or click Slot 50 in `/minionsx`)
@@ -158,12 +161,12 @@ MinionX features full-fledged in-game visual GUIs for designing, customizing, an
 
 ---
 
-## 5. Per-Minion Max Tier Caps
+## 5. Per-Minion Tier Customization (Max Tier, Speed, Capacity & Cost)
 
-Different minions can have different maximum tier caps. For example:
-* Standard Ore Minions: Progress up to **Tier XII**.
-* Flower / Special Minions: Capped at **Tier XII**.
-* Custom Event / RPG Combat Minions: Capped at **Tier V** or **Tier X**.
+Different minions can have different maximum tier caps, individual speeds, storage capacities, and upgrade costs per tier.
+* Standard Ore Minions: Progress up to **Tier XII** using global defaults.
+* Specialized Resource Minions: Can be capped at **Tier V** or **Tier X**.
+* Each tier for a specific minion can override `action-delay`, `storage-slots`, and `upgrade-cost`. Any tier not explicitly overridden automatically falls back to global settings in `tiers.yml`.
 
 ### Configuration in `minions.yml`:
 ```yaml
@@ -172,15 +175,39 @@ custom-minions:
     display-name: "&cSpider Minion"
     archetype: COMBAT
     max-tier: 5  # <-- Minion cannot be upgraded past Tier V!
+    tiers:
+      1:
+        action-delay: 26.0
+        storage-slots: 2
+        upgrade-cost: 64
+      2:
+        action-delay: 24.0
+        storage-slots: 3
+        upgrade-cost: 128
+      3:
+        action-delay: 22.0
+        storage-slots: 4
+        upgrade-cost: 256
+      4:
+        action-delay: 20.0
+        storage-slots: 5
+        upgrade-cost: 512
+      5:
+        action-delay: 18.0
+        storage-slots: 6
+        upgrade-cost: 1024
     drops:
       string:
         material: STRING
         amount: 1
-        chance: 100.0
+        chance: 1.0
       spider_eye:
         material: SPIDER_EYE
         amount: 1
-        chance: 33.3
+        chance: 0.33
+        display-name: "&cFresh Spider Eye"
+        custom-model-data: 1001
+        glow: true
 ```
 
 When a minion reaches its individual `max-tier`, the Upgrade button inside its GUI dynamically transforms into Bedrock with the status:
@@ -188,42 +215,61 @@ When a minion reaches its individual `max-tier`, the Upgrade button inside its G
 
 ---
 
-## 6. Super Compactor 3000 & Custom Items Support
+## 6. Super Compactor 3000 & Unified Custom Items Support
 
-The Super Compactor 3000 condenses raw resources into enchanted and compressed forms. MinionX supports custom items with strict isolation.
+Both `minions.yml` (drops) and `recipes.yml` (compression input/output) share the **identical unified custom item schema**. You can define vanilla items, custom RPG items, or third-party hook items (`itemsadder:`, `mmoitems:`, `oraxen:`, `mythicmobs:`) seamlessly.
 
-### Features:
-1. **PDC & CustomModelData Matching:** Define custom input items by `input-custom-model-data`, `input-display-name`, or `input-pdc-key`.
-2. **Custom Output Creation:** Generate outputs with custom names, lore, CustomModelData, enchantment glints, and PersistentDataContainer tags.
-3. **Anti-Swallowing Isolation:** Vanilla recipes will strictly ignore items with custom display names or custom model data, protecting players' rare RPG items.
+### Unified Custom Item Schema:
+| Key | Type | Description |
+|---|---|---|
+| `material` / `item` | String | Bukkit Material or hook syntax (e.g. `itemsadder:ruby`, `mmoitems:SWORD_KATANA`) |
+| `amount` / `input-amount` | Integer | Quantity of items |
+| `chance` | Double | Drop probability from `0.0` to `1.0` (minion drops only) |
+| `display-name` | String | Formatted item title with color codes (`&6`, `&c`, etc.) |
+| `custom-model-data` | Integer | CustomModelData integer for Resource Packs |
+| `lore` | List<String> | Multiline lore strings |
+| `glow` / `enchanted` | Boolean | Adds subtle enchantment glow |
+| `pdc-key` | String | PersistentDataContainer namespace key (e.g. `minionx:drop`) |
+| `pdc-value` | String | PersistentDataContainer value for strict RPG verification |
 
-### Configuration in `recipes.yml`:
+### Configuration Example in `recipes.yml`:
 ```yaml
 compression-recipes:
   # Vanilla recipe
   enchanted_diamond:
-    input: DIAMOND
-    input-amount: 160
-    output: DIAMOND
-    output-display-name: "&9Enchanted Diamond"
-    output-glow: true
+    input:
+      material: DIAMOND
+      amount: 160
+    output:
+      material: DIAMOND
+      amount: 1
+      display-name: "&9Enchanted Diamond"
+      glow: true
 
-  # Custom item recipe
+  # Custom RPG Item recipe
   enchanted_ruby:
-    input: EMERALD
-    input-custom-model-data: 1001
-    input-display-name: "&cRaw Ruby"
-    input-amount: 160
-    output: EMERALD
-    output-display-name: "&c&lEnchanted Ruby"
-    output-custom-model-data: 2001
-    output-glow: true
-    output-pdc-key: "minionx:item"
-    output-pdc-value: "enchanted_ruby"
-    output-lore:
-      - "&7A condensed, glowing ruby jewel."
-      - "&e&lEPIC ITEM"
+    input:
+      material: REDSTONE
+      amount: 160
+      display-name: "&cRaw Ruby"
+      custom-model-data: 1001
+      pdc-key: "minionx:item_id"
+      pdc-value: "raw_ruby"
+    output:
+      material: REDSTONE_BLOCK
+      amount: 1
+      display-name: "&c&lEnchanted Ruby Block"
+      custom-model-data: 1002
+      glow: true
+      pdc-key: "minionx:item_id"
+      pdc-value: "enchanted_ruby"
 ```
+
+### Anti-Swallowing Strict Isolation:
+The Super Compactor algorithm verifies custom item properties strictly:
+* Vanilla recipes require **unmodified** items. An item with CustomModelData, custom display name, or custom PDC tags will **never** be swallowed by a vanilla recipe.
+* Custom recipes require exact matching on configured metadata (CustomModelData, display name, and PDC tags), ensuring zero item loss or accidental conversion.
+
 
 ---
 

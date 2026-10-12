@@ -197,6 +197,14 @@ public class MinionCreatorGUI {
                         ColorUtil.color("&aLeft-Click: &fToggle Mode (Identical <-> Per-Tier)"),
                         ColorUtil.color("&eRight-Click: &fCycle Selected Tier (1..11)"))));
 
+        // Slot 35: Per-Minion Tier Studio
+        inv.setItem(35, createNamedItem(Material.DIAMOND_BLOCK, ColorUtil.color("&bPer-Minion Tier Studio"),
+                List.of(ColorUtil.color("&7Configure custom action delays, storage"),
+                        ColorUtil.color("&7capacities, and upgrade costs specifically for"),
+                        ColorUtil.color("&ethis minion definition (&f" + session.getId() + "&e)!"),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to open Per-Minion Tier Studio"))));
+
         // Slot 48: Cancel / Exit
         inv.setItem(48, createNamedItem(Material.BARRIER, ColorUtil.color("&cCancel & Return"),
                 List.of(ColorUtil.color("&7Discard changes and return to Operator Hub."))));

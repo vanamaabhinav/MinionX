@@ -35,7 +35,7 @@ public class DupeAndConcurrencyTest {
             minion.getInventory().add(new ItemStack(Material.DIAMOND, itemsPerStack));
         }
 
-        assertEquals(expectedTotal, minion.getInventory().stream().mapToInt(ItemStack::getAmount).sum());
+        assertEquals(expectedTotal, minion.getTotalStoredCount());
 
         int threadCount = 10;
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -81,8 +81,6 @@ public class DupeAndConcurrencyTest {
         assertTrue(QuarantineManager.isQuarantined());
 
         // In active quarantine, non-admin players must be blocked
-        // UUIDs without admin bypass cannot interact
-        UUID regularPlayer = UUID.randomUUID();
         // Null player or regular player without bypass cannot bypass
         assertFalse(QuarantineManager.canBypass(null));
 

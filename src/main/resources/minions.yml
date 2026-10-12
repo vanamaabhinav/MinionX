@@ -12,11 +12,23 @@
 #     target-mob: <ENTITY_TYPE|ID>   # Used by COMBAT (Vanilla EntityType or MythicMob ID)
 #     held-tool: <MATERIAL>          # Held tool in hand (e.g. DIAMOND_PICKAXE)
 #     skull-texture: "<base64>"      # Optional custom head texture
-#     max-tier: 12                   # Custom maximum tier cap (e.g. 5, 10, 11, 12)
-#     drops:                         # Multi-drop support with individual chances
-#       - item: <MATERIAL|HOOK_ITEM> # e.g. DIAMOND, or itemsadder:namespace:id
+#     max-tier: 12                   # Custom maximum tier cap (e.g. 5, 8, 12, etc.)
+#     drops:                         # Unified custom item drop schema
+#       - material: <MATERIAL|HOOK>  # or item: <MATERIAL|HOOK>
 #         amount: 1
 #         chance: 1.0                # 1.0 = 100%, 0.5 = 50%, 0.1 = 10%
+#         display-name: "&dCustom Item Name"
+#         custom-model-data: 1001
+#         lore:
+#           - "&7Custom item description"
+#         glow: false
+#         pdc-key: "minionx:item_id"
+#         pdc-value: "custom_drop"
+#     tiers:                         # Optional per-minion tier overrides
+#       1:
+#         action-delay: 24.0         # Seconds per action for this tier
+#         storage-slots: 2           # Inventory slots unlocked
+#         upgrade-cost: 64           # Items required to upgrade to next tier
 # ==============================================================================
 
 custom-minions:
@@ -27,7 +39,7 @@ custom-minions:
     held-tool: DIAMOND_PICKAXE
     max-tier: 12
     drops:
-      - item: AMETHYST_SHARD
+      - material: AMETHYST_SHARD
         amount: 4
         chance: 1.0
 
@@ -38,9 +50,35 @@ custom-minions:
     held-tool: IRON_SWORD
     max-tier: 5
     drops:
-      - item: STRING
+      - material: STRING
         amount: 2
         chance: 1.0
-      - item: SPIDER_EYE
+      - material: SPIDER_EYE
         amount: 1
         chance: 0.5
+        display-name: "&cFresh Spider Eye"
+        custom-model-data: 1001
+        glow: true
+        pdc-key: "minionx:drop"
+        pdc-value: "fresh_spider_eye"
+    tiers:
+      1:
+        action-delay: 26.0
+        storage-slots: 2
+        upgrade-cost: 64
+      2:
+        action-delay: 23.0
+        storage-slots: 3
+        upgrade-cost: 128
+      3:
+        action-delay: 20.0
+        storage-slots: 4
+        upgrade-cost: 256
+      4:
+        action-delay: 17.0
+        storage-slots: 5
+        upgrade-cost: 512
+      5:
+        action-delay: 14.0
+        storage-slots: 6
+        upgrade-cost: 0

@@ -17,6 +17,7 @@ import java.util.function.Consumer;
 /**
  * Asynchronous, non-blocking GitHub update checker for MinionX.
  */
+@SuppressWarnings("deprecation")
 public class UpdateChecker implements Listener {
 
     private static final String GITHUB_REPO = "vanamaabhinav/MinionX";

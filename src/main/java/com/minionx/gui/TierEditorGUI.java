@@ -21,12 +21,21 @@ import java.util.List;
 public class TierEditorGUI {
 
     public static final String OVERVIEW_TITLE = ColorUtil.color("&8MinionX - Tier Studio");
+    public static final String MINION_OVERVIEW_PREFIX = ColorUtil.color("&8Tier Studio: ");
     public static final String EDITOR_TITLE_PREFIX = ColorUtil.color("&8Tier Editor: Tier ");
+    public static final String MINION_EDITOR_PREFIX = ColorUtil.color("&8Tier Editor [");
 
     public static void openOverview(Player player) {
-        int maxTier = MinionTier.getMaxTier();
+        openOverview(player, null);
+    }
+
+    public static void openOverview(Player player, String minionId) {
+        TierEditorListener.setOverviewSession(player.getUniqueId(), minionId);
+        com.minionx.api.MinionDefinition def = minionId != null ? com.minionx.api.MinionRegistry.get(minionId) : null;
+        int maxTier = def != null ? def.getMaxTier() : MinionTier.getMaxTier();
         int size = 54;
-        Inventory inv = Bukkit.createInventory(null, size, OVERVIEW_TITLE);
+        String title = def != null ? (MINION_OVERVIEW_PREFIX + def.getDisplayName()) : OVERVIEW_TITLE;
+        Inventory inv = Bukkit.createInventory(null, size, title);
 
         ItemStack border = createItem(Material.GRAY_STAINED_GLASS_PANE, " ", null);
         for (int i = 0; i < size; i++) {
@@ -41,32 +50,48 @@ public class TierEditorGUI {
         };
 
         for (int tier = 1; tier <= maxTier && tier <= 45; tier++) {
-            MinionTier.TierData data = MinionTier.getTierData(tier);
-            double delay = data != null ? data.getActionDelay() : MinionTier.getActionDelay(tier);
-            int slots = data != null ? data.getStorageSlots() : MinionTier.getStorageSlots(tier);
-            int cost = data != null ? data.getUpgradeCost() : MinionTier.getUpgradeCost(tier);
+            double delay = def != null ? def.getActionDelay(tier) : MinionTier.getActionDelay(tier);
+            int slots = def != null ? def.getStorageSlots(tier) : MinionTier.getStorageSlots(tier);
+            int cost = def != null ? def.getUpgradeCost(tier) : MinionTier.getUpgradeCost(tier);
 
             Material iconMat = icons[(tier - 1) % icons.length];
             List<String> lore = new ArrayList<>();
             lore.add(ColorUtil.color("&8----------------------------"));
+            if (def != null) {
+                lore.add(ColorUtil.color("&7Target: &e" + def.getDisplayName()));
+            }
             lore.add(ColorUtil.color("&7Action Delay: &e" + String.format("%.1f", delay) + "s"));
             lore.add(ColorUtil.color("&7Storage: &e" + slots + " slots &7(" + (slots * 64) + " items)"));
             lore.add(ColorUtil.color("&7Upgrade Cost: &a" + (cost > 0 ? (cost + " items") : "Max Tier")));
             lore.add(ColorUtil.color("&8----------------------------"));
             lore.add(ColorUtil.color("&eLeft-Click to configure tier!"));
-            if (tier > 12) {
+            if (def == null && tier > 12) {
                 lore.add(ColorUtil.color("&cShift-Right-Click to delete custom tier!"));
             }
 
             inv.setItem(tier - 1, createItem(iconMat, ColorUtil.color("&6&lTier " + MinionTier.toRoman(tier) + " &7(Level " + tier + ")"), lore));
         }
 
-        // Add Tier Button at Slot 49
-        List<String> addLore = List.of(
-                ColorUtil.color("&7Click to create Tier &e" + (maxTier + 1) + "&7."),
-                ColorUtil.color("&7Immediately saves to &ftiers.yml&7.")
-        );
-        inv.setItem(49, createItem(Material.ANVIL, ColorUtil.color("&a&l[+] Create Tier " + (maxTier + 1)), addLore));
+        if (def != null) {
+            // Slot 49: Adjust Max Tier for this minion
+            List<String> maxTierLore = List.of(
+                    ColorUtil.color("&8----------------------------"),
+                    ColorUtil.color("&7Current Max Tier: &eTier " + MinionTier.toRoman(def.getMaxTier()) + " &7(" + def.getMaxTier() + ")"),
+                    ColorUtil.color("&8----------------------------"),
+                    ColorUtil.color("&aLeft-Click: &f+1 Max Tier"),
+                    ColorUtil.color("&cRight-Click: &f-1 Max Tier"),
+                    ColorUtil.color("&7Configures max tier cap for this minion in &fminions.yml&7.")
+            );
+            inv.setItem(49, createItem(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE,
+                    ColorUtil.color("&6&lMax Tier: Tier " + MinionTier.toRoman(def.getMaxTier())), maxTierLore));
+        } else {
+            // Add Global Tier Button at Slot 49
+            List<String> addLore = List.of(
+                    ColorUtil.color("&7Click to create Tier &e" + (maxTier + 1) + "&7."),
+                    ColorUtil.color("&7Immediately saves to &ftiers.yml&7.")
+            );
+            inv.setItem(49, createItem(Material.ANVIL, ColorUtil.color("&a&l[+] Create Tier " + (maxTier + 1)), addLore));
+        }
 
         // Back / Close at Slot 45
         inv.setItem(45, createItem(Material.BARRIER, ColorUtil.color("&c&lClose"), List.of(ColorUtil.color("&7Return to game."))));
@@ -75,7 +100,14 @@ public class TierEditorGUI {
     }
 
     public static void openEditor(Player player, int tier, double delay, int slots, int cost) {
-        String title = EDITOR_TITLE_PREFIX + MinionTier.toRoman(tier);
+        openEditor(player, null, tier, delay, slots, cost);
+    }
+
+    public static void openEditor(Player player, String minionId, int tier, double delay, int slots, int cost) {
+        com.minionx.api.MinionDefinition def = minionId != null ? com.minionx.api.MinionRegistry.get(minionId) : null;
+        String title = def != null
+                ? (MINION_EDITOR_PREFIX + def.getId() + "] Tier " + MinionTier.toRoman(tier))
+                : (EDITOR_TITLE_PREFIX + MinionTier.toRoman(tier));
         Inventory inv = Bukkit.createInventory(null, 27, title);
 
         ItemStack border = createItem(Material.GRAY_STAINED_GLASS_PANE, " ", null);
@@ -124,8 +156,8 @@ public class TierEditorGUI {
 
         // Save & Apply - Slot 22
         List<String> saveLore = List.of(
-                ColorUtil.color("&7Writes directly to &ftiers.yml&7"),
-                ColorUtil.color("&7and instantly updates all active minions."),
+                ColorUtil.color("&7Writes directly to &f" + (def != null ? "minions.yml" : "tiers.yml") + "&7"),
+                ColorUtil.color("&7and instantly updates active minions."),
                 ColorUtil.color("&eClick to confirm and save!")
         );
         inv.setItem(22, createItem(Material.LIME_CONCRETE, ColorUtil.color("&a&l✔ Save & Apply Changes"), saveLore));

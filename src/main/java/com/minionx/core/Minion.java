@@ -65,17 +65,54 @@ public class Minion {
         return minionId;
     }
 
-    public int getMaxTier() {
+    public com.minionx.api.MinionDefinition getDefinition() {
         if (customDefinitionId != null) {
-            com.minionx.api.MinionDefinition def = com.minionx.api.MinionRegistry.get(customDefinitionId);
-            if (def != null && def.getMaxTier() > 0) {
-                return def.getMaxTier();
-            }
+            return com.minionx.api.MinionRegistry.get(customDefinitionId);
+        }
+        if (type != null) {
+            return com.minionx.api.MinionRegistry.get(type.name().toLowerCase());
+        }
+        return null;
+    }
+
+    public int getMaxTier() {
+        com.minionx.api.MinionDefinition def = getDefinition();
+        if (def != null && def.getMaxTier() > 0) {
+            return def.getMaxTier();
         }
         if (type != null) {
             return type.getMaxTier();
         }
         return com.minionx.api.MinionTier.getMaxTier();
+    }
+
+    public double getBaseActionDelay() {
+        com.minionx.api.MinionDefinition def = getDefinition();
+        if (def != null) {
+            return def.getActionDelay(this.tier);
+        }
+        return MinionTier.getActionDelay(this.tier);
+    }
+
+    public int getStorageSlots() {
+        com.minionx.api.MinionDefinition def = getDefinition();
+        if (def != null) {
+            return def.getStorageSlots(this.tier);
+        }
+        return MinionTier.getStorageSlots(this.tier);
+    }
+
+    public int getMaxCapacity() {
+        return getStorageSlots() * 64;
+    }
+
+    public int getUpgradeCost() {
+        if (this.tier >= getMaxTier()) return 0;
+        com.minionx.api.MinionDefinition def = getDefinition();
+        if (def != null) {
+            return def.getUpgradeCost(this.tier);
+        }
+        return MinionTier.getUpgradeCost(this.tier);
     }
 
     public UUID getOwnerId() {
@@ -308,7 +345,7 @@ public class Minion {
     }
 
     public double getEffectiveActionDelay() {
-        double baseTime = MinionTier.getActionDelay(this.tier);
+        double baseTime = getBaseActionDelay();
         double totalBuff = 0.0;
 
         if (isFuelActive()) {
@@ -336,7 +373,7 @@ public class Minion {
      */
     public boolean canAccept(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return true;
-        int maxSlots = MinionTier.getStorageSlots(this.tier);
+        int maxSlots = getStorageSlots();
 
         // Check if item can stack with existing slots
         for (ItemStack stored : inventory) {
@@ -355,7 +392,7 @@ public class Minion {
      */
     public boolean addItem(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return true;
-        int maxSlots = MinionTier.getStorageSlots(this.tier);
+        int maxSlots = getStorageSlots();
         ItemStack toAdd = item.clone();
 
         // Try stacking into existing items
@@ -647,12 +684,6 @@ public class Minion {
     }
 
 
-    public MinionDefinition getDefinition() {
-        if (customDefinitionId != null) {
-            return MinionRegistry.get(customDefinitionId);
-        }
-        return type != null ? MinionRegistry.get(type.name().toLowerCase()) : null;
-    }
 
     public String getLastHologramText() {
         return lastHologramText;

@@ -1,5 +1,6 @@
 package com.minionx.api;
 
+import com.minionx.item.CustomItemSpec;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -43,19 +44,42 @@ public class MinionDefinition {
         }
     }
 
+    public static class TierData extends MinionTier.TierData {
+        public TierData(double actionDelay, int storageSlots, int upgradeCost) {
+            super(actionDelay, storageSlots, upgradeCost);
+        }
+    }
+
     public static class DropEntry {
         private final ItemStack item;
+        private final CustomItemSpec customItemSpec;
         private final int amount;
         private final double chance; // 0.0 to 1.0 (1.0 = 100%)
 
         public DropEntry(ItemStack item, int amount, double chance) {
+            this(item, CustomItemSpec.fromItemStack(item, chance), amount, chance);
+        }
+
+        public DropEntry(CustomItemSpec spec) {
+            this(spec != null ? spec.build() : new ItemStack(Material.COBBLESTONE),
+                    spec,
+                    spec != null ? spec.getAmount() : 1,
+                    spec != null ? spec.getChance() : 1.0);
+        }
+
+        public DropEntry(ItemStack item, CustomItemSpec customItemSpec, int amount, double chance) {
             this.item = item != null ? item.clone() : new ItemStack(Material.COBBLESTONE);
+            this.customItemSpec = customItemSpec != null ? customItemSpec : CustomItemSpec.fromItemStack(this.item, chance);
             this.amount = Math.max(1, amount);
             this.chance = Math.clamp(chance, 0.0, 1.0);
         }
 
         public ItemStack getItem() {
             return item.clone();
+        }
+
+        public CustomItemSpec getCustomItemSpec() {
+            return customItemSpec;
         }
 
         public int getAmount() {
@@ -67,9 +91,35 @@ public class MinionDefinition {
         }
 
         public ItemStack createDrop(int multiplier) {
-            ItemStack stack = item.clone();
+            ItemStack stack = customItemSpec != null ? customItemSpec.build() : item.clone();
             stack.setAmount(Math.max(1, amount * multiplier));
             return stack;
+        }
+
+        public Map<String, Object> toConfigMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            if (customItemSpec != null && customItemSpec.isCustom()) {
+                if (customItemSpec.getHookIdentifier() != null) {
+                    map.put("material", customItemSpec.getHookIdentifier());
+                } else {
+                    map.put("material", customItemSpec.getMaterial().name());
+                }
+                map.put("amount", amount);
+                map.put("chance", chance);
+                if (customItemSpec.getDisplayName() != null) map.put("display-name", customItemSpec.getDisplayName());
+                if (customItemSpec.getCustomModelData() != null) map.put("custom-model-data", customItemSpec.getCustomModelData());
+                if (!customItemSpec.getLore().isEmpty()) map.put("lore", customItemSpec.getLore());
+                if (customItemSpec.isGlow()) map.put("glow", true);
+                if (customItemSpec.getPdcKey() != null) {
+                    map.put("pdc-key", customItemSpec.getPdcKey());
+                    map.put("pdc-value", customItemSpec.getPdcValue() != null ? customItemSpec.getPdcValue() : "");
+                }
+            } else {
+                map.put("material", item.getType().name());
+                map.put("amount", amount);
+                map.put("chance", chance);
+            }
+            return map;
         }
     }
 
@@ -95,6 +145,7 @@ public class MinionDefinition {
 
     private int maxTier = 12;
     private final Map<Integer, TierStyle> tierStyles;
+    private final Map<Integer, MinionTier.TierData> customTiers = new HashMap<>();
 
     public MinionDefinition(String id, String displayName, MinionArchetype archetype,
                             String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor, ItemStack defaultHandItem,
@@ -332,5 +383,59 @@ public class MinionDefinition {
     public MinionDefinition withMaxTier(int maxTier) {
         setMaxTier(maxTier);
         return this;
+    }
+
+    public void setTierData(int tier, MinionTier.TierData data) {
+        if (data != null) {
+            this.customTiers.put(tier, data);
+            if (tier > this.maxTier) {
+                this.maxTier = tier;
+            }
+        } else {
+            this.customTiers.remove(tier);
+        }
+    }
+
+    public MinionTier.TierData getTierData(int tier) {
+        if (customTiers.containsKey(tier)) {
+            return customTiers.get(tier);
+        }
+        return MinionTier.getTierData(tier);
+    }
+
+    public Map<Integer, MinionTier.TierData> getCustomTiers() {
+        return Collections.unmodifiableMap(customTiers);
+    }
+
+    public double getActionDelay(int tier) {
+        if (customTiers.containsKey(tier)) {
+            return customTiers.get(tier).getActionDelay();
+        }
+        if (tier == 1 && defaultActionDelay > 0) {
+            return defaultActionDelay;
+        }
+        return MinionTier.getActionDelay(tier);
+    }
+
+    public int getStorageSlots(int tier) {
+        if (customTiers.containsKey(tier)) {
+            return customTiers.get(tier).getStorageSlots();
+        }
+        if (tier == 1 && defaultStorageSlots > 0) {
+            return defaultStorageSlots;
+        }
+        return MinionTier.getStorageSlots(tier);
+    }
+
+    public int getMaxCapacity(int tier) {
+        return getStorageSlots(tier) * 64;
+    }
+
+    public int getUpgradeCost(int currentTier) {
+        if (currentTier >= getMaxTier()) return 0;
+        if (customTiers.containsKey(currentTier)) {
+            return customTiers.get(currentTier).getUpgradeCost();
+        }
+        return MinionTier.getUpgradeCost(currentTier);
     }
 }

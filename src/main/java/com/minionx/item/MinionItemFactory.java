@@ -44,7 +44,8 @@ public class MinionItemFactory {
      * Creates a placeable minion item for a built-in MinionType.
      */
     public static ItemStack createMinionItem(MinionType type, int tier, int harvested) {
-        tier = Math.clamp(tier, 1, type != null ? type.getMaxTier() : 12);
+        if (type == null) return new ItemStack(Material.PLAYER_HEAD);
+        tier = Math.clamp(tier, 1, type.getMaxTier());
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
 
@@ -65,6 +66,10 @@ public class MinionItemFactory {
             FileConfiguration config = MinionX.getInstance() != null ? MinionX.getInstance().getConfig() : null;
             List<String> configuredLore = config != null ? config.getStringList("item-lore.minion-item") : null;
 
+            double delay = def != null ? def.getActionDelay(tier) : MinionTier.getActionDelay(tier);
+            int capacity = def != null ? def.getMaxCapacity(tier) : MinionTier.getMaxCapacity(tier);
+            int slots = def != null ? def.getStorageSlots(tier) : MinionTier.getStorageSlots(tier);
+
             List<String> lore = new ArrayList<>();
             if (configuredLore != null && !configuredLore.isEmpty()) {
                 for (String line : configuredLore) {
@@ -72,14 +77,14 @@ public class MinionItemFactory {
                             .replace("%type%", type.getDisplayName())
                             .replace("%tier%", String.valueOf(tier))
                             .replace("%tier_roman%", roman)
-                            .replace("%delay%", String.format("%.1f", MinionTier.getActionDelay(tier)))
-                            .replace("%capacity%", String.valueOf(MinionTier.getMaxCapacity(tier)))
-                            .replace("%slots%", String.valueOf(MinionTier.getStorageSlots(tier)))
+                            .replace("%delay%", String.format("%.1f", delay))
+                            .replace("%capacity%", String.valueOf(capacity))
+                            .replace("%slots%", String.valueOf(slots))
                             .replace("%harvested%", String.valueOf(harvested))));
                 }
             } else {
-                lore.add(ColorUtil.color("&7Time Between Actions: &a" + MinionTier.getActionDelay(tier) + "s"));
-                lore.add(ColorUtil.color("&7Max Storage: &e" + MinionTier.getMaxCapacity(tier) + " items &7(" + MinionTier.getStorageSlots(tier) + " slots)"));
+                lore.add(ColorUtil.color("&7Time Between Actions: &a" + String.format("%.1f", delay) + "s"));
+                lore.add(ColorUtil.color("&7Max Storage: &e" + capacity + " items &7(" + slots + " slots)"));
                 lore.add(ColorUtil.color("&7"));
                 lore.add(ColorUtil.color("&7Place this minion down to generate"));
                 lore.add(ColorUtil.color("&7and harvest resources on your island!"));
@@ -127,9 +132,9 @@ public class MinionItemFactory {
             List<String> configuredLore = config != null ? config.getStringList("item-lore.minion-item") : null;
 
             List<String> lore = new ArrayList<>();
-            double delay = def.getDefaultActionDelay();
-            int slots = def.getDefaultStorageSlots();
-            int capacity = slots * 64;
+            double delay = def.getActionDelay(tier);
+            int slots = def.getStorageSlots(tier);
+            int capacity = def.getMaxCapacity(tier);
 
             if (configuredLore != null && !configuredLore.isEmpty()) {
                 for (String line : configuredLore) {

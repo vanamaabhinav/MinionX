@@ -281,13 +281,11 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
-        int cost = MinionTier.getUpgradeCost(currentTier);
-        Material required = minion.getType().getDropMaterial();
-        if (minion.getCustomDefinitionId() != null) {
-            MinionDefinition def = MinionRegistry.get(minion.getCustomDefinitionId());
-            if (def != null && def.getExactDropItem() != null) {
-                required = def.getExactDropItem().getType();
-            }
+        int cost = minion.getUpgradeCost();
+        Material required = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
+        MinionDefinition def = minion.getDefinition();
+        if (def != null && def.getExactDropItem() != null && def.getExactDropItem().getType() != Material.AIR) {
+            required = def.getExactDropItem().getType();
         }
 
         if (!hasEnoughItems(player, required, cost)) {

@@ -362,6 +362,15 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        if (args.length >= 2) {
+            String target = args[1].toLowerCase();
+            com.minionx.api.MinionDefinition def = com.minionx.api.MinionRegistry.get(target);
+            if (def != null) {
+                com.minionx.gui.TierEditorGUI.openOverview(player, def.getId());
+                return;
+            }
+        }
+
         if (args.length >= 3 && "edit".equalsIgnoreCase(args[1])) {
             try {
                 int tier = Integer.parseInt(args[2]);
@@ -378,7 +387,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(ColorUtil.color("&6=== MinionX Commands ==="));
         sender.sendMessage(ColorUtil.color("&e/minion create &7- Open In-Game Minion Creator Studio"));
-        sender.sendMessage(ColorUtil.color("&e/minion tier [list|edit] &7- Open In-Game Tier Studio GUI"));
+        sender.sendMessage(ColorUtil.color("&e/minion tier [list|edit|<minion_id>] &7- Open Tier Studio GUI"));
         sender.sendMessage(ColorUtil.color("&e/minion give <player> <type|fuel|upgrade|skin> [tier|skin_id] &7- Give a minion, item, or skin"));
         sender.sendMessage(ColorUtil.color("&e/minion limit <check|add|remove|set> <player> [amount] &7- Manage player limits"));
         sender.sendMessage(ColorUtil.color("&e/minion list &7- View your placed minions"));
@@ -397,7 +406,9 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("tier")) {
-            return filter(List.of("list", "edit"), args[1]);
+            List<String> options = new ArrayList<>(List.of("list", "edit"));
+            options.addAll(MinionRegistry.getKeys());
+            return filter(options, args[1]);
         }
 
         if (args.length == 3 && args[0].equalsIgnoreCase("tier") && args[1].equalsIgnoreCase("edit")) {
