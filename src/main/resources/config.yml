@@ -235,3 +235,14 @@ messages:
 storage-layouts:
   use-custom-layouts: false
 
+# ==============================================================================
+# UPDATES & METRICS
+# ==============================================================================
+update-checker:
+  # Check for new MinionX releases on GitHub asynchronously on startup
+  enabled: true
+
+metrics:
+  # Send anonymous bStats metrics to help development
+  enabled: true
+

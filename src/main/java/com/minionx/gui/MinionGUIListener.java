@@ -238,11 +238,15 @@ public class MinionGUIListener implements Listener {
 
         int collectedCount = 0;
         for (ItemStack item : minion.getInventory()) {
-            collectedCount += item.getAmount();
+            int amount = item.getAmount();
+            Material itemType = item.getType();
+            collectedCount += amount;
             HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
             for (ItemStack left : leftover.values()) {
                 player.getWorld().dropItemNaturally(player.getLocation(), left);
             }
+            CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, amount);
+            com.minionx.hook.CollectionsHook.recordCollection(player, minion, itemType, amount);
         }
 
         minion.getInventory().clear();
@@ -633,6 +637,7 @@ public class MinionGUIListener implements Listener {
                 player.getWorld().dropItemNaturally(player.getLocation(), left);
             }
             CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, amount);
+            com.minionx.hook.CollectionsHook.recordCollection(player, minion, itemType, amount);
 
             int xp = minion.claimStoredXp();
             if (xp > 0) {

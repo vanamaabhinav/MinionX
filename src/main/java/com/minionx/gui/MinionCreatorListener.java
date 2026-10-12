@@ -6,6 +6,8 @@ import com.minionx.api.MinionDefinition;
 import com.minionx.api.MinionRegistry;
 import com.minionx.item.MinionItemFactory;
 import com.minionx.util.ColorUtil;
+import com.minionx.api.CustomFuel;
+import com.minionx.api.FuelRegistry;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.api.CustomMinionStorage;
 import com.minionx.api.MinionSkin;
@@ -139,6 +141,10 @@ public class MinionCreatorListener implements Listener {
         }
         if (event.getInventory().getHolder() instanceof MinionStorageCreatorHolder storageHolder) {
             handleStorageCreatorClick(event, (Player) event.getWhoClicked(), storageHolder.getSession());
+            return;
+        }
+        if (event.getInventory().getHolder() instanceof FuelCreatorHolder fuelHolder) {
+            handleFuelCreatorClick(event, (Player) event.getWhoClicked(), fuelHolder.getSession());
             return;
         }
         if (!(event.getInventory().getHolder() instanceof MinionCreatorHolder holder)) {
@@ -840,6 +846,132 @@ public class MinionCreatorListener implements Listener {
             ItemStack stItem = MinionItemFactory.createStorageItem(storage, 1);
             player.getInventory().addItem(stItem);
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSaved custom storage: &e" + storage.getDisplayName() + " &aand gave you 1x item!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
+            player.closeInventory();
+            return;
+        }
+    }
+
+    private void handleFuelCreatorClick(InventoryClickEvent event, Player player, FuelCreatorSession session) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot < 0 || slot >= 54) return;
+        ItemStack cursor = event.getCursor();
+
+        if (slot == 45) {
+            player.closeInventory();
+            return;
+        }
+
+        if (slot == 2) {
+            promptChat(player, () -> FuelCreatorGUI.open(player, session),
+                    "Enter Fuel ID & Display Name: 'fuel_id &eMy Fuel' (or 'cancel'):", input -> {
+                        String[] parts = input.trim().split(" ", 2);
+                        if (parts.length > 0 && !parts[0].isEmpty()) session.setId(parts[0].toLowerCase());
+                        if (parts.length > 1 && !parts[1].isEmpty()) session.setDisplayName(ColorUtil.color(parts[1]));
+                    });
+            return;
+        }
+
+        if (slot == 4) {
+            if (cursor != null && cursor.getType() != Material.AIR) {
+                session.setMaterial(cursor.getType());
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSet fuel material to: &e" + cursor.getType().name()));
+            } else {
+                Material[] mats = FuelCreatorGUI.PRESET_MATERIALS;
+                int curIdx = 0;
+                for (int i = 0; i < mats.length; i++) {
+                    if (mats[i] == session.getMaterial()) {
+                        curIdx = i;
+                        break;
+                    }
+                }
+                session.setMaterial(mats[(curIdx + 1) % mats.length]);
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 6) {
+            int cmd = session.getCustomModelData();
+            if (event.isShiftClick()) {
+                if (event.isLeftClick()) cmd += 100;
+                else cmd = 0;
+            } else {
+                if (event.isLeftClick()) cmd += 1;
+                else cmd = Math.max(0, cmd - 1);
+            }
+            session.setCustomModelData(cmd);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 19) {
+            session.setSpeedBuff(session.getSpeedBuff() - 0.10);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+            FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 20) {
+            session.setSpeedBuff(session.getSpeedBuff() - 0.05);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+            FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 24) {
+            session.setSpeedBuff(session.getSpeedBuff() + 0.05);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.4f);
+            FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 25) {
+            session.setSpeedBuff(session.getSpeedBuff() + 0.10);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.4f);
+            FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 29) {
+            session.cycleDuration();
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 31) {
+            session.setPermanent(!session.isPermanent());
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.3f);
+            FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 33) {
+            session.setGlow(!session.isGlow());
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.3f);
+            FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        if (slot == 40 || slot == 53) {
+            CustomFuel fuel = session.toCustomFuel();
+            ItemStack fuelItem = MinionItemFactory.createFuelItem(fuel);
+            player.getInventory().addItem(fuelItem);
+            player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aGave you 1x test copy of: &e" + fuel.getDisplayName()));
+            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
+            return;
+        }
+
+        if (slot == 49) {
+            CustomFuel fuel = session.toCustomFuel();
+            FuelRegistry.saveFuel(fuel, session.getDurationString());
+            ItemStack fuelItem = MinionItemFactory.createFuelItem(fuel);
+            player.getInventory().addItem(fuelItem);
+            player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSaved custom fuel: &e" + fuel.getDisplayName() + " &aand added to &ffuels.yml&a!"));
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
             player.closeInventory();
             return;

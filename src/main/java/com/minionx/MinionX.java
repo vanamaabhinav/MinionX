@@ -95,6 +95,10 @@ public class MinionX extends JavaPlugin {
             minionStorage.saveAllAsync(minionManager);
         }, autoSaveInterval, autoSaveInterval);
 
+        // Initialize UpdateChecker & bStats Metrics
+        com.minionx.util.UpdateChecker.init(this);
+        com.minionx.util.MinionXMetrics.init(this);
+
         getLogger().info("MinionX has been enabled successfully!");
     }
 

@@ -294,6 +294,13 @@ public class OperatorGUI {
         inv.setItem(49, createNamedItem(Material.ARROW, ColorUtil.color("&cBack to Main Menu"),
                 List.of(ColorUtil.color("&7Return to the main operator interface."))));
 
+        inv.setItem(50, createNamedItem(Material.BLAST_FURNACE, ColorUtil.color("&e&lFuel Creator Studio"),
+                List.of(ColorUtil.color("&7Design and configure custom temporary"),
+                        ColorUtil.color("&7or permanent minion fuels in-game"),
+                        ColorUtil.color("&7with direct persistence to &ffuels.yml&7."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to open Fuel Studio"))));
+
         player.openInventory(inv);
     }
 

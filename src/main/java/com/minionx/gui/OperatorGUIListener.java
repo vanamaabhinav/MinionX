@@ -202,6 +202,11 @@ public class OperatorGUIListener implements Listener {
             return;
         }
 
+        if (slot == 50 && clicked.getType() == Material.BLAST_FURNACE) {
+            FuelCreatorGUI.open(player, null);
+            return;
+        }
+
         if (clicked.getType() == Material.LAVA_BUCKET && slot == 4) {
             return;
         }

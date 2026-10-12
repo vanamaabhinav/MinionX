@@ -5,6 +5,7 @@ import com.minionx.api.MinionStorageRegistry;
 import com.minionx.api.CustomMinionStorage;
 import com.minionx.gui.MinionSkinCreatorGUI;
 import com.minionx.gui.MinionStorageCreatorGUI;
+import com.minionx.gui.FuelCreatorGUI;
 
 
 import com.minionx.MinionX;
@@ -83,6 +84,9 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 return;
             } else if ("storage".equalsIgnoreCase(args[1])) {
                 MinionStorageCreatorGUI.open(player, null);
+                return;
+            } else if ("fuel".equalsIgnoreCase(args[1])) {
+                FuelCreatorGUI.open(player, null);
                 return;
             }
         }
@@ -386,6 +390,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(List.of("create", "tier", "give", "limit", "list", "killall", "purge", "reload"), args[0]);
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
+            return filter(List.of("minion", "skin", "storage", "fuel"), args[1]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("tier")) {

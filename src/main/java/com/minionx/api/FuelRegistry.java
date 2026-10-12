@@ -77,6 +77,54 @@ public class FuelRegistry {
         }
     }
 
+    public static void saveFuel(CustomFuel fuel, String durationStr) {
+        if (fuel == null) return;
+        register(fuel);
+
+        if (com.minionx.MinionX.getInstance() == null) return;
+        java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "fuels.yml");
+        org.bukkit.configuration.file.YamlConfiguration config = file.exists()
+                ? org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file)
+                : new org.bukkit.configuration.file.YamlConfiguration();
+
+        String path = "fuels." + fuel.getId().toLowerCase();
+        config.set(path + ".display-name", fuel.getDisplayName());
+        config.set(path + ".material", fuel.getMaterial().name());
+        config.set(path + ".speed-buff", fuel.getSpeedBuff());
+        config.set(path + ".duration", durationStr != null ? durationStr : (fuel.isPermanent() ? "permanent" : "1h"));
+        config.set(path + ".glow", fuel.isGlowing());
+        if (fuel.getCustomModelData() > 0) {
+            config.set(path + ".custom-model-data", fuel.getCustomModelData());
+        }
+        if (fuel.getLore() != null && !fuel.getLore().isEmpty()) {
+            config.set(path + ".lore", fuel.getLore());
+        }
+
+        try {
+            config.save(file);
+        } catch (java.io.IOException e) {
+            com.minionx.MinionX.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Could not save fuel " + fuel.getId() + " to fuels.yml", e);
+        }
+    }
+
+    public static boolean removeFuel(String id) {
+        if (id == null) return false;
+        FUELS.remove(id.toLowerCase());
+
+        if (com.minionx.MinionX.getInstance() == null) return true;
+        java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "fuels.yml");
+        if (!file.exists()) return true;
+
+        org.bukkit.configuration.file.YamlConfiguration config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+        config.set("fuels." + id.toLowerCase(), null);
+        try {
+            config.save(file);
+        } catch (java.io.IOException e) {
+            com.minionx.MinionX.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Could not delete fuel " + id + " from fuels.yml", e);
+        }
+        return true;
+    }
+
     public static CustomFuel get(String id) {
         if (id == null) return null;
         return FUELS.get(id.toLowerCase());
