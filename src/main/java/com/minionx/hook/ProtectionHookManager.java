@@ -111,6 +111,8 @@ public class ProtectionHookManager {
      * Determines whether a player is authorized to access, open GUI, or pick up a minion.
      */
     public static boolean canAccessMinion(Player player, Minion minion) {
+        if (player == null || minion == null) return false;
+        if (minion.getOwnerId() == null) return true;
         if (player.getUniqueId().equals(minion.getOwnerId())) return true;
         if (player.hasPermission("minionx.admin")) return true;
 

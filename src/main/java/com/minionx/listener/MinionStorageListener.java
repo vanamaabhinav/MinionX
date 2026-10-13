@@ -9,6 +9,7 @@ import com.minionx.gui.MinionStorageGUI;
 import com.minionx.gui.MinionStorageHolder;
 import com.minionx.gui.SymmetricalSlotCalculator;
 import com.minionx.item.MinionItemFactory;
+import com.minionx.hook.ProtectionHookManager;
 import com.minionx.quarantine.QuarantineManager;
 import com.minionx.util.ColorUtil;
 import org.bukkit.Location;
@@ -76,6 +77,22 @@ public class MinionStorageListener implements Listener {
         }
 
         if (storageId == null) return;
+
+        // Prevent placing Minion Storage adjacent to ANY other chest (normal, trapped, or another minion storage)
+        Block[] storageNeighbors = new Block[]{
+                block.getRelative(org.bukkit.block.BlockFace.NORTH),
+                block.getRelative(org.bukkit.block.BlockFace.SOUTH),
+                block.getRelative(org.bukkit.block.BlockFace.EAST),
+                block.getRelative(org.bukkit.block.BlockFace.WEST)
+        };
+        for (Block neighbor : storageNeighbors) {
+            if (neighbor.getType() == Material.CHEST || neighbor.getType() == Material.TRAPPED_CHEST || isAnyStorageBlock(neighbor)) {
+                event.setCancelled(true);
+                player.sendMessage(ColorUtil.color("&cYou cannot place Minion Storage chests directly adjacent to other chests!"));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
+            }
+        }
 
         // 1. Quarantine Mode Check
         if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
@@ -148,6 +165,12 @@ public class MinionStorageListener implements Listener {
             com.minionx.MinionX.getInstance().getMinionManager().registerStorageBlock(block.getLocation(), targetMinion.getMinionId());
         }
 
+        // Force chest to be a single chest so Minecraft/Paper never attempts double chest merge
+        if (block.getBlockData() instanceof org.bukkit.block.data.type.Chest chestData) {
+            chestData.setType(org.bukkit.block.data.type.Chest.Type.SINGLE);
+            block.setBlockData(chestData, false);
+        }
+
         // Mark block with PDC
         if (block.getState() instanceof TileState tile) {
             PersistentDataContainer pdc = tile.getPersistentDataContainer();
@@ -180,9 +203,9 @@ public class MinionStorageListener implements Listener {
         event.setCancelled(true);
         Player player = event.getPlayer();
 
-        // Check Storage Ownership (Issue 10)
-        if (minion.getOwnerId() != null && !minion.getOwnerId().equals(player.getUniqueId()) && !player.hasPermission("minionx.admin")) {
-            player.sendMessage(ColorUtil.color("&cYou do not own this minion storage!"));
+        // Check Storage Access (Owner, Team Member, or Admin)
+        if (!ProtectionHookManager.canAccessMinion(player, minion)) {
+            player.sendMessage(ColorUtil.color("&cYou do not have permission to access this minion storage!"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
@@ -207,10 +230,10 @@ public class MinionStorageListener implements Listener {
 
         Player player = event.getPlayer();
 
-        // Check Storage Ownership on break (Issue 10)
-        if (minion.getOwnerId() != null && !minion.getOwnerId().equals(player.getUniqueId()) && !player.hasPermission("minionx.admin")) {
+        // Check Storage Access on break
+        if (!ProtectionHookManager.canAccessMinion(player, minion)) {
             event.setCancelled(true);
-            player.sendMessage(ColorUtil.color("&cYou do not own this minion storage!"));
+            player.sendMessage(ColorUtil.color("&cYou do not have permission to break this minion storage!"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
@@ -224,18 +247,30 @@ public class MinionStorageListener implements Listener {
 
         event.setDropItems(false);
 
-        // Drop stored contents
-        for (ItemStack item : minion.getStorageContents()) {
-            if (item != null && item.getType() != Material.AIR) {
-                block.getWorld().dropItemNaturally(block.getLocation(), item);
+        // Only drop storage items and stored contents if player is NOT in Creative mode (prevents creative dupe exploit)
+        if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+            // Drop stored contents
+            for (ItemStack item : minion.getStorageContents()) {
+                if (item != null && item.getType() != Material.AIR) {
+                    block.getWorld().dropItemNaturally(block.getLocation(), item);
+                }
+            }
+
+            // Drop the storage item itself
+            CustomMinionStorage st = minion.getLinkedStorage();
+            if (st != null) {
+                block.getWorld().dropItemNaturally(block.getLocation(), MinionItemFactory.createStorageItem(st));
             }
         }
         minion.getStorageContents().clear();
 
-        // Drop the storage item itself
-        CustomMinionStorage st = minion.getLinkedStorage();
-        if (st != null) {
-            block.getWorld().dropItemNaturally(block.getLocation(), MinionItemFactory.createStorageItem(st));
+        // Clear PDC on tile to completely invalidate residual block data
+        if (block.getState() instanceof TileState tile) {
+            PersistentDataContainer pdc = tile.getPersistentDataContainer();
+            pdc.remove(STORAGE_BLOCK_KEY);
+            pdc.remove(LINKED_MINION_KEY);
+            pdc.remove(STORAGE_ID_KEY);
+            tile.update();
         }
 
         if (com.minionx.MinionX.getInstance() != null && com.minionx.MinionX.getInstance().getMinionManager() != null && minion.getLinkedStorageLocation() != null) {

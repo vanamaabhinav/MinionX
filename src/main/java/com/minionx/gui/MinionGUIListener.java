@@ -153,43 +153,43 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
-        // Collect All Items & Claim Stored XP (Slot 48 or 46)
-        if (slot == MinionGUIConfig.getCollectAllSlot() || slot == 46 || slot == 45) {
+        // Collect All Items & Claim Stored XP
+        if (slot == MinionGUIConfig.getCollectAllSlot()) {
             handleCollectAll(player, minion);
             return;
         }
 
-        // Quick-Upgrade Minion Tier (Slot 50 or 49)
-        if (slot == MinionGUIConfig.getUpgradeTierSlot() || slot == 49) {
+        // Quick-Upgrade Minion Tier
+        if (slot == MinionGUIConfig.getUpgradeTierSlot()) {
             handleUpgrade(player, minion);
             return;
         }
 
-        // Pickup Minion (Slot 53)
+        // Pickup Minion
         if (slot == MinionGUIConfig.getPickupSlot()) {
             handlePickup(player, minion);
             return;
         }
 
-        // Fuel Slot Click (Slot 19 or 9)
-        if (slot == MinionGUIConfig.getFuelSlot() || slot == 9) {
+        // Fuel Slot Click
+        if (slot == MinionGUIConfig.getFuelSlot()) {
             handleFuelSlot(player, minion, event);
             return;
         }
 
-        // Upgrade Slot 1 Click (Slot 37 or 27)
-        if (slot == MinionGUIConfig.getUpgrade1Slot() || slot == 27) {
+        // Upgrade Slot 1 Click
+        if (slot == MinionGUIConfig.getUpgrade1Slot()) {
             handleUpgradeSlot(player, minion, 1, event);
             return;
         }
 
-        // Upgrade Slot 2 Click (Slot 46 or 36)
-        if (slot == MinionGUIConfig.getUpgrade2Slot() || slot == 36) {
+        // Upgrade Slot 2 Click
+        if (slot == MinionGUIConfig.getUpgrade2Slot()) {
             handleUpgradeSlot(player, minion, 2, event);
             return;
         }
 
-        // Minion Skin Slot Click (Slot 10 or 37)
+        // Minion Skin Slot Click
         if (slot == MinionGUIConfig.getSkinSlot()) {
             handleSkinSlot(player, minion, event);
             return;

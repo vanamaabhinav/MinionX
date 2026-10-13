@@ -24,6 +24,9 @@ permissions:
   minionx.use:
     description: Allows players to interact with, place, and view minions
     default: true
+  minionx.storage:
+    description: Allows players to open and access linked minion storage chests
+    default: true
   minionx.bypass.limit:
     description: Allows bypassing the per-player minion placement limit
     default: op
