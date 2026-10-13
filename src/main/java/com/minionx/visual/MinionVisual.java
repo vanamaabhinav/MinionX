@@ -69,6 +69,10 @@ public class MinionVisual {
                 }
                 if (skin.hasArmorColor()) {
                     armorColor = skin.getArmorColor();
+                    // If skin specifies armor color, ensure armor material is leather so full dyeing set takes effect
+                    if (armorMat == null || !armorMat.name().startsWith("LEATHER_")) {
+                        armorMat = Material.LEATHER_CHESTPLATE;
+                    }
                 }
                 if (skin.hasHandItem()) {
                     handItem = skin.getHandItem();

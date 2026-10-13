@@ -92,4 +92,69 @@ public class MinionHeadsAndSkinsTest {
         assertEquals(OperatorHolder.ViewType.SKINS_CATALOG, holder.getViewType());
         assertEquals(0, holder.getContext());
     }
+
+    @Test
+    @DisplayName("Should verify builtin skins have authentic thematic armor colors")
+    void testBuiltinSkinArmorColors() {
+        MinionSkin snowman = MinionSkinRegistry.get("snowman");
+        assertNotNull(snowman);
+        assertTrue(snowman.hasArmorColor());
+        assertEquals(org.bukkit.Color.fromRGB(240, 248, 255), snowman.getArmorColor());
+
+        MinionSkin santa = MinionSkinRegistry.get("santa");
+        assertNotNull(santa);
+        assertTrue(santa.hasArmorColor());
+        assertEquals(org.bukkit.Color.fromRGB(183, 28, 28), santa.getArmorColor());
+
+        MinionSkin penguin = MinionSkinRegistry.get("penguin");
+        assertNotNull(penguin);
+        assertTrue(penguin.hasArmorColor());
+        assertEquals(org.bukkit.Color.fromRGB(33, 33, 33), penguin.getArmorColor());
+    }
+
+    @Test
+    @DisplayName("Should load custom skins from YAML configuration section")
+    void testCustomSkinYamlLoading() {
+        org.bukkit.configuration.file.YamlConfiguration yaml = new org.bukkit.configuration.file.YamlConfiguration();
+        yaml.set("skins.ruby_warrior.display-name", "&cRuby Warrior");
+        yaml.set("skins.ruby_warrior.skull-texture", "fake_ruby_base64_texture");
+        yaml.set("skins.ruby_warrior.armor-color", "#E53935");
+        yaml.set("skins.ruby_warrior.armor-material", "LEATHER");
+        yaml.set("skins.ruby_warrior.hand-item", "NETHERITE_SWORD");
+        yaml.set("skins.ruby_warrior.description", java.util.List.of("&7Forged from pure nether ruby."));
+
+        yaml.set("skins.gold_titan.display-name", "&6Gold Titan");
+        yaml.set("skins.gold_titan.skull-texture", "fake_gold_texture");
+        yaml.set("skins.gold_titan.armor-material", "GOLD");
+        yaml.set("skins.gold_titan.hand-item", "GOLDEN_AXE");
+
+        MinionSkinRegistry.loadCustomSkins(yaml.getConfigurationSection("skins"));
+
+        MinionSkin ruby = MinionSkinRegistry.get("ruby_warrior");
+        assertNotNull(ruby);
+        assertEquals("&cRuby Warrior", ruby.getDisplayName());
+        assertEquals("fake_ruby_base64_texture", ruby.getSkullTexture());
+        assertTrue(ruby.hasArmorColor());
+        assertEquals(org.bukkit.Color.fromRGB(0xE53935), ruby.getArmorColor());
+        assertEquals(org.bukkit.Material.LEATHER_CHESTPLATE, ruby.getArmorMaterial());
+        assertTrue(ruby.hasHandItem());
+        assertEquals(org.bukkit.Material.NETHERITE_SWORD, ruby.getHandItem().getType());
+
+        MinionSkin gold = MinionSkinRegistry.get("gold_titan");
+        assertNotNull(gold);
+        assertEquals(org.bukkit.Material.GOLDEN_CHESTPLATE, gold.getArmorMaterial());
+        assertFalse(gold.hasArmorColor());
+        assertEquals(org.bukkit.Material.GOLDEN_AXE, gold.getHandItem().getType());
+    }
+
+    @Test
+    @DisplayName("Should parse various color formats correctly")
+    void testColorParsing() {
+        assertEquals(org.bukkit.Color.fromRGB(0xFF0000), com.minionx.util.ColorUtil.parseColor("#FF0000"));
+        assertEquals(org.bukkit.Color.fromRGB(0x00FF00), com.minionx.util.ColorUtil.parseColor("0x00FF00"));
+        assertEquals(org.bukkit.Color.fromRGB(255, 128, 0), com.minionx.util.ColorUtil.parseColor("255, 128, 0"));
+        assertEquals(org.bukkit.Color.RED, com.minionx.util.ColorUtil.parseColor("RED"));
+        assertEquals(org.bukkit.Color.BLUE, com.minionx.util.ColorUtil.parseColor("BLUE"));
+        assertEquals("#FF5555", com.minionx.util.ColorUtil.toHexString(org.bukkit.Color.fromRGB(255, 85, 85)));
+    }
 }

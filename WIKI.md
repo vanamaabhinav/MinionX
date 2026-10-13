@@ -170,12 +170,14 @@ Fuel items boost minion action speed when placed into **Slot 19**.
 
 ## 7. Cosmetic Minion Skins & Armor Sets
 
-Minion skins change the visual look of minions on your server.
+Minion skins transform both the head texture and the armor color/material of minions on your server.
 
-* **Authentic Armor Sets**: Minions are dressed in full matching armor sets (Helmet, Chestplate, Leggings, and Boots) in dyed leather or metals.
-* **Head Models**: Authentic offline-bundled heads give each minion a distinctive personality.
-* **Held Items**: Minions hold tools matching their archetype (Pickaxes, Axes, Hoes, Swords).
-* **Skin Socketing**: Equipped through **Slot 10** in the Minion GUI. Skins cannot be placed as normal blocks in the world.
+* **Custom Skull Textures**: Authentic offline-bundled heads give each minion a distinctive personality.
+* **Full-Body Armor Sets & Color Tinting**: Equipping a skin styles the ArmorStand with a complete armor set (Chestplate, Leggings, and Boots). When an armor color is specified (e.g. `#D32F2F` or named colors), matching leather armor is dyed with that exact hex/RGB color.
+* **Metallic Armor Materials**: Skins can also equip full metal armor sets (`DIAMOND`, `GOLD`, `IRON`, `NETHERITE`, or `CHAINMAIL`).
+* **Custom Held Items**: Skins can equip weapons, tools, or special items in the minion's main hand (e.g. Swords, Sugar Cane, Emeralds).
+* **Configurable in `skins.yml`**: Define custom server skins directly in `plugins/MinionX/skins.yml` or create them in-game via the Skin Creator Studio. Hot-reload with `/minion reload`.
+* **Skin Socketing**: Equipped through **Slot 10** in the Minion GUI. Left-click with a skin on cursor to apply, or click empty-handed on an active skin to retrieve it safely.
 
 ---
 
@@ -353,18 +355,27 @@ fuels:
 ```
 
 ### `skins.yml` (Cosmetic Skins & Armor Sets)
-Defines visual cosmetics:
+Defines cosmetic skins with custom skull textures, armor colors, materials, and held tools:
 ```yaml
 skins:
-  cyber_knight:
-    display-name: "&bCyber Knight"
-    skull: "<base64_texture>"
-    armor:
-      helmet: LEATHER_HELMET
-      chestplate: IRON_CHESTPLATE
-      leggings: IRON_LEGGINGS
-      boots: IRON_BOOTS
-      leather-color: "#00E5FF"
+  santa:
+    display-name: "&cSanta Minion Skin"
+    skull-texture: "<base64_texture>"
+    armor-color: "#D32F2F"          # Hex (#RRGGBB), RGB (255,85,85), or Name (RED, BLUE)
+    armor-material: LEATHER         # Sets armor material (LEATHER for full dyed armor)
+    hand-item: SUGAR_CANE           # Optional held weapon/tool
+    description:
+      - "&7Ho ho ho! A festive Christmas"
+      - "&7skin for your hardworking minion."
+
+  golden_king:
+    display-name: "&6Golden King Skin"
+    skull-texture: "<base64_texture>"
+    armor-material: GOLD            # Metallic armor (GOLD, IRON, DIAMOND, NETHERITE)
+    hand-item: GOLDEN_SWORD
+    description:
+      - "&7A royal skin adorned with"
+      - "&7gleaming gold and majesty."
 ```
 
 ### `storages.yml` (Storage Expansion Capacities)

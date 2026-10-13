@@ -698,17 +698,15 @@ public class MinionCreatorListener implements Listener {
         if (slot == 14) {
             if (event.isRightClick()) {
                 promptChat(player, () -> MinionSkinCreatorGUI.open(player, session),
-                        "Enter RGB values 'R G B' (e.g. '255 100 50') or Hex ('#FF6432'):", input -> {
+                        "Enter RGB values 'R G B' (e.g. '255 100 50'), Hex ('#FF6432'), or Name ('RED'):", input -> {
                     try {
-                        String clean = input.trim().replace("#", "");
-                        if (clean.contains(" ")) {
-                            String[] rgb = clean.split("\\s+");
-                            session.setLeatherColor(Color.fromRGB(Integer.parseInt(rgb[0]), Integer.parseInt(rgb[1]), Integer.parseInt(rgb[2])));
-                        } else if (clean.length() == 6) {
-                            int r = Integer.parseInt(clean.substring(0, 2), 16);
-                            int g = Integer.parseInt(clean.substring(2, 4), 16);
-                            int b = Integer.parseInt(clean.substring(4, 6), 16);
-                            session.setLeatherColor(Color.fromRGB(r, g, b));
+                        String clean = input.trim();
+                        Color parsed = ColorUtil.parseColor(clean.replace(" ", ","));
+                        if (parsed == null) {
+                            parsed = ColorUtil.parseColor(clean);
+                        }
+                        if (parsed != null) {
+                            session.setLeatherColor(parsed);
                         }
                     } catch (Exception ignored) {}
                 });

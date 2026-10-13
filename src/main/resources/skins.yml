@@ -1,0 +1,72 @@
+# ==============================================================================
+# MinionX - Custom Skins Configuration (skins.yml)
+# ==============================================================================
+# Configure cosmetic skins for Minions.
+# Skins customize the Minion ArmorStand with:
+#   - Custom player head texture (base64 texture string or built-in head ID)
+#   - Matching armor color (full set: chestplate, leggings, and boots)
+#   - Custom armor material (LEATHER, CHAINMAIL, IRON, GOLD, DIAMOND, NETHERITE)
+#   - Custom held hand weapon/tool
+#   - Custom display name and lore description
+#
+# Schema:
+#   <skin_id>:
+#     display-name: "&cSkin Display Name"
+#     skull-texture: "<base64_texture_or_head_key>"
+#     armor-color: "#FF5555"          # Hex (#RRGGBB), RGB (255,85,85), or Color Name (RED, BLUE, GOLD, etc.)
+#     armor-material: LEATHER         # LEATHER, IRON, GOLD, DIAMOND, NETHERITE (default: LEATHER)
+#     hand-item: DIAMOND_SWORD        # Optional held weapon/tool
+#     description:
+#       - "&7Lore description line 1"
+#       - "&7Lore description line 2"
+# ==============================================================================
+
+skins:
+  santa:
+    display-name: "&cSanta Minion Skin"
+    skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTRhMjQzZTU1OWU5OWExMGJmMWFlNGU2YmFmYmY0MTA1ODhhMTVhM2Q2YzVjOGVmMjljMWE4YmRiNWYzMWFjYyJ9fX0="
+    armor-color: "#D32F2F"
+    armor-material: LEATHER
+    hand-item: SUGAR_CANE
+    description:
+      - "&7Ho ho ho! A festive Christmas"
+      - "&7skin for your hardworking minion."
+
+  frost_knight:
+    display-name: "&bFrost Knight Skin"
+    skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTZlOWFlMTVmNTRkOWI5ZTEyZGIzOWZhZTZlODlhMWY4MmU1YzlmOTBhOTRkZjljYzg0MjM1YWM3NzFmIn19fQ=="
+    armor-color: "#00E5FF"
+    armor-material: LEATHER
+    hand-item: DIAMOND_SWORD
+    description:
+      - "&7Chilled armor imbued with"
+      - "&7the icy essence of the north."
+
+  shadow_ninja:
+    display-name: "&8Shadow Ninja Skin"
+    skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTRmODcxMThjZGEyMmQ0OWU4OTU1ZTZiYWY4Nzg2MzIxMzAxYWI5N2M3YjU3Mzg4YTFhMjAxYjU2YTUxZiJ9fX0="
+    armor-color: "#212121"
+    armor-material: LEATHER
+    hand-item: NETHERITE_SWORD
+    description:
+      - "&7Silent and unseen, operating"
+      - "&7from the darkest shadows."
+
+  golden_king:
+    display-name: "&6Golden King Skin"
+    skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNTZmYzg1NGJiODRjZjRiNDcxN2UxNTQ4MDU1NmU3NzM4ZTExYzcxM2NkMzlmYTkyOTAyMTUzNzYzMTIzMzEifX19"
+    armor-material: GOLD
+    hand-item: GOLDEN_SWORD
+    description:
+      - "&7A royal skin adorned with"
+      - "&7gleaming gold and majesty."
+
+  emerald_sorcerer:
+    display-name: "&aEmerald Sorcerer Skin"
+    skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMmVkZjQzOTBhMDUzYTM0MWE0MjNmNmE2ZDUwOTIxOWRhOTU1NDJjZWFjMzFiODIxYmFlNzBmYTY1NDQ2In19fQ=="
+    armor-color: "#00E676"
+    armor-material: LEATHER
+    hand-item: EMERALD
+    description:
+      - "&7Radiates mystical jade energy"
+      - "&7and ancient woodland wisdom."

@@ -163,6 +163,7 @@ public class MinionX extends JavaPlugin {
     private org.bukkit.configuration.file.FileConfiguration recipesConfig;
     private org.bukkit.configuration.file.FileConfiguration messagesConfig;
     private org.bukkit.configuration.file.FileConfiguration minionsConfig;
+    private org.bukkit.configuration.file.FileConfiguration skinsConfig;
 
     public org.bukkit.configuration.file.FileConfiguration loadSubConfig(String fileName) {
         java.io.File file = new java.io.File(getDataFolder(), fileName);
@@ -184,6 +185,7 @@ public class MinionX extends JavaPlugin {
         this.recipesConfig = loadSubConfig("recipes.yml");
         this.messagesConfig = loadSubConfig("messages.yml");
         this.minionsConfig = loadSubConfig("minions.yml");
+        this.skinsConfig = loadSubConfig("skins.yml");
 
         org.bukkit.configuration.ConfigurationSection tiersSec = tiersConfig.contains("tiers")
                 ? tiersConfig.getConfigurationSection("tiers")
@@ -206,7 +208,12 @@ public class MinionX extends JavaPlugin {
         CompressionManager.loadRecipes(recipesSec);
 
         MinionRegistry.load(minionsConfig);
-        MinionSkinRegistry.loadBuiltinSkins();
+
+        org.bukkit.configuration.ConfigurationSection skinsSec = (skinsConfig != null && skinsConfig.contains("skins"))
+                ? skinsConfig.getConfigurationSection("skins")
+                : skinsConfig;
+        MinionSkinRegistry.load(skinsSec);
+
         MinionStorageRegistry.load();
         PriceRegistry.load();
         getLogger().info("Loaded " + MinionTier.getMaxTier() + " tiers, " + FuelRegistry.getKeys().size() + " fuels, " +
@@ -242,4 +249,5 @@ public class MinionX extends JavaPlugin {
     public org.bukkit.configuration.file.FileConfiguration getRecipesConfig() { return recipesConfig; }
     public org.bukkit.configuration.file.FileConfiguration getMessagesConfig() { return messagesConfig; }
     public org.bukkit.configuration.file.FileConfiguration getMinionsConfig() { return minionsConfig; }
+    public org.bukkit.configuration.file.FileConfiguration getSkinsConfig() { return skinsConfig; }
 }

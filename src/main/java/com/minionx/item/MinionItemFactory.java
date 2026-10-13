@@ -273,6 +273,14 @@ public class MinionItemFactory {
             for (String l : skin.getDescription()) {
                 lore.add(ColorUtil.color(l));
             }
+            if (skin.hasArmorColor()) {
+                lore.add(ColorUtil.color("&7Armor Color: &f" + ColorUtil.toHexString(skin.getArmorColor())));
+            } else if (skin.hasArmorMaterial()) {
+                lore.add(ColorUtil.color("&7Armor Material: &f" + skin.getArmorMaterial().name()));
+            }
+            if (skin.hasHandItem() && skin.getHandItem().getType() != Material.AIR) {
+                lore.add(ColorUtil.color("&7Held Item: &f" + skin.getHandItem().getType().name()));
+            }
             lore.add(ColorUtil.color("&7"));
             lore.add(ColorUtil.color("&ePlace in a Minion's skin slot!"));
             meta.setLore(lore);
