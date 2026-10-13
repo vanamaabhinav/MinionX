@@ -113,6 +113,9 @@ public class MinionVisual {
         });
 
         minion.setArmorStandId(stand.getUniqueId());
+        if (com.minionx.MinionX.getInstance() != null && com.minionx.MinionX.getInstance().getMinionManager() != null) {
+            com.minionx.MinionX.getInstance().getMinionManager().linkEntity(stand.getUniqueId(), minion);
+        }
         return stand;
     }
 
@@ -255,7 +258,7 @@ public class MinionVisual {
         ItemStack armor = new ItemStack(material);
         LeatherArmorMeta meta = (LeatherArmorMeta) armor.getItemMeta();
         if (meta != null) {
-            meta.setColor(color);
+            meta.setColor(color != null ? color : Color.fromRGB(120, 120, 120));
             armor.setItemMeta(meta);
         }
         return armor;

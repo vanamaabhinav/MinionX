@@ -88,6 +88,9 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             } else if ("fuel".equalsIgnoreCase(args[1])) {
                 FuelCreatorGUI.open(player, null);
                 return;
+            } else if ("upgrade".equalsIgnoreCase(args[1]) || "hopper".equalsIgnoreCase(args[1])) {
+                com.minionx.gui.UpgradeCreatorGUI.open(player, null);
+                return;
             }
         }
 
@@ -402,7 +405,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
-            return filter(List.of("minion", "skin", "storage", "fuel"), args[1]);
+            return filter(List.of("minion", "skin", "storage", "fuel", "upgrade", "hopper"), args[1]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("tier")) {

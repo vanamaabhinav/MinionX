@@ -103,8 +103,8 @@ public class MinionGUIListener implements Listener {
                     return;
                 }
 
-                // Normal player inventory item shift-click
-                event.setCancelled(false);
+                // Prevent arbitrary player items from being shift-clicked into the virtual Minion GUI (Issue 7 & 10)
+                event.setCancelled(true);
                 return;
             } else {
                 // Allow normal item movement/pickup in player's own inventory
@@ -116,49 +116,84 @@ public class MinionGUIListener implements Listener {
         // Click is within top minion GUI (0 <= slot <= 53)
         event.setCancelled(true);
 
-        // 2. Collect All Items & Claim Stored XP (Slot 46 or 45)
-        if (slot == MinionGUIConfig.getCollectAllSlot() || slot == 45) {
+        // Ideal Layout (Slot 3)
+        if (slot == MinionGUIConfig.getIdealLayoutSlot()) {
+            player.sendMessage(ColorUtil.color("&e----------------------------------------"));
+            player.sendMessage(ColorUtil.color("&6&lMinion Ideal Layout Guide"));
+            player.sendMessage(ColorUtil.color("&7To function optimally, this minion requires a"));
+            player.sendMessage(ColorUtil.color("&a5x5 square area &7centered around the minion"));
+            player.sendMessage(ColorUtil.color("&7on the same ground level."));
+            player.sendMessage(ColorUtil.color("&7Keep the area flat and free of obstacles!"));
+            player.sendMessage(ColorUtil.color("&e----------------------------------------"));
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.5f);
+            return;
+        }
+
+        // Next Tier Info (Slot 5)
+        if (slot == MinionGUIConfig.getNextTierSlot()) {
+            int nextTier = minion.getTier() + 1;
+            if (nextTier > minion.getMaxTier()) {
+                player.sendMessage(ColorUtil.color("&cThis minion is already at the maximum tier (" + MinionTier.toRoman(minion.getMaxTier()) + ")!"));
+            } else {
+                Material mat = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
+                if (minion.getDefinition() != null && minion.getDefinition().getExactDropItem() != null && minion.getDefinition().getExactDropItem().getType() != Material.AIR) {
+                    mat = minion.getDefinition().getExactDropItem().getType();
+                }
+                player.sendMessage(ColorUtil.color("&e[Next Tier] Upgrade to Tier " + MinionTier.toRoman(nextTier) + " requires: &a" + minion.getUpgradeCost() + "x " + mat.name().replace("_", " ").toLowerCase() + " &7(Use Quick-Upgrade below!)"));
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.2f);
+            return;
+        }
+
+        // Automated Shipping Slot Click (Slot 28)
+        if (slot == MinionGUIConfig.getAutomatedShippingSlot()) {
+            handleShippingSlotClick(player, minion, event);
+            return;
+        }
+
+        // Collect All Items & Claim Stored XP (Slot 48 or 46)
+        if (slot == MinionGUIConfig.getCollectAllSlot() || slot == 46 || slot == 45) {
             handleCollectAll(player, minion);
             return;
         }
 
-        // 3. Upgrade Minion Tier (Slot 49)
-        if (slot == MinionGUIConfig.getUpgradeTierSlot()) {
+        // Quick-Upgrade Minion Tier (Slot 50 or 49)
+        if (slot == MinionGUIConfig.getUpgradeTierSlot() || slot == 49) {
             handleUpgrade(player, minion);
             return;
         }
 
-        // 4. Pickup Minion (Slot 53)
+        // Pickup Minion (Slot 53)
         if (slot == MinionGUIConfig.getPickupSlot()) {
             handlePickup(player, minion);
             return;
         }
 
-        // 5. Fuel Slot Click (Slot 9)
-        if (slot == MinionGUIConfig.getFuelSlot()) {
+        // Fuel Slot Click (Slot 19 or 9)
+        if (slot == MinionGUIConfig.getFuelSlot() || slot == 9) {
             handleFuelSlot(player, minion, event);
             return;
         }
 
-        // 6. Upgrade Slot 1 Click (Slot 27)
-        if (slot == MinionGUIConfig.getUpgrade1Slot()) {
+        // Upgrade Slot 1 Click (Slot 37 or 27)
+        if (slot == MinionGUIConfig.getUpgrade1Slot() || slot == 27) {
             handleUpgradeSlot(player, minion, 1, event);
             return;
         }
 
-        // 7. Upgrade Slot 2 Click (Slot 36)
-        if (slot == MinionGUIConfig.getUpgrade2Slot()) {
+        // Upgrade Slot 2 Click (Slot 46 or 36)
+        if (slot == MinionGUIConfig.getUpgrade2Slot() || slot == 36) {
             handleUpgradeSlot(player, minion, 2, event);
             return;
         }
 
-        // 7.5. Minion Skin Slot Click (Slot 37)
+        // Minion Skin Slot Click (Slot 10 or 37)
         if (slot == MinionGUIConfig.getSkinSlot()) {
             handleSkinSlot(player, minion, event);
             return;
         }
 
-        // 8. Individual Storage Slot Clicks (Slots 12-16, 21-25, 30-34)
+        // Storage Slot Clicks (Slots 21-25, 30-34, 39-43)
         int storageIndex = MinionGUIConfig.getStorageIndex(slot);
         if (storageIndex >= 0) {
             handleStorageSlotClick(player, minion, storageIndex);
@@ -222,7 +257,7 @@ public class MinionGUIListener implements Listener {
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
-        if (minion.getInventory().isEmpty()) {
+        if (minion.getInventory().isEmpty() && minion.getStorageContents().isEmpty() && minion.getShippingCoins() <= 0) {
             player.sendMessage(ColorUtil.color("&cYour minion has no items to collect!"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
@@ -237,7 +272,9 @@ public class MinionGUIListener implements Listener {
         }
 
         int collectedCount = 0;
+        // 1. Collect from minion internal inventory
         for (ItemStack item : minion.getInventory()) {
+            if (item == null || item.getType() == Material.AIR) continue;
             int amount = item.getAmount();
             Material itemType = item.getType();
             collectedCount += amount;
@@ -248,8 +285,31 @@ public class MinionGUIListener implements Listener {
             CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, amount);
             com.minionx.hook.CollectionsHook.recordCollection(player, minion, itemType, amount);
         }
-
         minion.getInventory().clear();
+
+        // 2. Collect from linked minion storage chest
+        for (ItemStack item : minion.getStorageContents()) {
+            if (item == null || item.getType() == Material.AIR) continue;
+            int amount = item.getAmount();
+            Material itemType = item.getType();
+            collectedCount += amount;
+            HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+            for (ItemStack left : leftover.values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), left);
+            }
+            CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, amount);
+            com.minionx.hook.CollectionsHook.recordCollection(player, minion, itemType, amount);
+        }
+        minion.getStorageContents().clear();
+
+        // 3. Collect coins from Automated Shipping hopper
+        if (minion.getShippingCoins() > 0) {
+            double coins = minion.claimShippingCoins();
+            if (com.minionx.hook.EconomyHook.hasEconomy()) {
+                com.minionx.hook.EconomyHook.deposit(player, coins);
+            }
+            player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &afrom Automated Shipping!"));
+        }
 
         if (minion.getState() == MinionState.FULL) {
             minion.setState(MinionState.IDLE);
@@ -271,6 +331,73 @@ public class MinionGUIListener implements Listener {
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
 
         MinionGUI.open(player, minion);
+    }
+
+    private void handleShippingSlotClick(Player player, Minion minion, InventoryClickEvent event) {
+        ItemStack cursor = event.getCursor();
+
+        // 1. If a shipping hopper is currently equipped:
+        if (minion.getShippingId() != null) {
+            if (event.isShiftClick()) {
+                CustomUpgrade hopper = minion.getShippingUpgrade();
+                minion.setShippingId(null);
+
+                // Collect accumulated coins
+                if (minion.getShippingCoins() > 0) {
+                    double coins = minion.claimShippingCoins();
+                    if (com.minionx.hook.EconomyHook.hasEconomy()) {
+                        com.minionx.hook.EconomyHook.deposit(player, coins);
+                    }
+                    player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &afrom Automated Shipping!"));
+                }
+
+                if (hopper != null) {
+                    giveOrDrop(player, MinionItemFactory.createUpgradeItem(hopper));
+                    player.sendMessage(ColorUtil.color("&aRemoved Automated Shipping hopper (&f" + hopper.getDisplayName() + "&a)!"));
+                }
+                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+                MinionGUI.open(player, minion);
+                return;
+            } else {
+                // Regular click: collect coins
+                if (minion.getShippingCoins() > 0) {
+                    double coins = minion.claimShippingCoins();
+                    if (com.minionx.hook.EconomyHook.hasEconomy()) {
+                        com.minionx.hook.EconomyHook.deposit(player, coins);
+                        player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &afrom Automated Shipping!"));
+                    } else {
+                        player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &7(Vault not installed)."));
+                    }
+                    player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
+                    MinionGUI.open(player, minion);
+                    return;
+                } else {
+                    player.sendMessage(ColorUtil.color("&7No coins accumulated yet! Overflow items will automatically sell for coins when storage is full."));
+                    player.sendMessage(ColorUtil.color("&7Shift-Click this slot to retrieve your hopper."));
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.0f);
+                    return;
+                }
+            }
+        }
+
+        // 2. If no hopper equipped, check if cursor holds an auto-seller hopper:
+        if (cursor != null && !cursor.getType().isAir()) {
+            String upId = MinionItemFactory.getUpgradeId(cursor);
+            CustomUpgrade upgrade = upId != null ? UpgradeRegistry.get(upId) : null;
+            if (upgrade != null && upgrade.isAutoSeller()) {
+                minion.setShippingId(upId);
+                cursor.setAmount(cursor.getAmount() - 1);
+                player.setItemOnCursor(cursor.getAmount() > 0 ? cursor : null);
+
+                player.sendMessage(ColorUtil.color("&aEquipped &f" + upgrade.getDisplayName() + " &ain Automated Shipping!"));
+                player.playSound(player.getLocation(), Sound.BLOCK_CHEST_LOCKED, 1.0f, 1.2f);
+                MinionGUI.open(player, minion);
+                return;
+            }
+        }
+
+        player.sendMessage(ColorUtil.color("&e[Automated Shipping] Place a Budget Hopper or Enchanted Hopper here to auto-sell overflow items!"));
+        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
     }
 
     private void handleUpgrade(Player player, Minion minion) {

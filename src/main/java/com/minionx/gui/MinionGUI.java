@@ -25,57 +25,66 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Builds the authentic 54-slot MinionX chest interface.
- * Faithfully formatted with dark gray glass panes, distinct upgrade/fuel sockets,
- * and high-fidelity status lores.
+ * Builds the authentic 54-slot Hypixel-style Minion chest interface.
+ * Faithfully formatted with exact Hypixel layout and stained glass pane color codes:
+ * - Top Row: Ideal Layout (Torch), Minion Head (Status), Next Tier (Gold Ingot)
+ * - Left Modifiers: Green Pane (Skin), Orange Pane (Fuel), Yellow Pane (Shipping), Blue Panes (Upgrades)
+ * - Middle-Right Storage Grid: 15 slots (21-25, 30-34, 39-43) with Red Panes for locked slots
+ * - Bottom Row: Chest (Collect All), Diamond (Quick-Upgrade), Bedrock (Pickup Minion)
+ * - Borders: Sleek Black Stained Glass Panes
  */
 @SuppressWarnings("deprecation")
 public class MinionGUI {
-
-    public static final String GUI_TITLE_PREFIX = "Minion: ";
 
     /**
      * Creates and opens the Minion GUI for the player.
      */
     public static void open(Player player, Minion minion) {
-        String title = GUI_TITLE_PREFIX + minion.getDisplayName() + " " + MinionTier.toRoman(minion.getTier());
+        // Authentic Hypixel title: Name Minion Tier (e.g. Cobblestone Minion I)
+        String title = minion.getDisplayName() + " Minion " + MinionTier.toRoman(minion.getTier());
         Inventory inv = Bukkit.createInventory(new MinionHolder(minion), 54, title);
 
-        // MinionX style: Sleek Gray Stained Glass Pane borders
-        ItemStack filler = createPane(Material.GRAY_STAINED_GLASS_PANE, " ");
+        // Fillers: Sleek Black Stained Glass Pane
+        ItemStack filler = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
             inv.setItem(i, filler);
         }
 
-        // 1. Minion Head (Row 0, Center: Slot 4)
+        // Top Row: Information & Requirements
+        inv.setItem(MinionGUIConfig.getIdealLayoutSlot(), createIdealLayoutItem());
         inv.setItem(MinionGUIConfig.getHeadSlot(), createHeadItem(minion));
+        inv.setItem(MinionGUIConfig.getNextTierSlot(), createNextTierInfoItem(minion));
 
-        // 2. Fuel Slot (Row 1, Column 0: Slot 9)
-        int fuelSlot = MinionGUIConfig.getFuelSlot();
-        if (minion.isFuelActive()) {
-            inv.setItem(fuelSlot, createActiveFuelItem(minion));
-        } else {
-            inv.setItem(fuelSlot, createEmptyFuelItem());
-        }
-
-        // 3. Automated Shipping Slot (Row 2, Column 0: Slot 18)
-        inv.setItem(MinionGUIConfig.getAutomatedShippingSlot(), createNamedItem(Material.HOPPER, ColorUtil.color("&cAutomated Shipping &7(Locked)"),
-                List.of(ColorUtil.color("&7Automatically sells excess items"),
-                        ColorUtil.color("&7when minion storage fills."))));
-
-        // 4. Upgrade Slots (Row 3, Column 0: Slot 27 & Row 4, Column 0: Slot 36)
-        inv.setItem(MinionGUIConfig.getUpgrade1Slot(), createUpgradeSlotItem(minion.getCustomUpgrade1(), 1));
-        inv.setItem(MinionGUIConfig.getUpgrade2Slot(), createUpgradeSlotItem(minion.getCustomUpgrade2(), 2));
-
-        // 5. Minion Skin Cosmetic Slot (Slot 37)
+        // Left Column: Modifiers & Automation (Colored Panes)
+        // Slot 10: Minion Skin (Green Pane)
         int skinSlot = MinionGUIConfig.getSkinSlot();
         if (minion.hasSkin()) {
             inv.setItem(skinSlot, createActiveSkinItem(minion.getSkin()));
         } else {
-            inv.setItem(skinSlot, createEmptySkinItem());
+            inv.setItem(skinSlot, createEmptySkinPane());
         }
 
-        // 6. Storage Slots (Rows 1-3, Columns 3-7: Slots 12-16, 21-25, 30-34)
+        // Slot 19: Fuel (Orange Pane)
+        int fuelSlot = MinionGUIConfig.getFuelSlot();
+        if (minion.isFuelActive()) {
+            inv.setItem(fuelSlot, createActiveFuelItem(minion));
+        } else {
+            inv.setItem(fuelSlot, createEmptyFuelPane());
+        }
+
+        // Slot 28: Automated Shipping (Yellow Pane or Equipped Hopper)
+        int shippingSlot = MinionGUIConfig.getAutomatedShippingSlot();
+        if (minion.getShippingId() != null) {
+            inv.setItem(shippingSlot, createActiveShippingItem(minion));
+        } else {
+            inv.setItem(shippingSlot, createShippingPane());
+        }
+
+        // Slots 37 & 46: Minion Upgrades (Blue Panes)
+        inv.setItem(MinionGUIConfig.getUpgrade1Slot(), createUpgradeSlotItem(minion.getCustomUpgrade1(), 1));
+        inv.setItem(MinionGUIConfig.getUpgrade2Slot(), createUpgradeSlotItem(minion.getCustomUpgrade2(), 2));
+
+        // Middle Grid: Storage (Slots 21-25, 30-34, 39-43)
         int[] storageSlots = MinionGUIConfig.getStorageSlots();
         int unlockedSlots = minion.getStorageSlots();
         List<ItemStack> items = minion.getInventory();
@@ -83,22 +92,31 @@ public class MinionGUI {
         for (int i = 0; i < storageSlots.length; i++) {
             int slot = storageSlots[i];
             if (i < unlockedSlots) {
-                if (i < items.size()) {
+                if (i < items.size() && items.get(i) != null) {
                     inv.setItem(slot, items.get(i).clone());
                 } else {
                     inv.setItem(slot, new ItemStack(Material.AIR)); // Empty unlocked storage slot
                 }
             } else {
-                inv.setItem(slot, createLockedStoragePane(i + 1));
+                inv.setItem(slot, createLockedStoragePane(minion, i));
             }
         }
 
-        // 7. Action Buttons (Bottom Row)
+        // Bottom Row: Quick Actions
         inv.setItem(MinionGUIConfig.getCollectAllSlot(), createCollectAllItem(minion));
-        inv.setItem(MinionGUIConfig.getUpgradeTierSlot(), createUpgradeButtonItem(minion));
+        inv.setItem(MinionGUIConfig.getUpgradeTierSlot(), createQuickUpgradeItem(minion));
         inv.setItem(MinionGUIConfig.getPickupSlot(), createPickupItem());
 
         player.openInventory(inv);
+    }
+
+    private static ItemStack createIdealLayoutItem() {
+        return createNamedItem(Material.REDSTONE_TORCH, ColorUtil.color("&aIdeal Layout"),
+                List.of(ColorUtil.color("&7Click to view the optimal 5x5 block setup"),
+                        ColorUtil.color("&7and environment required around the minion"),
+                        ColorUtil.color("&7for it to harvest and spawn correctly."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to view layout guide!")));
     }
 
     private static ItemStack createHeadItem(Minion minion) {
@@ -139,7 +157,9 @@ public class MinionGUI {
                             .replace("%status%", minion.getState().getDisplayStatus())));
                 }
             } else {
+                lore.add(ColorUtil.color("&7Current Tier: &e" + MinionTier.toRoman(minion.getTier())));
                 lore.add(ColorUtil.color("&7Time Between Actions: &a" + String.format("%.1f", minion.getEffectiveActionDelay()) + "s"));
+                lore.add(ColorUtil.color("&7Max Storage: &e" + minion.getMaxCapacity() + " items &7(" + minion.getStorageSlots() + " slots)"));
                 lore.add(ColorUtil.color("&7Total Harvested: &e" + minion.getTotalHarvested()));
                 lore.add(ColorUtil.color("&7Items Stored: &f" + minion.getTotalStoredCount() + " &7/ &e" + minion.getMaxCapacity()));
                 lore.add(ColorUtil.color("&7Status: " + minion.getState().getDisplayStatus()));
@@ -151,13 +171,68 @@ public class MinionGUI {
         return item;
     }
 
-    private static ItemStack createEmptyFuelItem() {
-        return createNamedItem(Material.BUCKET, ColorUtil.color("&6Fuel Slot"),
-                List.of(ColorUtil.color("&7Increase the speed of your"),
-                        ColorUtil.color("&7minion by adding fuel!"),
+    private static ItemStack createNextTierInfoItem(Minion minion) {
+        int currentTier = minion.getTier();
+        if (currentTier >= minion.getMaxTier()) {
+            return createNamedItem(Material.BEDROCK, ColorUtil.color("&cMax Tier Reached"),
+                    List.of(ColorUtil.color("&7This minion has attained its"),
+                            ColorUtil.color("&7highest possible tier (" + MinionTier.toRoman(currentTier) + ")!")));
+        }
+
+        int nextTier = currentTier + 1;
+        int cost = minion.getUpgradeCost();
+        MinionDefinition def = minion.getDefinition();
+        double curDelay = minion.getBaseActionDelay();
+        double nextDelay = def != null ? def.getActionDelay(nextTier) : MinionTier.getActionDelay(nextTier);
+        int curCap = minion.getMaxCapacity();
+        int nextCap = def != null ? def.getMaxCapacity(nextTier) : MinionTier.getMaxCapacity(nextTier);
+
+        Material mat = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
+        if (def != null && def.getExactDropItem() != null && def.getExactDropItem().getType() != Material.AIR) {
+            mat = def.getExactDropItem().getType();
+        }
+        String matName = mat.name().replace("_", " ").toLowerCase();
+
+        return createNamedItem(Material.GOLD_INGOT, ColorUtil.color("&aNext Tier: &eTier " + MinionTier.toRoman(nextTier)),
+                List.of(ColorUtil.color("&7Action Delay: &f" + String.format("%.1f", curDelay) + "s &8-> &a" + String.format("%.1f", nextDelay) + "s"),
+                        ColorUtil.color("&7Storage: &f" + curCap + " &8-> &a" + nextCap),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick or Shift-Click with fuel to insert!"),
-                        ColorUtil.color("&7Stackable fuels (Coal, etc.) add all quantity duration.")));
+                        ColorUtil.color("&7Crafting Cost: &e" + cost + "x " + matName),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick or use Quick-Upgrade below to upgrade!")));
+    }
+
+    private static ItemStack createEmptySkinPane() {
+        return createNamedItem(Material.LIME_STAINED_GLASS_PANE, ColorUtil.color("&aMinion Skin"),
+                List.of(ColorUtil.color("&7A cosmetic slot where you can equip"),
+                        ColorUtil.color("&7a skin to change the visual appearance"),
+                        ColorUtil.color("&7of the minion on your island."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick with a skin item to equip!")));
+    }
+
+    public static ItemStack createActiveSkinItem(com.minionx.api.MinionSkin skin) {
+        if (skin == null) return createEmptySkinPane();
+        ItemStack item = com.minionx.item.MinionItemFactory.createSkinItem(skin);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+            lore.add(ColorUtil.color("&7"));
+            lore.add(ColorUtil.color("&aCurrently Equipped"));
+            lore.add(ColorUtil.color("&eClick to remove and retrieve skin."));
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private static ItemStack createEmptyFuelPane() {
+        return createNamedItem(Material.ORANGE_STAINED_GLASS_PANE, ColorUtil.color("&6Fuel"),
+                List.of(ColorUtil.color("&7A slot used for placing Fuel items"),
+                        ColorUtil.color("&7(such as Coal or an Enchanted Lava Bucket)"),
+                        ColorUtil.color("&7to boost the minion's production speed."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick or Shift-Click with fuel to insert!")));
     }
 
     private static ItemStack createActiveFuelItem(Minion minion) {
@@ -188,12 +263,42 @@ public class MinionGUI {
         return createNamedItem(Material.LAVA_BUCKET, ColorUtil.color("&aFuel Active: " + name), lore);
     }
 
+    private static ItemStack createActiveShippingItem(Minion minion) {
+        CustomUpgrade hopper = minion.getShippingUpgrade();
+        String name = hopper != null ? hopper.getDisplayName() : "&eAutomated Shipping";
+        double ratio = (hopper != null && hopper.getSellRatio() > 0) ? hopper.getSellRatio() * 100.0 : 50.0;
+        double coins = minion.getShippingCoins();
+
+        List<String> lore = new ArrayList<>();
+        lore.add(ColorUtil.color("&7Equipped: &f" + (hopper != null ? hopper.getDisplayName() : "Hopper")));
+        lore.add(ColorUtil.color("&7Sell Ratio: &e" + (int) Math.round(ratio) + "% of NPC sell price"));
+        lore.add(ColorUtil.color("&7Stored Coins: &6" + String.format("%,.1f", coins) + " coins"));
+        lore.add(ColorUtil.color("&7"));
+        if (coins > 0) {
+            lore.add(ColorUtil.color("&eClick to collect stored coins!"));
+        }
+        lore.add(ColorUtil.color("&cShift-Click with empty hand to remove hopper!"));
+
+        return createNamedItem(Material.HOPPER, ColorUtil.color(name), lore);
+    }
+
+    private static ItemStack createShippingPane() {
+        return createNamedItem(Material.YELLOW_STAINED_GLASS_PANE, ColorUtil.color("&eAutomated Shipping"),
+                List.of(ColorUtil.color("&7A slot to equip hoppers (like the"),
+                        ColorUtil.color("&7Budget Hopper or Enchanted Hopper)."),
+                        ColorUtil.color("&7Automatically sells overflow resources for"),
+                        ColorUtil.color("&7coins when minion and storage are full!"),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick with a hopper on cursor to equip!")));
+    }
+
     private static ItemStack createUpgradeSlotItem(CustomUpgrade upgrade, int slotIndex) {
         if (upgrade == null) {
-            return createNamedItem(Material.IRON_BARS, ColorUtil.color("&dUpgrade Slot " + slotIndex),
-                    List.of(ColorUtil.color("&7Enhance your minion with upgrades"),
-                            ColorUtil.color("&7like the Auto-Smelter, Compactor,"),
-                            ColorUtil.color("&7or Diamond Spreading!"),
+            return createNamedItem(Material.BLUE_STAINED_GLASS_PANE, ColorUtil.color("&9Minion Upgrade " + slotIndex),
+                    List.of(ColorUtil.color("&7Utility slot for function-altering upgrades."),
+                            ColorUtil.color("&7Equip items like a Super Compactor 3000,"),
+                            ColorUtil.color("&7Diamond Spreading, Auto-Smelter,"),
+                            ColorUtil.color("&7or Minion Expander!"),
                             ColorUtil.color("&7"),
                             ColorUtil.color("&eClick or Shift-Click with an upgrade to insert!")));
         }
@@ -204,22 +309,35 @@ public class MinionGUI {
                         ColorUtil.color("&eClick to retrieve upgrade!")));
     }
 
-    private static ItemStack createLockedStoragePane(int slotIndex) {
-        return createNamedItem(Material.RED_STAINED_GLASS_PANE, ColorUtil.color("&cLocked Storage Slot &7(#" + slotIndex + ")"),
-                List.of(ColorUtil.color("&7Upgrade your minion tier to unlock!")));
+    private static ItemStack createLockedStoragePane(Minion minion, int slotIndex) {
+        int unlockTier = getUnlockTierForStorageSlot(minion, slotIndex);
+        String roman = MinionTier.toRoman(unlockTier);
+        return createNamedItem(Material.RED_STAINED_GLASS_PANE, ColorUtil.color("&cLocked Slot &7(Tier " + roman + ")"),
+                List.of(ColorUtil.color("&7Requires &eTier " + roman + " &7to unlock!"),
+                        ColorUtil.color("&7Upgrade this minion to unlock more storage.")));
+    }
+
+    private static int getUnlockTierForStorageSlot(Minion minion, int slotIndex) {
+        for (int t = 1; t <= minion.getMaxTier(); t++) {
+            int slotsAtTier = minion.getDefinition() != null ? minion.getDefinition().getStorageSlots(t) : MinionTier.getStorageSlots(t);
+            if (slotsAtTier > slotIndex) {
+                return t;
+            }
+        }
+        return minion.getMaxTier();
     }
 
     private static ItemStack createCollectAllItem(Minion minion) {
         int count = minion.getTotalStoredCount();
-        return createNamedItem(Material.CHEST, ColorUtil.color("&aCollect All Items &7(" + count + ")"),
-                List.of(ColorUtil.color("&7Click to instantly transfer all"),
-                        ColorUtil.color("&7stored resources and vanilla XP"),
-                        ColorUtil.color("&7into your inventory!"),
+        return createNamedItem(Material.CHEST, ColorUtil.color("&aCollect All &7(" + count + ")"),
+                List.of(ColorUtil.color("&7Clicking this gathers all the resources"),
+                        ColorUtil.color("&7currently stored inside the minion and its"),
+                        ColorUtil.color("&7storage and transfers them directly into your inventory."),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick to collect!")));
+                        ColorUtil.color("&eClick to collect all!")));
     }
 
-    private static ItemStack createUpgradeButtonItem(Minion minion) {
+    private static ItemStack createQuickUpgradeItem(Minion minion) {
         int currentTier = minion.getTier();
         if (currentTier >= minion.getMaxTier()) {
             return createNamedItem(Material.BEDROCK, ColorUtil.color("&cMax Tier Reached"),
@@ -230,54 +348,27 @@ public class MinionGUI {
         int nextTier = currentTier + 1;
         int cost = minion.getUpgradeCost();
         MinionDefinition def = minion.getDefinition();
-        double curDelay = minion.getBaseActionDelay();
-        double nextDelay = def != null ? def.getActionDelay(nextTier) : MinionTier.getActionDelay(nextTier);
-        int curCap = minion.getMaxCapacity();
-        int nextCap = def != null ? def.getMaxCapacity(nextTier) : MinionTier.getMaxCapacity(nextTier);
-
         Material mat = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
         if (def != null && def.getExactDropItem() != null && def.getExactDropItem().getType() != Material.AIR) {
             mat = def.getExactDropItem().getType();
         }
-
         String matName = mat.name().replace("_", " ").toLowerCase();
 
-        return createNamedItem(Material.ANVIL, ColorUtil.color("&aUpgrade to Tier " + MinionTier.toRoman(nextTier)),
-                List.of(ColorUtil.color("&7Action Delay: &f" + String.format("%.1f", curDelay) + "s &8-> &a" + String.format("%.1f", nextDelay) + "s"),
-                        ColorUtil.color("&7Storage: &f" + curCap + " &8-> &a" + nextCap),
+        return createNamedItem(Material.DIAMOND, ColorUtil.color("&aQuick-Upgrade Minion"),
+                List.of(ColorUtil.color("&7Clicking this instantly levels up the"),
+                        ColorUtil.color("&7minion to &eTier " + MinionTier.toRoman(nextTier) + "&7, provided you have"),
+                        ColorUtil.color("&7the required resources in your personal inventory."),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&7Cost: &e" + cost + "x " + matName),
+                        ColorUtil.color("&7Required: &e" + cost + "x " + matName),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick with items to upgrade!")));
-    }
-
-    public static ItemStack createActiveSkinItem(com.minionx.api.MinionSkin skin) {
-        if (skin == null) return createEmptySkinItem();
-        ItemStack item = com.minionx.item.MinionItemFactory.createSkinItem(skin);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-            lore.add(ColorUtil.color("&7"));
-            lore.add(ColorUtil.color("&aCurrently Applied to this Minion"));
-            lore.add(ColorUtil.color("&eClick to remove and retrieve skin."));
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
-
-    public static ItemStack createEmptySkinItem() {
-        return createNamedItem(Material.LEATHER_CHESTPLATE, ColorUtil.color("&dMinion Skin Slot"),
-                List.of(ColorUtil.color("&7Slot an authentic minion skin here"),
-                        ColorUtil.color("&7to transform its helmet and styling!"),
-                        ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick with a skin item to apply.")));
+                        ColorUtil.color("&eClick to quick-upgrade!")));
     }
 
     private static ItemStack createPickupItem() {
-        return createNamedItem(Material.REDSTONE_BLOCK, ColorUtil.color("&cPickup Minion"),
-                List.of(ColorUtil.color("&7Packs up the minion and delivers"),
-                        ColorUtil.color("&7it back into your inventory."),
+        return createNamedItem(Material.BEDROCK, ColorUtil.color("&cPickup Minion"),
+                List.of(ColorUtil.color("&7Clicking this instantly un-places the"),
+                        ColorUtil.color("&7minion and returns it, along with any equipped"),
+                        ColorUtil.color("&7items or stored resources, back to your inventory."),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&cClick to pickup minion!")));
     }

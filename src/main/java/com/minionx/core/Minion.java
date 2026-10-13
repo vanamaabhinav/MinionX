@@ -25,6 +25,8 @@ public class Minion {
     private String upgrade1Id;
     private String upgrade2Id;
     private String skinId;
+    private String shippingId;
+    private double shippingCoins;
 
     private long lastActionTime;
     private boolean lastActionWasPlace;
@@ -59,6 +61,10 @@ public class Minion {
         this.totalHarvested = 0;
         this.state = MinionState.IDLE;
         this.fuelEndTime = 0;
+    }
+
+    public Minion(UUID minionId, MinionType type, int tier) {
+        this(minionId, null, type, tier, null);
     }
 
     public UUID getMinionId() {
@@ -326,6 +332,43 @@ public class Minion {
         return skinId != null && getSkin() != null;
     }
 
+    public String getShippingId() {
+        return shippingId;
+    }
+
+    public void setShippingId(String shippingId) {
+        this.shippingId = shippingId != null && !shippingId.isBlank() ? shippingId.toLowerCase() : null;
+    }
+
+    public CustomUpgrade getShippingUpgrade() {
+        return shippingId != null ? UpgradeRegistry.get(shippingId) : null;
+    }
+
+    public boolean hasAutoSeller() {
+        CustomUpgrade u = getShippingUpgrade();
+        return u != null && u.isAutoSeller();
+    }
+
+    public double getShippingCoins() {
+        return shippingCoins;
+    }
+
+    public void setShippingCoins(double coins) {
+        this.shippingCoins = Math.max(0.0, coins);
+    }
+
+    public void addShippingCoins(double coins) {
+        if (coins > 0) {
+            this.shippingCoins += coins;
+        }
+    }
+
+    public double claimShippingCoins() {
+        double c = this.shippingCoins;
+        this.shippingCoins = 0.0;
+        return c;
+    }
+
     public void setUpgradeType2(MinionUpgradeType upgrade2) {
         setUpgrade2(upgrade2);
     }
@@ -370,32 +413,61 @@ public class Minion {
 
     /**
      * Checks if the minion has room to accept another item stack.
+     * Evaluates internal inventory slots, linked storage chest capacity,
+     * and Automated Shipping hoppers (which auto-sell overflow items for coins).
      */
     public boolean canAccept(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return true;
         int maxSlots = getStorageSlots();
 
-        // Check if item can stack with existing slots
+        // 1. Check if item can stack with existing internal inventory slots
         for (ItemStack stored : inventory) {
             if (isSameItem(stored, item) && stored.getAmount() < stored.getMaxStackSize()) {
                 return true;
             }
         }
 
-        // Check if new empty slot is available
-        return inventory.size() < maxSlots;
+        // 2. Check if new empty internal slot is available
+        if (inventory.size() < maxSlots) {
+            return true;
+        }
+
+        // 3. Check if linked storage chest can accept
+        if (hasLinkedStorage()) {
+            com.minionx.api.CustomMinionStorage st = getLinkedStorage();
+            int maxStorageSlots = st != null ? st.getCapacity() : 9;
+
+            for (ItemStack stored : storageContents) {
+                if (isSameItem(stored, item) && stored.getAmount() < stored.getMaxStackSize()) {
+                    return true;
+                }
+            }
+
+            if (storageContents.size() < maxStorageSlots) {
+                return true;
+            }
+        }
+
+        // 4. Check if Automated Shipping hopper is equipped to auto-sell overflow
+        if (hasAutoSeller()) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Adds an item to the minion's inventory, respecting stack limits and tier slots.
-     * Returns true if successfully added, false if inventory is full.
+     * If internal inventory is full, overflows into linked storage chest.
+     * If linked storage is also full, auto-sells via equipped Automated Shipping hopper.
+     * Returns true if successfully handled, false if completely full.
      */
     public boolean addItem(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return true;
         int maxSlots = getStorageSlots();
         ItemStack toAdd = item.clone();
 
-        // Try stacking into existing items
+        // 1. Try stacking into internal inventory
         for (ItemStack stored : inventory) {
             if (isSameItem(stored, toAdd)) {
                 int space = stored.getMaxStackSize() - stored.getAmount();
@@ -410,13 +482,13 @@ public class Minion {
             }
         }
 
-        // Add to new slot if available
+        // 2. Add to new internal slot if available
         if (inventory.size() < maxSlots && toAdd.getAmount() > 0) {
             inventory.add(toAdd);
             return true;
         }
 
-        // If internal inventory cannot fit all, try overflowing to linked storage chest!
+        // 3. Overflow into linked storage chest if present
         if (hasLinkedStorage() && toAdd.getAmount() > 0) {
             com.minionx.api.CustomMinionStorage st = getLinkedStorage();
             int maxStorageSlots = st != null ? st.getCapacity() : 9;
@@ -436,11 +508,22 @@ public class Minion {
                 }
             }
 
-            // Add to new slot in storage if space
+            // Add to new slot in storage if capacity allows
             if (storageContents.size() < maxStorageSlots && toAdd.getAmount() > 0) {
                 storageContents.add(toAdd);
                 return true;
             }
+        }
+
+        // 4. Automated Shipping: auto-sell remaining items when full
+        if (hasAutoSeller() && toAdd.getAmount() > 0) {
+            CustomUpgrade hopper = getShippingUpgrade();
+            double ratio = (hopper != null && hopper.getSellRatio() > 0) ? hopper.getSellRatio() : 0.50;
+            double unitPrice = com.minionx.api.PriceRegistry.getPrice(toAdd);
+            double earned = unitPrice * toAdd.getAmount() * ratio;
+            addShippingCoins(earned);
+            toAdd.setAmount(0);
+            return true;
         }
 
         return false;

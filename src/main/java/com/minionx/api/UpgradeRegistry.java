@@ -22,6 +22,10 @@ public class UpgradeRegistry {
         registerDefaults();
     }
 
+    public static void load() {
+        load((ConfigurationSection) null);
+    }
+
     public static void load(ConfigurationSection section) {
         UPGRADES.clear();
 
@@ -37,20 +41,30 @@ public class UpgradeRegistry {
 
                 String typeStr = upSec.getString("type", "SPEED_BUFF");
                 CustomUpgrade.UpgradeBehavior behavior;
-                try {
-                    behavior = CustomUpgrade.UpgradeBehavior.valueOf(typeStr.toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    behavior = CustomUpgrade.UpgradeBehavior.SPEED_BUFF;
+                if ("BUDGET_HOPPER".equalsIgnoreCase(typeStr) || "ENCHANTED_HOPPER".equalsIgnoreCase(typeStr) ||
+                        "AUTO_SELLER".equalsIgnoreCase(typeStr) || "HOPPER".equalsIgnoreCase(typeStr)) {
+                    behavior = CustomUpgrade.UpgradeBehavior.AUTO_SELLER;
+                } else {
+                    try {
+                        behavior = CustomUpgrade.UpgradeBehavior.valueOf(typeStr.toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        behavior = CustomUpgrade.UpgradeBehavior.SPEED_BUFF;
+                    }
                 }
 
                 double speedBuff = upSec.getDouble("speed-buff", 0.0);
                 double chance = upSec.getDouble("chance", 0.0);
+                double sellRatio = upSec.getDouble("sell-ratio", upSec.getDouble("sell_ratio", 0.0));
+                if (sellRatio <= 0.0 && behavior == CustomUpgrade.UpgradeBehavior.AUTO_SELLER) {
+                    sellRatio = "ENCHANTED_HOPPER".equalsIgnoreCase(typeStr) ? 0.90 : 0.50;
+                }
+
                 List<String> rawLore = upSec.getStringList("lore");
                 List<String> lore = ColorUtil.color(rawLore);
                 boolean glow = upSec.getBoolean("glow", false);
                 int customModelData = upSec.getInt("custom-model-data", 0);
 
-                CustomUpgrade upgrade = new CustomUpgrade(key, displayName, mat, behavior, speedBuff, chance, lore, glow, customModelData);
+                CustomUpgrade upgrade = new CustomUpgrade(key, displayName, mat, behavior, speedBuff, chance, sellRatio, lore, glow, customModelData);
                 UPGRADES.put(key.toLowerCase(), upgrade);
             }
         }
@@ -90,6 +104,52 @@ public class UpgradeRegistry {
         registerDefaultIfMissing("hyper_catalyst", new CustomUpgrade("hyper_catalyst", ColorUtil.color("&5Hyper Catalyst"), Material.NETHER_STAR,
                 CustomUpgrade.UpgradeBehavior.SPEED_BUFF, 0.40, 0.0,
                 ColorUtil.color(List.of("&7Increases production speed by &a+40%&7.")), true, 0));
+
+        registerDefaultIfMissing("budget_hopper", new CustomUpgrade("budget_hopper", ColorUtil.color("&eBudget Hopper"), Material.HOPPER,
+                CustomUpgrade.UpgradeBehavior.AUTO_SELLER, 0.0, 0.0, 0.50,
+                ColorUtil.color(List.of("&7Automatically sells overflow items at &e50%&7", "&7value when storage is completely full.")), true, 0));
+
+        registerDefaultIfMissing("enchanted_hopper", new CustomUpgrade("enchanted_hopper", ColorUtil.color("&6Enchanted Hopper"), Material.HOPPER,
+                CustomUpgrade.UpgradeBehavior.AUTO_SELLER, 0.0, 0.0, 0.90,
+                ColorUtil.color(List.of("&7Automatically sells overflow items at &690%&7", "&7value when storage is completely full.")), true, 0));
+    }
+
+    public static void saveCustomUpgrade(CustomUpgrade upgrade) {
+        if (upgrade == null) return;
+        UPGRADES.put(upgrade.getId().toLowerCase(), upgrade);
+
+        if (com.minionx.MinionX.getInstance() == null) return;
+        java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "upgrades.yml");
+        org.bukkit.configuration.file.YamlConfiguration config = file.exists()
+                ? org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file)
+                : new org.bukkit.configuration.file.YamlConfiguration();
+
+        String path = "upgrades." + upgrade.getId().toLowerCase();
+        config.set(path + ".display-name", upgrade.getDisplayName());
+        config.set(path + ".material", upgrade.getMaterial().name());
+        config.set(path + ".type", upgrade.getBehavior().name());
+        if (upgrade.getSpeedBuff() > 0) {
+            config.set(path + ".speed-buff", upgrade.getSpeedBuff());
+        }
+        if (upgrade.getChance() > 0) {
+            config.set(path + ".chance", upgrade.getChance());
+        }
+        if (upgrade.getSellRatio() > 0) {
+            config.set(path + ".sell-ratio", upgrade.getSellRatio());
+        }
+        config.set(path + ".glow", upgrade.isGlowing());
+        if (upgrade.getCustomModelData() > 0) {
+            config.set(path + ".custom-model-data", upgrade.getCustomModelData());
+        }
+        if (upgrade.getLore() != null && !upgrade.getLore().isEmpty()) {
+            config.set(path + ".lore", upgrade.getLore());
+        }
+
+        try {
+            config.save(file);
+        } catch (java.io.IOException e) {
+            com.minionx.MinionX.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "Failed to save upgrade to upgrades.yml", e);
+        }
     }
 
     private static void registerDefaultIfMissing(String id, CustomUpgrade upgrade) {

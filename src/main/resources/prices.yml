@@ -1,0 +1,137 @@
+# ==============================================================================
+# MinionX - Economy Sell Prices (prices.yml)
+# ==============================================================================
+# Used by Automated Shipping items (Budget Hopper, Enchanted Hopper)
+# to calculate coin earnings when minion inventory and storage are full.
+#
+# Values represent base NPC sell prices per single unit of each item.
+# Supports vanilla items, compressed enchanted items, and full custom items
+# (ItemsAdder, MMOItems, EcoItems, CustomModelData, Display Names, and PDC tags).
+# ==============================================================================
+
+default-price: 1.0
+
+prices:
+  # Mining Drops
+  COBBLESTONE: 1.0
+  STONE: 1.0
+  COAL: 2.0
+  CHARCOAL: 2.0
+  RAW_IRON: 3.0
+  IRON_INGOT: 3.0
+  RAW_GOLD: 4.0
+  GOLD_INGOT: 4.0
+  RAW_COPPER: 2.0
+  COPPER_INGOT: 2.0
+  DIAMOND: 8.0
+  EMERALD: 6.0
+  LAPIS_LAZULI: 1.0
+  REDSTONE: 1.0
+  NETHER_QUARTZ: 4.0
+  QUARTZ: 4.0
+  OBSIDIAN: 12.0
+  GLOWSTONE_DUST: 2.0
+  GRAVEL: 1.0
+  FLINT: 2.0
+  ICE: 1.0
+  PACKED_ICE: 9.0
+  BLUE_ICE: 81.0
+  SAND: 1.0
+  RED_SAND: 1.0
+  END_STONE: 2.0
+  NETHERRACK: 1.0
+  AMETHYST_SHARD: 4.0
+
+  # Farming Drops
+  WHEAT: 1.0
+  WHEAT_SEEDS: 0.5
+  CARROT: 1.0
+  POTATO: 1.0
+  POISONOUS_POTATO: 1.0
+  PUMPKIN: 4.0
+  MELON: 1.0
+  MELON_SLICE: 0.5
+  SUGAR_CANE: 2.0
+  CACTUS: 1.0
+  COCOA_BEANS: 2.0
+  BROWN_MUSHROOM: 4.0
+  RED_MUSHROOM: 4.0
+  NETHER_WART: 3.0
+
+  # Foraging Drops
+  OAK_LOG: 2.0
+  BIRCH_LOG: 2.0
+  SPRUCE_LOG: 2.0
+  JUNGLE_LOG: 2.0
+  ACACIA_LOG: 2.0
+  DARK_OAK_LOG: 2.0
+  MANGROVE_LOG: 2.0
+  CHERRY_LOG: 2.0
+  APPLE: 3.0
+  OAK_SAPLING: 1.0
+
+  # Combat Drops
+  ROTTEN_FLESH: 1.0
+  BONE: 2.0
+  STRING: 2.0
+  SPIDER_EYE: 3.0
+  GUNPOWDER: 4.0
+  ENDER_PEARL: 10.0
+  SLIME_BALL: 5.0
+  MAGMA_CREAM: 8.0
+  BLAZE_ROD: 10.0
+  GHAST_TEAR: 20.0
+  LEATHER: 3.0
+  BEEF: 2.0
+  PORKCHOP: 2.0
+  CHICKEN: 2.0
+  FEATHER: 1.0
+  MUTTON: 2.0
+  WHITE_WOOL: 2.0
+  RABBIT: 3.0
+  RABBIT_FOOT: 15.0
+  RABBIT_HIDE: 2.0
+
+  # Pre-Configured Compressed / Enchanted Items (Super Compactor 3000)
+  ENCHANTED_COBBLESTONE: 160.0
+  ENCHANTED_COAL: 320.0
+  ENCHANTED_CHARCOAL: 320.0
+  ENCHANTED_IRON: 480.0
+  ENCHANTED_GOLD: 640.0
+  ENCHANTED_DIAMOND: 1280.0
+  ENCHANTED_EMERALD: 960.0
+  ENCHANTED_LAPIS_LAZULI: 160.0
+  ENCHANTED_REDSTONE: 160.0
+  ENCHANTED_QUARTZ: 640.0
+  ENCHANTED_OBSIDIAN: 1920.0
+  ENCHANTED_GLOWSTONE_DUST: 320.0
+  ENCHANTED_PUMPKIN: 640.0
+  ENCHANTED_MELON: 160.0
+  ENCHANTED_SUGAR_CANE: 320.0
+  ENCHANTED_CACTUS: 160.0
+  ENCHANTED_OAK_LOG: 320.0
+  ENCHANTED_ROTTEN_FLESH: 160.0
+  ENCHANTED_BONE: 320.0
+  ENCHANTED_STRING: 320.0
+  ENCHANTED_GUNPOWDER: 640.0
+  ENCHANTED_ENDER_PEARL: 200.0
+
+# ==============================================================================
+# Custom Items Price Configuration
+# ==============================================================================
+# Define prices for custom items from plugins (ItemsAdder, MMOItems, EcoItems)
+# or items with custom display names, CustomModelData, or PDC tags.
+# ==============================================================================
+custom-prices:
+  enchanted_cobblestone:
+    display-name: "&aEnchanted Cobblestone"
+    price: 160.0
+  enchanted_diamond:
+    display-name: "&bEnchanted Diamond"
+    price: 1280.0
+  enchanted_iron:
+    display-name: "&aEnchanted Iron"
+    price: 480.0
+  enchanted_gold:
+    display-name: "&aEnchanted Gold"
+    price: 640.0

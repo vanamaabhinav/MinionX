@@ -52,12 +52,30 @@ public class MinionStorageListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
+        Block block = event.getBlockPlaced();
+        Player player = event.getPlayer();
         ItemStack item = event.getItemInHand();
         String storageId = MinionItemFactory.getStorageId(item);
-        if (storageId == null) return;
 
-        Player player = event.getPlayer();
-        Block block = event.getBlockPlaced();
+        // Prevent placing normal chests adjacent to a minion storage to prevent merging or hopper bypass
+        if (storageId == null && (block.getType() == Material.CHEST || block.getType() == Material.TRAPPED_CHEST)) {
+            Block[] neighbors = new Block[]{
+                    block.getRelative(org.bukkit.block.BlockFace.NORTH),
+                    block.getRelative(org.bukkit.block.BlockFace.SOUTH),
+                    block.getRelative(org.bukkit.block.BlockFace.EAST),
+                    block.getRelative(org.bukkit.block.BlockFace.WEST)
+            };
+            for (Block neighbor : neighbors) {
+                if (isAnyStorageBlock(neighbor)) {
+                    event.setCancelled(true);
+                    player.sendMessage(ColorUtil.color("&cYou cannot place regular chests directly adjacent to a Minion Storage!"));
+                    return;
+                }
+            }
+            return;
+        }
+
+        if (storageId == null) return;
 
         // 1. Quarantine Mode Check
         if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
@@ -162,6 +180,13 @@ public class MinionStorageListener implements Listener {
         event.setCancelled(true);
         Player player = event.getPlayer();
 
+        // Check Storage Ownership (Issue 10)
+        if (minion.getOwnerId() != null && !minion.getOwnerId().equals(player.getUniqueId()) && !player.hasPermission("minionx.admin")) {
+            player.sendMessage(ColorUtil.color("&cYou do not own this minion storage!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
         // Quarantine check
         if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
             player.sendMessage(ColorUtil.color("&c[Quarantine] Minion storage access is frozen during emergency quarantine mode!"));
@@ -181,6 +206,14 @@ public class MinionStorageListener implements Listener {
         if (minion == null) return;
 
         Player player = event.getPlayer();
+
+        // Check Storage Ownership on break (Issue 10)
+        if (minion.getOwnerId() != null && !minion.getOwnerId().equals(player.getUniqueId()) && !player.hasPermission("minionx.admin")) {
+            event.setCancelled(true);
+            player.sendMessage(ColorUtil.color("&cYou do not own this minion storage!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
 
         // Quarantine check
         if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
@@ -230,29 +263,68 @@ public class MinionStorageListener implements Listener {
 
         int rawSlot = event.getRawSlot();
         Minion minion = holder.getMinion();
+
+        // Preview Mode / Back Button Click (Issue 11)
+        if (holder.getBackAction() != null || minion == null) {
+            if (rawSlot == 0) {
+                event.setCancelled(true);
+                if (holder.getBackAction() != null) {
+                    holder.getBackAction().run();
+                } else {
+                    com.minionx.gui.OperatorGUI.openStoragesCatalog(player);
+                }
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                return;
+            }
+            // Entire preview inventory is read-only
+            event.setCancelled(true);
+            return;
+        }
+
         CustomMinionStorage st = minion.getLinkedStorage();
         int capacity = st != null ? st.getCapacity() : 9;
         List<Integer> unlocked = SymmetricalSlotCalculator.getSlots(capacity);
 
-        // Click inside top chest inventory
+        // 1. Withdrawal-Only Rule: Block shift-clicking personal items into minion storage (Issue 10)
+        if (event.isShiftClick() && rawSlot >= 27) {
+            event.setCancelled(true);
+            player.sendMessage(ColorUtil.color("&cYou cannot deposit personal items into minion storage! It is withdrawal-only."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
+        // 2. Click inside top chest inventory (0 <= rawSlot < 27)
         if (rawSlot >= 0 && rawSlot < 27) {
             if (!unlocked.contains(rawSlot)) {
-                // Clicked on a locked pane slot!
+                // Clicked on a locked pane slot or border
                 event.setCancelled(true);
                 return;
             }
-        } else if (event.isShiftClick()) {
-            // Shift-clicking from player inventory into storage
-            // Check if there is space in unlocked slots
-            int emptyUnlocked = 0;
-            for (int s : unlocked) {
-                ItemStack item = event.getInventory().getItem(s);
-                if (item == null || item.getType() == Material.AIR) {
-                    emptyUnlocked++;
+
+            // 3. Withdrawal-Only Rule: Block placing items from cursor into storage slots (Issue 10)
+            switch (event.getAction()) {
+                case PLACE_ALL, PLACE_ONE, PLACE_SOME, SWAP_WITH_CURSOR, HOTBAR_SWAP, HOTBAR_MOVE_AND_READD -> {
+                    event.setCancelled(true);
+                    player.sendMessage(ColorUtil.color("&cYou cannot deposit items into minion storage! It is withdrawal-only."));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                    return;
+                }
+                default -> {
+                    // Allow withdrawals: PICKUP_ALL, PICKUP_ONE, PICKUP_HALF, MOVE_TO_OTHER_INVENTORY
                 }
             }
-            if (emptyUnlocked == 0) {
+        }
+    }
+
+    @EventHandler
+    public void onInventoryDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
+        if (!(event.getInventory().getHolder() instanceof MinionStorageHolder)) {
+            return;
+        }
+        for (int rawSlot : event.getRawSlots()) {
+            if (rawSlot < 27) {
                 event.setCancelled(true);
+                return;
             }
         }
     }
@@ -264,6 +336,8 @@ public class MinionStorageListener implements Listener {
         }
 
         Minion minion = holder.getMinion();
+        if (minion == null) return;
+
         CustomMinionStorage st = minion.getLinkedStorage();
         int capacity = st != null ? st.getCapacity() : 9;
         List<Integer> unlocked = SymmetricalSlotCalculator.getSlots(capacity);
@@ -294,10 +368,58 @@ public class MinionStorageListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onHopperMove(InventoryMoveItemEvent event) {
-        // Prevent hoppers from interacting with minion storages
+        // Prevent hoppers, droppers, and minecarts from interacting with minion storages (Issue 10 & anti-drop protection)
         if (event.getSource().getHolder() instanceof MinionStorageHolder || event.getDestination().getHolder() instanceof MinionStorageHolder) {
             event.setCancelled(true);
+            return;
         }
+
+        // Check DoubleChest holders
+        if (event.getDestination().getHolder() instanceof org.bukkit.block.DoubleChest doubleChest) {
+            if (doubleChest.getLeftSide() instanceof org.bukkit.block.Chest c && isAnyStorageBlock(c.getBlock())) {
+                event.setCancelled(true);
+                return;
+            }
+            if (doubleChest.getRightSide() instanceof org.bukkit.block.Chest c && isAnyStorageBlock(c.getBlock())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+        if (event.getSource().getHolder() instanceof org.bukkit.block.DoubleChest doubleChest) {
+            if (doubleChest.getLeftSide() instanceof org.bukkit.block.Chest c && isAnyStorageBlock(c.getBlock())) {
+                event.setCancelled(true);
+                return;
+            }
+            if (doubleChest.getRightSide() instanceof org.bukkit.block.Chest c && isAnyStorageBlock(c.getBlock())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
+        Location srcLoc = event.getSource().getLocation();
+        if (srcLoc != null && srcLoc.getBlock() != null && isAnyStorageBlock(srcLoc.getBlock())) {
+            event.setCancelled(true);
+            return;
+        }
+
+        Location dstLoc = event.getDestination().getLocation();
+        if (dstLoc != null && dstLoc.getBlock() != null && isAnyStorageBlock(dstLoc.getBlock())) {
+            event.setCancelled(true);
+            return;
+        }
+    }
+
+    public static boolean isAnyStorageBlock(Block block) {
+        if (block == null) return false;
+        if (com.minionx.MinionX.getInstance() != null && com.minionx.MinionX.getInstance().getMinionManager() != null) {
+            if (com.minionx.MinionX.getInstance().getMinionManager().isStorageBlock(block.getLocation())) return true;
+        }
+        if (getLinkedMinionAt(block) != null) return true;
+        if (block.getState() instanceof TileState tile) {
+            PersistentDataContainer pdc = tile.getPersistentDataContainer();
+            return pdc.has(STORAGE_BLOCK_KEY, PersistentDataType.BYTE) || pdc.has(STORAGE_ID_KEY, PersistentDataType.STRING);
+        }
+        return false;
     }
 
     public static List<Minion> findAdjacentMinions(MinionManager manager, Location chestLoc) {

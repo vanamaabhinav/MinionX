@@ -2,6 +2,7 @@ package com.minionx.gui;
 
 import com.minionx.api.MinionStorageRegistry;
 import com.minionx.api.CustomMinionStorage;
+import com.minionx.quarantine.QuarantineManager;
 
 import com.minionx.MinionX;
 import com.minionx.api.*;
@@ -103,6 +104,8 @@ public class OperatorGUIListener implements Listener {
             OperatorGUI.openKitsCatalog(player);
         } else if (slot == 32) {
             MinionCreatorGUI.open(player, null);
+        } else if (slot == 34) {
+            OperatorGUI.openStoragesCatalog(player);
         } else if (slot == 48 && clicked.getType() == Material.TNT) {
             int count = MinionX.getInstance().getMinionManager().killAndPurgeAll();
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSuccessfully killed and purged " + count + " active minions, holograms, and tasks!"));
@@ -112,6 +115,14 @@ public class OperatorGUIListener implements Listener {
             player.closeInventory();
         } else if (slot == 49 && clicked.getType() == Material.BEACON) {
             TierEditorGUI.openOverview(player);
+        } else if (slot == 50) {
+            MinionSkinCreatorGUI.open(player, null);
+        } else if (slot == 51) {
+            boolean newState = !QuarantineManager.isQuarantined();
+            QuarantineManager.setQuarantined(newState);
+            player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color(newState ? "&cEmergency Quarantine Mode is now &lACTIVE&c!" : "&aEmergency Quarantine Mode is now &lINACTIVE&a!"));
+            player.playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1.0f, 1.0f);
+            OperatorGUI.openMain(player);
         } else if (slot == 53 && clicked.getType() == Material.REPEATER) {
             MinionX.getInstance().reloadConfig();
             MinionX.getInstance().loadRegistries();
@@ -218,6 +229,11 @@ public class OperatorGUIListener implements Listener {
     private void handleUpgradesCatalogClick(Player player, int slot, ItemStack clicked, InventoryClickEvent event) {
         if (slot == 49 && clicked.getType() == Material.ARROW) {
             OperatorGUI.openMain(player);
+            return;
+        }
+
+        if (slot == 50 && clicked.getType() == Material.ANVIL) {
+            UpgradeCreatorGUI.open(player, null);
             return;
         }
 

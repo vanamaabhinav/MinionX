@@ -3,7 +3,9 @@ package com.minionx;
 import com.minionx.api.FuelRegistry;
 import com.minionx.api.MinionRegistry;
 import com.minionx.api.MinionSkinRegistry;
+import com.minionx.api.MinionStorageRegistry;
 import com.minionx.api.MinionTier;
+import com.minionx.api.PriceRegistry;
 import com.minionx.api.UpgradeRegistry;
 import com.minionx.command.MinionCommand;
 import com.minionx.command.OperatorCommand;
@@ -18,6 +20,7 @@ import com.minionx.hook.EconomyHook;
 import com.minionx.hook.ProtectionHookManager;
 import com.minionx.hook.SkillHook;
 import com.minionx.listener.ChunkLifecycleListener;
+import com.minionx.listener.CropGrowListener;
 import com.minionx.listener.CustomItemProtectionListener;
 import com.minionx.listener.MinionInteractListener;
 import com.minionx.listener.MinionPlaceListener;
@@ -68,6 +71,7 @@ public class MinionX extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new com.minionx.gui.TierEditorListener(), this);
         getServer().getPluginManager().registerEvents(new ChunkLifecycleListener(), this);
         getServer().getPluginManager().registerEvents(new CustomItemProtectionListener(), this);
+        getServer().getPluginManager().registerEvents(new CropGrowListener(), this);
 
         // Register Commands
         MinionCommand minionCommand = new MinionCommand(this);
@@ -98,6 +102,18 @@ public class MinionX extends JavaPlugin {
         // Initialize UpdateChecker & bStats Metrics
         com.minionx.util.UpdateChecker.init(this);
         com.minionx.util.MinionXMetrics.init(this);
+
+        // Post-startup delayed task (1 tick later) to cleanly initialize/verify visual entities in loaded chunks
+        getServer().getScheduler().runTask(this, () -> {
+            for (com.minionx.core.Minion minion : minionManager.getAllMinions()) {
+                if (minion.getLocation() != null && minion.getLocation().getWorld() != null) {
+                    if (minion.getLocation().isChunkLoaded()) {
+                        com.minionx.visual.MinionVisual.spawnOrUpdate(minion);
+                        com.minionx.visual.MinionHologram.updateHologram(minion);
+                    }
+                }
+            }
+        });
 
         getLogger().info("MinionX has been enabled successfully!");
     }
@@ -191,6 +207,8 @@ public class MinionX extends JavaPlugin {
 
         MinionRegistry.load(minionsConfig);
         MinionSkinRegistry.loadBuiltinSkins();
+        MinionStorageRegistry.load();
+        PriceRegistry.load();
         getLogger().info("Loaded " + MinionTier.getMaxTier() + " tiers, " + FuelRegistry.getKeys().size() + " fuels, " +
                 UpgradeRegistry.getKeys().size() + " upgrades, " + MinionSkinRegistry.getAll().size() + " skins, and " + MinionRegistry.getAll().size() + " minion definitions.");
     }

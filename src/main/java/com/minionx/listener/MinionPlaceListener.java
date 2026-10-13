@@ -25,6 +25,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -43,6 +44,17 @@ public class MinionPlaceListener implements Listener {
         if (event.getHand() != EquipmentSlot.HAND) return;
 
         ItemStack item = event.getItem();
+        if (item == null || item.getType() == Material.AIR) return;
+
+        // Prevent placing minion skin heads into the world
+        if (MinionItemFactory.getSkinId(item) != null) {
+            event.setCancelled(true);
+            Player player = event.getPlayer();
+            player.sendMessage(ColorUtil.color("&cMinion skins cannot be placed as blocks! Apply skins inside the Minion GUI (Skin socket)."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
         if (!MinionItemFactory.isMinionItem(item)) return;
 
         // Cancel vanilla block placement of player head
@@ -182,5 +194,24 @@ public class MinionPlaceListener implements Listener {
         player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color(placedMsg));
         player.playSound(minionLoc, Sound.BLOCK_ANVIL_USE, 0.7f, 1.2f);
         player.playSound(minionLoc, Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.8f);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        ItemStack item = event.getItemInHand();
+        if (item == null || item.getType() == Material.AIR) return;
+
+        if (MinionItemFactory.getSkinId(item) != null) {
+            event.setCancelled(true);
+            Player player = event.getPlayer();
+            player.sendMessage(ColorUtil.color("&cMinion skins cannot be placed as blocks! Apply skins inside the Minion GUI (Skin socket)."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
+        if (MinionItemFactory.isMinionItem(item)) {
+            // Minion items must only be deployed via right click interaction, not as a vanilla player head block
+            event.setCancelled(true);
+        }
     }
 }

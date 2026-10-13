@@ -328,6 +328,12 @@ public class OperatorGUI {
         inv.setItem(49, createNamedItem(Material.ARROW, ColorUtil.color("&cBack to Main Menu"),
                 List.of(ColorUtil.color("&7Return to the main operator interface."))));
 
+        inv.setItem(50, createNamedItem(Material.ANVIL, ColorUtil.color("&dUpgrade & Hopper Creator Studio"),
+                List.of(ColorUtil.color("&7Design and configure custom hoppers,"),
+                        ColorUtil.color("&7auto-sellers, smelters, and accessories live!"),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to launch Creator Studio!"))));
+
         player.openInventory(inv);
     }
 

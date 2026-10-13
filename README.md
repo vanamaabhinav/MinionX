@@ -32,7 +32,7 @@ Most minion plugins suffer from **crippling server lag**, **duplication exploits
 |---|---|
 | 👑 **37+ Built-in Minions** | Mining, Farming, Foraging, and Combat archetypes with authentic animations. |
 | 🗿 **Bundled Offline Head Textures** | Authentic player heads for all 37 minions across Tiers I–XII bundled locally (Zero Mojang API rate limits). |
-| 🎛️ **5 In-Game Visual Studios** | Create and edit Minions, Fuels, Tiers, Skins, and Storages visually in-game — **Zero YAML required!** |
+| 🎛️ **6 In-Game Visual Studios** | Create and edit Minions, Upgrades/Hoppers, Fuels, Tiers, Skins, and Storages visually in-game — **Zero YAML required!** |
 | 📈 **Per-Minion Tier Studio** | Configure independent Max Tiers, upgrade costs, speeds, and capacities for each individual minion. |
 | ⚡ **Deterministic O(1) Offline Math** | Calculates 30 days of offline production instantly without loading or ticking entities. |
 | 🧰 **Unified Custom RPG Items** | Seamlessly works with **ItemsAdder**, **MMOItems**, **Oraxen**, and custom PDC/CustomModelData items. |
@@ -47,10 +47,11 @@ Most minion plugins suffer from **crippling server lag**, **duplication exploits
 
 ## 🚀 Deep Dive: Standout Features
 
-### 1. 🎛️ Five In-Game Visual Creator Studios (No YAML Required)
+### 1. 🎛️ Six In-Game Visual Creator Studios (No YAML Required)
 Stop wasting hours debugging indentation in YAML files! MinionX allows server owners and administrators to design, customize, and deploy their entire minion ecosystem in real-time through intuitive graphical interfaces:
 
 - **Minion Creator Studio (`/minion create`)**: Configure archetype, display names, target blocks, mob types, weapons, tools, and drops.
+- **Upgrade & Hopper Creator Studio (`/minion create upgrade`)**: Live configuration for automated shipping hoppers, sell ratios, speed catalysts, auto-smelters, and compactors.
 - **Fuel Creator Studio (`/minion create fuel`)**: Visual speed slider (5%–10% steps), temporary vs permanent burn toggle, duration presets (`30m` to `7d`), and live test item dispenser.
 - **Tier Studio (`/minion tier` & `/minion tier <minion_id>`)**: Live action delay slider, storage capacity matrix, upgrade cost editor, and arbitrary Roman numerals (Tier I to XII+).
 - **Skin Creator Studio (`/minion create skin`)**: Design cosmetic visual skins using Base64 player head textures, RGB armor dyes, and held items.
@@ -180,6 +181,7 @@ MinionX integrates out-of-the-box with all leading Minecraft plugins:
 | Command | Permission | Description |
 |---|---|---|
 | `/minion create` | `minionx.admin` | Opens the In-Game Minion Creator Studio |
+| `/minion create upgrade` | `minionx.admin` | Opens the In-Game Upgrade & Hopper Creator Studio |
 | `/minion create fuel` | `minionx.admin` | Opens the In-Game Fuel Creator Studio |
 | `/minion create skin` | `minionx.admin` | Opens the In-Game Skin Creator Studio |
 | `/minion create storage` | `minionx.admin` | Opens the In-Game Storage Creator Studio |

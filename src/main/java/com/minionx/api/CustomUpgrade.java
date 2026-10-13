@@ -13,7 +13,8 @@ public class CustomUpgrade {
         COMPACTOR,
         SUPER_COMPACTOR,
         DIAMOND_SPREADING,
-        SPEED_BUFF
+        SPEED_BUFF,
+        AUTO_SELLER
     }
 
     private final String id;
@@ -22,18 +23,25 @@ public class CustomUpgrade {
     private final UpgradeBehavior behavior;
     private final double speedBuff; // e.g. 0.20 for +20%
     private final double chance;    // e.g. 0.10 for 10%
+    private final double sellRatio; // e.g. 0.50 for Budget Hopper, 0.90 for Enchanted Hopper
     private final List<String> lore;
     private final boolean glowing;
     private final int customModelData;
 
     public CustomUpgrade(String id, String displayName, Material material, UpgradeBehavior behavior,
                          double speedBuff, double chance, List<String> lore, boolean glowing, int customModelData) {
+        this(id, displayName, material, behavior, speedBuff, chance, 0.0, lore, glowing, customModelData);
+    }
+
+    public CustomUpgrade(String id, String displayName, Material material, UpgradeBehavior behavior,
+                         double speedBuff, double chance, double sellRatio, List<String> lore, boolean glowing, int customModelData) {
         this.id = id.toLowerCase();
         this.displayName = displayName;
         this.material = material;
         this.behavior = behavior != null ? behavior : UpgradeBehavior.SPEED_BUFF;
         this.speedBuff = speedBuff;
         this.chance = chance;
+        this.sellRatio = sellRatio;
         this.lore = lore;
         this.glowing = glowing;
         this.customModelData = customModelData;
@@ -61,6 +69,14 @@ public class CustomUpgrade {
 
     public double getChance() {
         return chance;
+    }
+
+    public double getSellRatio() {
+        return sellRatio;
+    }
+
+    public boolean isAutoSeller() {
+        return behavior == UpgradeBehavior.AUTO_SELLER;
     }
 
     public List<String> getLore() {

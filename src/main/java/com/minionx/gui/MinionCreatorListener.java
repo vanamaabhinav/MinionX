@@ -10,9 +10,11 @@ import com.minionx.api.CustomFuel;
 import com.minionx.api.FuelRegistry;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.api.CustomMinionStorage;
+import com.minionx.api.CustomUpgrade;
 import com.minionx.api.MinionSkin;
 import com.minionx.api.MinionSkinRegistry;
 import com.minionx.api.MinionStorageRegistry;
+import com.minionx.api.UpgradeRegistry;
 
 
 import org.bukkit.Bukkit;
@@ -145,6 +147,10 @@ public class MinionCreatorListener implements Listener {
         }
         if (event.getInventory().getHolder() instanceof FuelCreatorHolder fuelHolder) {
             handleFuelCreatorClick(event, (Player) event.getWhoClicked(), fuelHolder.getSession());
+            return;
+        }
+        if (event.getInventory().getHolder() instanceof UpgradeCreatorHolder upgradeHolder) {
+            handleUpgradeCreatorClick(event, (Player) event.getWhoClicked(), upgradeHolder.getSession());
             return;
         }
         if (!(event.getInventory().getHolder() instanceof MinionCreatorHolder holder)) {
@@ -814,7 +820,7 @@ public class MinionCreatorListener implements Listener {
 
         if (slot == 6) {
             CustomMinionStorage testDef = new CustomMinionStorage(session.getId(), session.getDisplayName(), session.getCapacity(), session.getMaterial(), session.getLore());
-            MinionStorageGUI.open(player, null, testDef);
+            MinionStorageGUI.open(player, null, testDef, () -> MinionStorageCreatorGUI.open(player, session));
             return;
         }
 
@@ -984,6 +990,130 @@ public class MinionCreatorListener implements Listener {
             ItemStack fuelItem = MinionItemFactory.createFuelItem(fuel);
             player.getInventory().addItem(fuelItem);
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSaved custom fuel: &e" + fuel.getDisplayName() + " &aand added to &ffuels.yml&a!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
+            player.closeInventory();
+            return;
+        }
+    }
+
+    private void handleUpgradeCreatorClick(InventoryClickEvent event, Player player, UpgradeCreatorSession session) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot < 0 || slot >= 54) return;
+        ItemStack cursor = event.getCursor();
+
+        // Slot 48: Cancel & Return
+        if (slot == 48) {
+            OperatorGUI.openUpgradesCatalog(player);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+            return;
+        }
+
+        // Slot 2: Upgrade Identity (ID & Display Name)
+        if (slot == 2) {
+            promptChat(player, () -> UpgradeCreatorGUI.open(player, session),
+                    "Enter Upgrade ID & Display Name: 'upgrade_id &eMy Upgrade' (or 'cancel'):", input -> {
+                        String[] parts = input.trim().split(" ", 2);
+                        if (parts.length > 0 && !parts[0].isEmpty()) session.setId(parts[0].toLowerCase());
+                        if (parts.length > 1 && !parts[1].isEmpty()) session.setDisplayName(ColorUtil.color(parts[1]));
+                    });
+            return;
+        }
+
+        // Slot 4: Item Material Selector
+        if (slot == 4) {
+            if (cursor != null && cursor.getType() != Material.AIR) {
+                session.setMaterial(cursor.getType());
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSet upgrade icon to: &e" + cursor.getType().name()));
+            } else {
+                Material[] mats = UpgradeCreatorGUI.PRESET_MATERIALS;
+                int curIdx = 0;
+                for (int i = 0; i < mats.length; i++) {
+                    if (mats[i] == session.getMaterial()) {
+                        curIdx = i;
+                        break;
+                    }
+                }
+                session.setMaterial(mats[(curIdx + 1) % mats.length]);
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            UpgradeCreatorGUI.open(player, session);
+            return;
+        }
+
+        // Slot 10: Behavior / Function Type Cycle
+        if (slot == 10) {
+            CustomUpgrade.UpgradeBehavior[] behaviors = CustomUpgrade.UpgradeBehavior.values();
+            int curIdx = 0;
+            for (int i = 0; i < behaviors.length; i++) {
+                if (behaviors[i] == session.getBehavior()) {
+                    curIdx = i;
+                    break;
+                }
+            }
+            CustomUpgrade.UpgradeBehavior next = behaviors[(curIdx + 1) % behaviors.length];
+            session.setBehavior(next);
+            // Default reasonable values when switching
+            if (next == CustomUpgrade.UpgradeBehavior.AUTO_SELLER && session.getSellRatio() <= 0.05) {
+                session.setSellRatio(0.50);
+            } else if (next == CustomUpgrade.UpgradeBehavior.SPEED_BUFF && session.getSpeedBuff() <= 0.0) {
+                session.setSpeedBuff(0.10);
+            } else if (next == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING && session.getChance() <= 0.0) {
+                session.setChance(0.10);
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            UpgradeCreatorGUI.open(player, session);
+            return;
+        }
+
+        // Slot 12: Tuning (Sell Ratio / Speed / Chance)
+        if (slot == 12) {
+            if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.AUTO_SELLER) {
+                double delta = (event.isShiftClick() ? 0.10 : 0.05) * (event.isLeftClick() ? 1 : -1);
+                session.setSellRatio(Math.round((session.getSellRatio() + delta) * 100.0) / 100.0);
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                UpgradeCreatorGUI.open(player, session);
+                return;
+            } else if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.SPEED_BUFF) {
+                double delta = (event.isShiftClick() ? 0.10 : 0.05) * (event.isLeftClick() ? 1 : -1);
+                session.setSpeedBuff(Math.round((session.getSpeedBuff() + delta) * 100.0) / 100.0);
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                UpgradeCreatorGUI.open(player, session);
+                return;
+            } else if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING) {
+                double delta = (event.isShiftClick() ? 0.10 : 0.05) * (event.isLeftClick() ? 1 : -1);
+                session.setChance(Math.round((session.getChance() + delta) * 100.0) / 100.0);
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                UpgradeCreatorGUI.open(player, session);
+                return;
+            }
+        }
+
+        // Slot 14: Glow Toggle
+        if (slot == 14) {
+            session.setGlowing(!session.isGlowing());
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.3f);
+            UpgradeCreatorGUI.open(player, session);
+            return;
+        }
+
+        // Slot 16: Preview Item (Give test item)
+        if (slot == 16) {
+            CustomUpgrade preview = session.buildUpgrade();
+            ItemStack item = MinionItemFactory.createUpgradeItem(preview);
+            player.getInventory().addItem(item);
+            player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aGave you 1x test copy of: &e" + preview.getDisplayName()));
+            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
+            return;
+        }
+
+        // Slot 49: Save & Deploy
+        if (slot == 49) {
+            CustomUpgrade upgrade = session.buildUpgrade();
+            UpgradeRegistry.saveCustomUpgrade(upgrade);
+            ItemStack item = MinionItemFactory.createUpgradeItem(upgrade);
+            player.getInventory().addItem(item);
+            player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSaved custom upgrade: &e" + upgrade.getDisplayName() + " &aand added to &fupgrades.yml&a!"));
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
             player.closeInventory();
             return;

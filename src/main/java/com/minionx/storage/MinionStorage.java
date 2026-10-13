@@ -138,7 +138,7 @@ public class MinionStorage {
         String path = "minions." + minion.getMinionId().toString();
 
         config.set(path + ".owner", minion.getOwnerId() != null ? minion.getOwnerId().toString() : null);
-        config.set(path + ".type", minion.getType().name());
+        config.set(path + ".type", minion.getType() != null ? minion.getType().name() : "COBBLESTONE");
         config.set(path + ".tier", minion.getTier());
 
         Location loc = minion.getLocation();
@@ -155,6 +155,8 @@ public class MinionStorage {
         config.set(path + ".upgrade1", minion.getUpgrade1Id());
         config.set(path + ".upgrade2", minion.getUpgrade2Id());
         config.set(path + ".skin", minion.getSkinId());
+        config.set(path + ".shipping", minion.getShippingId());
+        config.set(path + ".shipping-coins", minion.getShippingCoins());
 
         config.set(path + ".last-action", minion.getLastActionTime());
         config.set(path + ".last-was-place", minion.wasLastActionPlace());
@@ -212,7 +214,11 @@ public class MinionStorage {
 
                 String typeStr = section.getString(idStr + ".type");
                 MinionType type = MinionType.fromString(typeStr);
-                if (type == null) continue;
+                String customId = section.getString(idStr + ".custom_id");
+                if (type == null && (customId == null || customId.isBlank())) continue;
+                if (type == null) {
+                    type = MinionType.COBBLESTONE;
+                }
 
                 int tier = section.getInt(idStr + ".tier", 1);
 
@@ -253,12 +259,17 @@ public class MinionStorage {
                     minion.setSkinId(skinStr);
                 }
 
+                String shipStr = section.getString(idStr + ".shipping");
+                if (shipStr != null && !shipStr.isBlank()) {
+                    minion.setShippingId(shipStr);
+                }
+                minion.setShippingCoins(section.getDouble(idStr + ".shipping-coins", 0.0));
+
                 minion.setLastActionTime(section.getLong(idStr + ".last-action", System.currentTimeMillis()));
                 minion.setLastActionWasPlace(section.getBoolean(idStr + ".last-was-place", false));
                 minion.setTotalHarvested(section.getInt(idStr + ".harvested", 0));
                 minion.setStoredXp(section.getInt(idStr + ".xp", 0));
 
-                String customId = section.getString(idStr + ".custom_id");
                 if (customId != null && !customId.isBlank()) {
                     minion.setCustomDefinitionId(customId);
                 }
@@ -268,6 +279,29 @@ public class MinionStorage {
                     for (Object obj : rawItems) {
                         if (obj instanceof ItemStack stack) {
                             minion.getInventory().add(stack);
+                        }
+                    }
+                }
+
+                // Restore linked storage chest and items if saved
+                String storageId = section.getString(idStr + ".storage.id");
+                if (storageId != null && !storageId.isBlank()) {
+                    String sWorldName = section.getString(idStr + ".storage.world", worldName);
+                    World sWorld = Bukkit.getWorld(sWorldName);
+                    if (sWorld != null) {
+                        int sx = section.getInt(idStr + ".storage.x");
+                        int sy = section.getInt(idStr + ".storage.y");
+                        int sz = section.getInt(idStr + ".storage.z");
+                        Location sLoc = new Location(sWorld, sx, sy, sz);
+                        minion.linkStorage(sLoc, storageId);
+
+                        List<?> sRawItems = section.getList(idStr + ".storage.items");
+                        if (sRawItems != null) {
+                            for (Object obj : sRawItems) {
+                                if (obj instanceof ItemStack stack) {
+                                    minion.getStorageContents().add(stack);
+                                }
+                            }
                         }
                     }
                 }

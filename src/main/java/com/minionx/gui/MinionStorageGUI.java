@@ -20,15 +20,19 @@ import java.util.List;
 public class MinionStorageGUI {
 
     public static void open(Player player, Minion minion) {
-        open(player, minion, null);
+        open(player, minion, null, null);
     }
 
     public static void open(Player player, Minion minion, CustomMinionStorage storageOverride) {
+        open(player, minion, storageOverride, null);
+    }
+
+    public static void open(Player player, Minion minion, CustomMinionStorage storageOverride, Runnable backAction) {
         CustomMinionStorage storage = storageOverride != null ? storageOverride : (minion != null ? minion.getLinkedStorage() : null);
         int capacity = storage != null ? storage.getCapacity() : 9;
         String title = storage != null ? ColorUtil.color(storage.getDisplayName() + " &8(" + capacity + " Slots)") : ColorUtil.color("&8Minion Storage");
 
-        MinionStorageHolder holder = new MinionStorageHolder(minion);
+        MinionStorageHolder holder = new MinionStorageHolder(minion, backAction);
         Inventory inv = Bukkit.createInventory(holder, 27, title);
 
         List<Integer> unlockedSlots = SymmetricalSlotCalculator.getSlots(capacity);
@@ -46,7 +50,7 @@ public class MinionStorageGUI {
             List<ItemStack> storedItems = minion.getStorageContents();
             for (int i = 0; i < unlockedSlots.size(); i++) {
                 int slot = unlockedSlots.get(i);
-                if (i < storedItems.size()) {
+                if (i < storedItems.size() && storedItems.get(i) != null) {
                     inv.setItem(slot, storedItems.get(i).clone());
                 } else {
                     inv.setItem(slot, new ItemStack(Material.AIR));
@@ -54,7 +58,24 @@ public class MinionStorageGUI {
             }
         }
 
+        // Back button for preview mode or when backAction is supplied
+        if (backAction != null || minion == null) {
+            inv.setItem(0, createNamedItem(Material.ARROW, ColorUtil.color("&c&l<-- Go Back"),
+                    List.of(ColorUtil.color("&7Click to return to the previous menu."))));
+        }
+
         player.openInventory(inv);
+    }
+
+    private static ItemStack createNamedItem(Material mat, String name, List<String> lore) {
+        ItemStack item = new ItemStack(mat);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(name);
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     private static ItemStack createLockedPane() {

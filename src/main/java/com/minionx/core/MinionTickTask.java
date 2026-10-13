@@ -113,6 +113,9 @@ public class MinionTickTask extends BukkitRunnable {
                 MinionHologram.updateHologram(minion);
             }
             return;
+        } else if (minion.getState() == MinionState.FULL) {
+            minion.setState(MinionState.IDLE);
+            MinionHologram.updateHologram(minion);
         }
 
         switch (def.getArchetype()) {
@@ -527,6 +530,18 @@ public class MinionTickTask extends BukkitRunnable {
     }
 
     private void tickStemCropMinion(Minion minion, MinionDefinition def, ItemStack dropItem, Material fruitMat) {
+        // Ensure center standing block where minion stands never has pumpkin/melon grown on it (Issue 13)
+        if (minion.getLocation() != null && minion.getLocation().getWorld() != null) {
+            Block center = minion.getLocation().getBlock();
+            if (center.getType() == fruitMat || center.getType() == Material.PUMPKIN || center.getType() == Material.MELON || center.getType() == Material.CARVED_PUMPKIN) {
+                center.setType(Material.AIR);
+            }
+            Block centerAbove = center.getRelative(BlockFace.UP);
+            if (centerAbove.getType() == fruitMat || centerAbove.getType() == Material.PUMPKIN || centerAbove.getType() == Material.MELON || centerAbove.getType() == Material.CARVED_PUMPKIN) {
+                centerAbove.setType(Material.AIR);
+            }
+        }
+
         List<Block> cropSpots = minion.getWorkingCropBlocks(); // at Y
         Material stemMat = fruitMat == Material.PUMPKIN ? Material.PUMPKIN_STEM : Material.MELON_STEM;
 
