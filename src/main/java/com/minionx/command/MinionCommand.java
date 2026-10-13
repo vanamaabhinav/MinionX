@@ -41,6 +41,19 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!hasAdminPermission(sender)) {
+            if (args.length >= 1 && args[0].equalsIgnoreCase("list")) {
+                handleList(sender);
+                return true;
+            }
+            if (args.length >= 2 && args[0].equalsIgnoreCase("limit") && args[1].equalsIgnoreCase("check")) {
+                handleLimit(sender, args);
+                return true;
+            }
+            sender.sendMessage(ColorUtil.color("&cYou do not have permission to use this command."));
+            return true;
+        }
+
         if (args.length == 0) {
             sendHelp(sender);
             return true;
@@ -64,7 +77,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean hasAdminPermission(CommandSender sender) {
-        return sender.hasPermission("minionx.admin");
+        return sender.isOp() || sender.hasPermission("minionx.admin");
     }
 
     private void handleCreate(CommandSender sender, String[] args) {
@@ -388,20 +401,33 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendHelp(CommandSender sender) {
+        if (!hasAdminPermission(sender)) {
+            sender.sendMessage(ColorUtil.color("&cYou do not have permission to use this command."));
+            return;
+        }
+
         sender.sendMessage(ColorUtil.color("&6=== MinionX Commands ==="));
         sender.sendMessage(ColorUtil.color("&e/minion create &7- Open In-Game Minion Creator Studio"));
         sender.sendMessage(ColorUtil.color("&e/minion tier [list|edit|<minion_id>] &7- Open Tier Studio GUI"));
         sender.sendMessage(ColorUtil.color("&e/minion give <player> <type|fuel|upgrade|skin> [tier|skin_id] &7- Give a minion, item, or skin"));
         sender.sendMessage(ColorUtil.color("&e/minion limit <check|add|remove|set> <player> [amount] &7- Manage player limits"));
         sender.sendMessage(ColorUtil.color("&e/minion list &7- View your placed minions"));
+        sender.sendMessage(ColorUtil.color("&e/minion quarantine [on|off|status|toggle] &7- Manage anti-dupe quarantine mode"));
         sender.sendMessage(ColorUtil.color("&e/minion killall &7- Kill and purge all active minions and holograms"));
         sender.sendMessage(ColorUtil.color("&e/minion reload &7- Reload configuration"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (!hasAdminPermission(sender)) {
+            if (args.length == 1) {
+                return filter(List.of("list"), args[0]);
+            }
+            return Collections.emptyList();
+        }
+
         if (args.length == 1) {
-            return filter(List.of("create", "tier", "give", "limit", "list", "killall", "purge", "reload"), args[0]);
+            return filter(List.of("create", "tier", "give", "limit", "list", "quarantine", "killall", "purge", "reload"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {

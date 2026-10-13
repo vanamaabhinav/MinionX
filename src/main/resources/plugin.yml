@@ -10,12 +10,7 @@ commands:
     description: Main command for MinionX
     permission: minionx.use
     aliases: [minions, mx, minionx]
-    usage: |
-      &6&l[Minion&c&lX&6&l] Commands:
-      &e/minion create &7- Open In-Game Minion Creator Studio
-      &e/minion give <player> <type> [tier] &7- Give a minion item
-      &e/minion list &7- List your placed minions
-      &e/minion reload &7- Reload configuration
+    usage: /minion
   minionsx:
     description: Opens the MinionX Operator interface
     permission: minionx.admin
