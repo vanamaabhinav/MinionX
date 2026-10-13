@@ -57,10 +57,14 @@ public class FuelRegistry {
                 ColorUtil.color(List.of("&7Increases minion speed by &a+5%&7.", "&7Duration: &e30 minutes")), false, 0));
         registerDefaultIfMissing("charcoal", new CustomFuel("charcoal", ColorUtil.color("&fCharcoal"), Material.CHARCOAL, 0.05, 30 * 60 * 1000L,
                 ColorUtil.color(List.of("&7Increases minion speed by &a+5%&7.", "&7Duration: &e30 minutes")), false, 0));
+        registerDefaultIfMissing("enchanted_bread", new CustomFuel("enchanted_bread", ColorUtil.color("&aEnchanted Bread"), Material.BREAD, 0.05, 12 * 3600 * 1000L,
+                ColorUtil.color(List.of("&7Increases minion speed by &a+5%&7.", "&7Duration: &e12 hours")), true, 0));
         registerDefaultIfMissing("enchanted_charcoal", new CustomFuel("enchanted_charcoal", ColorUtil.color("&aEnchanted Charcoal"), Material.CHARCOAL, 0.20, 36 * 3600 * 1000L,
                 ColorUtil.color(List.of("&7Increases minion speed by &a+20%&7.", "&7Duration: &e36 hours")), true, 0));
         registerDefaultIfMissing("enchanted_lava_bucket", new CustomFuel("enchanted_lava_bucket", ColorUtil.color("&6Enchanted Lava Bucket"), Material.LAVA_BUCKET, 0.25, -1L,
                 ColorUtil.color(List.of("&7Increases minion speed by &a+25%&7.", "&7Duration: &bPermanent")), true, 0));
+        registerDefaultIfMissing("magma_bucket", new CustomFuel("magma_bucket", ColorUtil.color("&cMagma Bucket"), Material.LAVA_BUCKET, 0.30, -1L,
+                ColorUtil.color(List.of("&7Increases minion speed by &a+30%&7.", "&7Duration: &bPermanent")), true, 0));
         registerDefaultIfMissing("plasma_bucket", new CustomFuel("plasma_bucket", ColorUtil.color("&dPlasma Bucket"), Material.LAVA_BUCKET, 0.35, -1L,
                 ColorUtil.color(List.of("&7Increases minion speed by &a+35%&7.", "&7Duration: &bPermanent")), true, 0));
         registerDefaultIfMissing("solar_panel", new CustomFuel("solar_panel", ColorUtil.color("&eSolar Panel"), Material.DAYLIGHT_DETECTOR, 0.25, -1L,

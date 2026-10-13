@@ -56,17 +56,48 @@ public class CustomItemProtectionListener implements Listener {
         }
     }
 
+    private final java.util.Map<java.util.UUID, Long> lastEatWarn = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private void warnCannotEat(Player player) {
+        if (player == null) return;
+        long now = System.currentTimeMillis();
+        Long last = lastEatWarn.get(player.getUniqueId());
+        if (last == null || now - last > 1500L) {
+            lastEatWarn.put(player.getUniqueId(), now);
+            player.sendMessage(ColorUtil.color(getMessage("cannot-eat-minion-item", "&cYou cannot consume minion items or fuels!")));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onItemConsume(org.bukkit.event.player.PlayerItemConsumeEvent event) {
+        ItemStack item = event.getItem();
+        if (isProtectedItem(item) || isCustomFuel(item) || isCustomUpgrade(item)) {
+            event.setCancelled(true);
+            warnCannotEat(event.getPlayer());
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         ItemStack item = event.getItem();
         if (item == null || item.getType() == Material.AIR) return;
 
-        // Minion heads are handled by MinionPlaceListener.
-        // Block placement or world interaction of fuels and upgrades against blocks must be prevented.
-        if (isCustomUpgrade(item) || (isCustomFuel(item) && item.getType() != Material.AIR)) {
-            event.setCancelled(true);
-            event.getPlayer().sendMessage(ColorUtil.color(getMessage("cannot-place-fuel-or-upgrade", "&cYou cannot place minion items or fuels in the world!")));
+        if (isCustomUpgrade(item) || isCustomFuel(item) || isProtectedItem(item)) {
+            // If the item is edible (like Enchanted Bread), deny eating usage immediately
+            if (item.getType().isEdible()) {
+                event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+                if (event.getAction() == Action.RIGHT_CLICK_AIR ||
+                        (event.getAction() == Action.RIGHT_CLICK_BLOCK && (event.getClickedBlock() == null || !event.getClickedBlock().getType().isInteractable() || event.getPlayer().isSneaking()))) {
+                    warnCannotEat(event.getPlayer());
+                }
+                return;
+            }
+
+            // If the item is a placeable block or bucket liquid, prevent placing it from hand into the world
+            if (item.getType().isBlock() || item.getType().name().contains("BUCKET")) {
+                event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+                // Actual placement is cancelled and messaged by BlockPlaceEvent and PlayerBucketEmptyEvent
+            }
         }
     }
 
@@ -104,37 +135,42 @@ public class CustomItemProtectionListener implements Listener {
 
     public static boolean isCustomFuel(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return false;
-        if (MinionItemFactory.getFuelId(item) != null) return true;
-        if (FuelRegistry.fromItemStack(item) != null) {
-            // Only consider custom if it has custom meta or is custom fuel
-            if (item.hasItemMeta() && item.getItemMeta() != null && item.getItemMeta().hasDisplayName()) {
-                return true;
+        try {
+            if (MinionItemFactory.getFuelId(item) != null) return true;
+            if (FuelRegistry.fromItemStack(item) != null) {
+                // Only consider custom if it has custom meta or is custom fuel
+                if (item.hasItemMeta() && item.getItemMeta() != null && (item.getItemMeta().hasDisplayName() || !item.getItemMeta().getPersistentDataContainer().isEmpty())) {
+                    return true;
+                }
             }
-        }
-        if (!item.hasItemMeta()) return false;
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null && meta.hasDisplayName()) {
-            String name = meta.getDisplayName();
-            return name.contains("Enchanted Lava Bucket") || name.contains("Plasma Bucket") ||
-                    name.contains("Solar Panel") || name.contains("Enchanted Charcoal") ||
-                    name.contains("Coal") || name.contains("Charcoal");
-        }
+            if (!item.hasItemMeta()) return false;
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null && meta.hasDisplayName()) {
+                String name = meta.getDisplayName();
+                return name.contains("Enchanted Lava Bucket") || name.contains("Plasma Bucket") ||
+                        name.contains("Solar Panel") || name.contains("Enchanted Charcoal") ||
+                        name.contains("Enchanted Bread") || name.contains("Magma Bucket") ||
+                        name.contains("Coal") || name.contains("Charcoal");
+            }
+        } catch (Throwable ignored) {}
         return false;
     }
 
     public static boolean isCustomUpgrade(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return false;
-        if (MinionItemFactory.getUpgradeId(item) != null) return true;
-        if (UpgradeRegistry.fromItemStack(item) != null) return true;
-        if (!item.hasItemMeta()) return false;
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null && meta.hasDisplayName()) {
-            String name = meta.getDisplayName();
-            return name.contains("Auto-Smelter") || name.contains("Compactor") ||
-                    name.contains("Diamond Spreading") || name.contains("Flycatcher") ||
-                    name.contains("Minion Expander") || name.contains("Hyper Catalyst") ||
-                    name.contains("Super Compactor");
-        }
+        try {
+            if (MinionItemFactory.getUpgradeId(item) != null) return true;
+            if (UpgradeRegistry.fromItemStack(item) != null) return true;
+            if (!item.hasItemMeta()) return false;
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null && meta.hasDisplayName()) {
+                String name = meta.getDisplayName();
+                return name.contains("Auto-Smelter") || name.contains("Compactor") ||
+                        name.contains("Diamond Spreading") || name.contains("Flycatcher") ||
+                        name.contains("Minion Expander") || name.contains("Hyper Catalyst") ||
+                        name.contains("Super Compactor");
+            }
+        } catch (Throwable ignored) {}
         return false;
     }
 

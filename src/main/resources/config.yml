@@ -222,6 +222,7 @@ messages:
   minion-limit-reached: "&cYou have reached your maximum minion limit of %limit%!"
   minion-already-exists: "&cThere is already a minion here! Only one minion may occupy a block."
   cannot-place-fuel-or-upgrade: "&cYou cannot place minion items or fuels in the world!"
+  cannot-eat-minion-item: "&cYou cannot consume minion items or fuels!"
   cannot-craft-with-minion-item: "&cYou cannot use minion items or upgrades in crafting recipes!"
   no-island-place-permission: "&cYou do not have permission to place minions here!"
   no-island-access-permission: "&cYou do not have permission to access this minion!"

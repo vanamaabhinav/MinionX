@@ -288,18 +288,26 @@ public class MinionItemFactory {
 
     public static String getFuelId(ItemStack item) {
         if (item == null) return null;
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return null;
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        return pdc.get(FUEL_KEY, PersistentDataType.STRING);
+        try {
+            ItemMeta meta = item.getItemMeta();
+            if (meta == null) return null;
+            PersistentDataContainer pdc = meta.getPersistentDataContainer();
+            return pdc.get(FUEL_KEY, PersistentDataType.STRING);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     public static String getUpgradeId(ItemStack item) {
         if (item == null) return null;
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return null;
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        return pdc.get(UPGRADE_KEY, PersistentDataType.STRING);
+        try {
+            ItemMeta meta = item.getItemMeta();
+            if (meta == null) return null;
+            PersistentDataContainer pdc = meta.getPersistentDataContainer();
+            return pdc.get(UPGRADE_KEY, PersistentDataType.STRING);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /**

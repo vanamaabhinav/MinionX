@@ -243,4 +243,22 @@ public class PhaseOneModularAndAPITest {
         assertTrue(quarantineEvent.isQuarantined());
         assertEquals("Admin toggle", quarantineEvent.getReason());
     }
+
+    @Test
+    @DisplayName("Enchanted bread fuel should be registered, detected as custom fuel, and protected from consumption")
+    void testCustomItemProtectionAndFuelDefaults() {
+        com.minionx.api.CustomFuel breadFuel = com.minionx.api.FuelRegistry.get("enchanted_bread");
+        assertNotNull(breadFuel, "Enchanted Bread fuel must be registered in FuelRegistry");
+        assertEquals(Material.BREAD, breadFuel.getMaterial());
+        assertTrue(breadFuel.getMaterial().isEdible(), "Enchanted Bread material must be edible for eat protection");
+        assertEquals(0.05, breadFuel.getSpeedBuff());
+        assertEquals(12 * 3600 * 1000L, breadFuel.getDurationMillis());
+
+        // Plain vanilla bread should NOT be classified as custom fuel
+        ItemStack plainBread = new ItemStack(Material.BREAD);
+        assertFalse(com.minionx.listener.CustomItemProtectionListener.isCustomFuel(plainBread));
+        assertFalse(com.minionx.listener.CustomItemProtectionListener.isCustomUpgrade(plainBread));
+        assertFalse(com.minionx.listener.CustomItemProtectionListener.isProtectedItem(plainBread));
+        assertFalse(com.minionx.listener.CustomItemProtectionListener.isCustomFuel(null));
+    }
 }

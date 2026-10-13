@@ -103,13 +103,8 @@ public class MinionVisual {
             // Hand Tool / Weapon
             as.getEquipment().setItemInMainHand(finalHandItem);
 
-            // Zero drop chances to guarantee zero item duplication if destroyed
-            as.getEquipment().setHelmetDropChance(0.0f);
-            as.getEquipment().setChestplateDropChance(0.0f);
-            as.getEquipment().setLeggingsDropChance(0.0f);
-            as.getEquipment().setBootsDropChance(0.0f);
-            as.getEquipment().setItemInMainHandDropChance(0.0f);
-            as.getEquipment().setItemInOffHandDropChance(0.0f);
+            // Note: ArmorStand does not support setDropChance in Paper 1.21+ (Mob-only API).
+            // Equipment safety and zero drops are strictly enforced by MinionInteractListener.
         });
 
         minion.setArmorStandId(stand.getUniqueId());
