@@ -11,6 +11,7 @@ import com.minionx.hook.ProtectionHookManager;
 import com.minionx.hook.SkillHook;
 import com.minionx.item.MinionItemFactory;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.UpgradeCostHelper;
 import com.minionx.visual.MinionHologram;
 import com.minionx.visual.MinionVisual;
 import org.bukkit.Material;
@@ -87,11 +88,15 @@ public class MinionGUIListener implements Listener {
                     return;
                 }
 
-                // Shift-click Upgrade item -> auto-equip into first free upgrade slot
+                // Shift-click Upgrade item -> auto-equip into first free upgrade slot OR automated shipping if auto-seller
                 CustomUpgrade upgrade = UpgradeRegistry.fromItemStack(clicked);
                 if (upgrade != null) {
                     event.setCancelled(true);
-                    handleUpgradeShiftClick(player, minion, clicked, upgrade);
+                    if (upgrade.isAutoSeller()) {
+                        handleShippingShiftClick(player, minion, clicked, upgrade);
+                    } else {
+                        handleUpgradeShiftClick(player, minion, clicked, upgrade);
+                    }
                     return;
                 }
 
@@ -135,11 +140,8 @@ public class MinionGUIListener implements Listener {
             if (nextTier > minion.getMaxTier()) {
                 player.sendMessage(ColorUtil.color("&cThis minion is already at the maximum tier (" + MinionTier.toRoman(minion.getMaxTier()) + ")!"));
             } else {
-                Material mat = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
-                if (minion.getDefinition() != null && minion.getDefinition().getExactDropItem() != null && minion.getDefinition().getExactDropItem().getType() != Material.AIR) {
-                    mat = minion.getDefinition().getExactDropItem().getType();
-                }
-                player.sendMessage(ColorUtil.color("&e[Next Tier] Upgrade to Tier " + MinionTier.toRoman(nextTier) + " requires: &a" + minion.getUpgradeCost() + "x " + mat.name().replace("_", " ").toLowerCase() + " &7(Use Quick-Upgrade below!)"));
+                UpgradeCostHelper.Requirement req = UpgradeCostHelper.getRequirement(minion);
+                player.sendMessage(ColorUtil.color("&e[Next Tier] Upgrade to Tier " + MinionTier.toRoman(nextTier) + " requires: &a" + req.getRequiredAmount() + "x " + req.getDisplayName() + " &7(Use Quick-Upgrade below!)"));
             }
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.2f);
             return;
@@ -408,17 +410,12 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
-        int cost = minion.getUpgradeCost();
-        Material required = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
-        MinionDefinition def = minion.getDefinition();
-        if (def != null && def.getExactDropItem() != null && def.getExactDropItem().getType() != Material.AIR) {
-            required = def.getExactDropItem().getType();
-        }
+        UpgradeCostHelper.Requirement req = UpgradeCostHelper.getRequirement(minion);
 
-        if (!hasEnoughItems(player, required, cost)) {
+        if (!UpgradeCostHelper.hasEnoughItems(player, req)) {
             String template = MinionX.getInstance().getConfig().getString("messages.not-enough-items", "&cYou need %cost%x %material% to upgrade to Tier %tier%!");
-            String msg = template.replace("%cost%", String.valueOf(cost))
-                    .replace("%material%", required.name())
+            String msg = template.replace("%cost%", String.valueOf(req.getRequiredAmount()))
+                    .replace("%material%", req.getDisplayName())
                     .replace("%tier%", MinionTier.toRoman(currentTier + 1));
             player.sendMessage(ColorUtil.color(msg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
@@ -433,7 +430,7 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
-        removeItems(player, required, cost);
+        UpgradeCostHelper.removeMatchingItems(player, req);
         minion.setTier(currentTier + 1);
 
         MinionHologram.updateHologram(minion);
@@ -698,6 +695,19 @@ public class MinionGUIListener implements Listener {
         }
     }
 
+    private void handleShippingShiftClick(Player player, Minion minion, ItemStack clicked, CustomUpgrade upgrade) {
+        if (minion.getShippingId() == null) {
+            consumeItem(clicked, 1);
+            minion.setShippingId(upgrade.getId());
+            player.sendMessage(ColorUtil.color("&aEquipped &f" + upgrade.getDisplayName() + " &ain Automated Shipping!"));
+            player.playSound(player.getLocation(), Sound.BLOCK_CHEST_LOCKED, 1.0f, 1.2f);
+            MinionGUI.open(player, minion);
+        } else {
+            player.sendMessage(ColorUtil.color("&cAutomated Shipping slot is already occupied!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+        }
+    }
+
     private void consumeItem(ItemStack item, int amount) {
         if (item.getAmount() <= amount) {
             item.setAmount(0);
@@ -716,6 +726,12 @@ public class MinionGUIListener implements Listener {
 
         // A. Installing upgrade from cursor
         if (upgrade != null) {
+            if (upgrade.isAutoSeller()) {
+                player.sendMessage(ColorUtil.color("&cAuto-Sellers (Hoppers) must be placed in the Automated Shipping slot (Slot 28)!"));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
+            }
+
             CustomUpgrade previous = slotNum == 1 ? minion.getCustomUpgrade1() : minion.getCustomUpgrade2();
             if (previous != null) {
                 player.getInventory().addItem(MinionItemFactory.createUpgradeItem(previous));

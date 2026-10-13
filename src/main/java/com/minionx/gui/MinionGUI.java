@@ -10,6 +10,7 @@ import com.minionx.api.MinionRegistry;
 import com.minionx.api.MinionTier;
 import com.minionx.core.Minion;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.UpgradeCostHelper;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -187,17 +188,14 @@ public class MinionGUI {
         int curCap = minion.getMaxCapacity();
         int nextCap = def != null ? def.getMaxCapacity(nextTier) : MinionTier.getMaxCapacity(nextTier);
 
-        Material mat = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
-        if (def != null && def.getExactDropItem() != null && def.getExactDropItem().getType() != Material.AIR) {
-            mat = def.getExactDropItem().getType();
-        }
-        String matName = mat.name().replace("_", " ").toLowerCase();
+        UpgradeCostHelper.Requirement req = UpgradeCostHelper.getRequirement(minion);
+        String costDisplay = req.getRequiredAmount() + "x " + req.getDisplayName();
 
         return createNamedItem(Material.GOLD_INGOT, ColorUtil.color("&aNext Tier: &eTier " + MinionTier.toRoman(nextTier)),
                 List.of(ColorUtil.color("&7Action Delay: &f" + String.format("%.1f", curDelay) + "s &8-> &a" + String.format("%.1f", nextDelay) + "s"),
                         ColorUtil.color("&7Storage: &f" + curCap + " &8-> &a" + nextCap),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&7Crafting Cost: &e" + cost + "x " + matName),
+                        ColorUtil.color("&7Crafting Cost: &e" + costDisplay),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick or use Quick-Upgrade below to upgrade!")));
     }
@@ -346,20 +344,15 @@ public class MinionGUI {
         }
 
         int nextTier = currentTier + 1;
-        int cost = minion.getUpgradeCost();
-        MinionDefinition def = minion.getDefinition();
-        Material mat = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
-        if (def != null && def.getExactDropItem() != null && def.getExactDropItem().getType() != Material.AIR) {
-            mat = def.getExactDropItem().getType();
-        }
-        String matName = mat.name().replace("_", " ").toLowerCase();
+        UpgradeCostHelper.Requirement req = UpgradeCostHelper.getRequirement(minion);
+        String costDisplay = req.getRequiredAmount() + "x " + req.getDisplayName();
 
         return createNamedItem(Material.DIAMOND, ColorUtil.color("&aQuick-Upgrade Minion"),
                 List.of(ColorUtil.color("&7Clicking this instantly levels up the"),
                         ColorUtil.color("&7minion to &eTier " + MinionTier.toRoman(nextTier) + "&7, provided you have"),
                         ColorUtil.color("&7the required resources in your personal inventory."),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&7Required: &e" + cost + "x " + matName),
+                        ColorUtil.color("&7Required: &e" + costDisplay),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to quick-upgrade!")));
     }

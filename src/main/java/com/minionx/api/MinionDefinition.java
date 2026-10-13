@@ -411,7 +411,15 @@ public class MinionDefinition {
         if (customTiers.containsKey(tier)) {
             return customTiers.get(tier).getActionDelay();
         }
-        if (tier == 1 && defaultActionDelay > 0) {
+        if (!customTiers.isEmpty()) {
+            return MinionTier.getActionDelay(tier);
+        }
+        if (defaultActionDelay > 0) {
+            double standardTier1 = MinionTier.getActionDelay(1);
+            if (standardTier1 > 0) {
+                double ratio = MinionTier.getActionDelay(tier) / standardTier1;
+                return Math.round((defaultActionDelay * ratio) * 10.0) / 10.0;
+            }
             return defaultActionDelay;
         }
         return MinionTier.getActionDelay(tier);

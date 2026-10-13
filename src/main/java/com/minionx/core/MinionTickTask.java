@@ -93,10 +93,6 @@ public class MinionTickTask extends BukkitRunnable {
             return;
         }
 
-        // Minion in not-working state (blocked or full) should not generate resources
-        if (minion.getState() == MinionState.NO_SPACE) {
-            return;
-        }
 
         MinionDefinition def = minion.getCustomDefinitionId() != null
                 ? MinionRegistry.get(minion.getCustomDefinitionId())
@@ -887,27 +883,39 @@ public class MinionTickTask extends BukkitRunnable {
         boolean disableAi = MinionX.getInstance().getConfig().getBoolean("settings.combat.disable-mob-wandering", false);
 
         List<Entity> taggedMobs = new ArrayList<>();
-        for (Entity e : loc.getWorld().getNearbyEntities(loc, 3.5, 2.0, 3.5)) {
+        for (Entity e : loc.getWorld().getNearbyEntities(loc, 3.5, 3.0, 3.5)) {
             if (MythicMobsHook.isMinionSpawnedMob(e) && e.isValid() && !e.isDead()) {
                 taggedMobs.add(e);
             }
         }
 
-        if (taggedMobs.size() < cap && !minion.wasLastActionPlace()) {
-            List<Block> working = minion.getWorkingCropBlocks(); // at Y!
-            List<Location> validLocs = new ArrayList<>();
-            for (Block b : working) {
-                if (isStorageBlock(b, minion) || isStorageBlock(b.getRelative(BlockFace.DOWN), minion)) {
-                    continue;
-                }
-                if (b.getType().isAir() || !b.getType().isSolid()) {
-                    validLocs.add(b.getLocation().add(0.5, 0.0, 0.5));
-                }
+        List<Block> working = minion.getWorkingCropBlocks(); // at Y
+        List<Location> validLocs = new ArrayList<>();
+        int foreignObstructions = 0;
+
+        for (Block b : working) {
+            if (isStorageBlock(b, minion) || isStorageBlock(b.getRelative(BlockFace.DOWN), minion)) {
+                continue;
             }
-            if (!validLocs.isEmpty()) {
-                Collections.shuffle(validLocs);
-                Location spawnLoc = validLocs.getFirst();
-                MythicMobsHook.spawnMob(def.getTargetMob(), spawnLoc, disableAi);
+            if (b.getType().isAir() || !b.getType().isSolid()) {
+                validLocs.add(b.getLocation().add(0.5, 0.0, 0.5));
+            } else {
+                foreignObstructions++;
+            }
+        }
+
+        boolean isPartiallyObstructed = foreignObstructions > 0 && !validLocs.isEmpty();
+
+        // 1. If we have no mobs spawned, OR we are below cap and the last action was killing/harvesting: SPAWN A MOB
+        boolean shouldSpawn = taggedMobs.isEmpty() || (taggedMobs.size() < cap && !minion.wasLastActionPlace());
+
+        if (shouldSpawn && !validLocs.isEmpty()) {
+            updateObstructionState(minion, isPartiallyObstructed);
+            Collections.shuffle(validLocs);
+            Location spawnLoc = validLocs.getFirst();
+            Entity spawned = MythicMobsHook.spawnMob(def.getTargetMob(), spawnLoc, disableAi);
+
+            if (spawned != null && spawned.isValid()) {
                 MinionAnimation.playPlaceAnimation(minion, spawnLoc.getBlock());
                 minion.setLastActionWasPlace(true);
                 minion.setLastActionTime(System.currentTimeMillis());
@@ -915,9 +923,12 @@ public class MinionTickTask extends BukkitRunnable {
                 MinionHologram.updateHologram(minion);
                 return;
             }
+            // If physical spawn returned null (e.g. peaceful mode or region deny), fall through to harvest directly
         }
 
+        // 2. If mobs exist in the 5x5 arena: KILL A MOB & HARVEST
         if (!taggedMobs.isEmpty()) {
+            updateObstructionState(minion, isPartiallyObstructed);
             Entity target = taggedMobs.getFirst();
             MinionAnimation.playMineAnimation(minion, target.getLocation().getBlock());
             target.remove();
@@ -928,9 +939,23 @@ public class MinionTickTask extends BukkitRunnable {
             minion.setLastActionTime(System.currentTimeMillis());
             minion.setState(MinionState.IDLE);
             MinionHologram.updateHologram(minion);
-        } else {
-            setNoSpaceState(minion);
+            return;
         }
+
+        // 3. If the entire 5x5 area is blocked with solid blocks and no mobs exist: NO SPACE
+        if (validLocs.isEmpty()) {
+            setNoSpaceState(minion);
+            return;
+        }
+
+        // 4. Fallback: If physical entity spawning was blocked (peaceful difficulty or region deny) but space exists:
+        // Perform virtual harvest action so the minion never freezes for players
+        MinionAnimation.playMineAnimation(minion, loc.getBlock());
+        awardHarvest(minion, def, 1, def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 3);
+        minion.setLastActionWasPlace(false);
+        minion.setLastActionTime(System.currentTimeMillis());
+        minion.setState(MinionState.IDLE);
+        MinionHologram.updateHologram(minion);
     }
 
     // =========================================================================
@@ -1049,6 +1074,7 @@ public class MinionTickTask extends BukkitRunnable {
             minion.setState(MinionState.NO_SPACE);
             MinionHologram.updateHologram(minion);
         }
+        minion.setLastActionTime(System.currentTimeMillis());
     }
 
     private ItemStack determineDropItem(Minion minion, MinionDefinition def) {

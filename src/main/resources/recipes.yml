@@ -51,6 +51,34 @@ compression-recipes:
       material: IRON_BLOCK
       display-name: "&aEnchanted Iron"
       glow: true
+  raw_iron:
+    input: RAW_IRON
+    input-amount: 160
+    output:
+      material: RAW_IRON_BLOCK
+      display-name: "&aEnchanted Raw Iron"
+      glow: true
+  copper:
+    input: COPPER_INGOT
+    input-amount: 160
+    output:
+      material: COPPER_BLOCK
+      display-name: "&aEnchanted Copper"
+      glow: true
+  raw_copper:
+    input: RAW_COPPER
+    input-amount: 160
+    output:
+      material: RAW_COPPER_BLOCK
+      display-name: "&aEnchanted Raw Copper"
+      glow: true
+  gold_ingot:
+    input: GOLD_INGOT
+    input-amount: 160
+    output:
+      material: GOLD_BLOCK
+      display-name: "&aEnchanted Gold Ingot"
+      glow: true
   diamond:
     input: DIAMOND
     input-amount: 160
@@ -240,3 +268,88 @@ compression-recipes:
       material: COOKED_RABBIT
       display-name: "&aEnchanted Cooked Rabbit"
       glow: true
+  string:
+    input: STRING
+    input-amount: 160
+    output:
+      material: STRING
+      display-name: "&aEnchanted String"
+      glow: true
+  spider_eye:
+    input: SPIDER_EYE
+    input-amount: 160
+    output:
+      material: SPIDER_EYE
+      display-name: "&aEnchanted Spider Eye"
+      glow: true
+  gunpowder:
+    input: GUNPOWDER
+    input-amount: 160
+    output:
+      material: GUNPOWDER
+      display-name: "&aEnchanted Gunpowder"
+      glow: true
+  ender_pearl:
+    input: ENDER_PEARL
+    input-amount: 160
+    output:
+      material: ENDER_PEARL
+      display-name: "&aEnchanted Ender Pearl"
+      glow: true
+  blaze_rod:
+    input: BLAZE_ROD
+    input-amount: 160
+    output:
+      material: BLAZE_ROD
+      display-name: "&aEnchanted Blaze Rod"
+      glow: true
+  coal:
+    input: COAL
+    input-amount: 160
+    output:
+      material: COAL_BLOCK
+      display-name: "&aEnchanted Coal"
+      glow: true
+  raw_gold:
+    input: RAW_GOLD
+    input-amount: 160
+    output:
+      material: GOLD_BLOCK
+      display-name: "&aEnchanted Gold"
+      glow: true
+  emerald:
+    input: EMERALD
+    input-amount: 160
+    output:
+      material: EMERALD_BLOCK
+      display-name: "&aEnchanted Emerald"
+      glow: true
+  redstone:
+    input: REDSTONE
+    input-amount: 160
+    output:
+      material: REDSTONE_BLOCK
+      display-name: "&aEnchanted Redstone"
+      glow: true
+  lapis:
+    input: LAPIS_LAZULI
+    input-amount: 160
+    output:
+      material: LAPIS_BLOCK
+      display-name: "&aEnchanted Lapis Lazuli"
+      glow: true
+  obsidian:
+    input: OBSIDIAN
+    input-amount: 160
+    output:
+      material: OBSIDIAN
+      display-name: "&aEnchanted Obsidian"
+      glow: true
+  quartz:
+    input: QUARTZ
+    input-amount: 160
+    output:
+      material: QUARTZ_BLOCK
+      display-name: "&aEnchanted Quartz"
+      glow: true
+

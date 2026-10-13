@@ -56,12 +56,24 @@ public class MythicMobsHook {
             } catch (IllegalArgumentException ignored) {}
         }
 
-        // 3. Apply tag, gravity, and optional AI disabling
+        // 3. Apply tag, gravity, persistence, and optional AI disabling
         if (spawnedEntity != null) {
             spawnedEntity.getPersistentDataContainer().set(MINION_MOB_KEY, PersistentDataType.BYTE, (byte) 1);
             spawnedEntity.setGravity(true);
-            if (disableAi && spawnedEntity instanceof LivingEntity living) {
-                living.setAI(false);
+            if (spawnedEntity instanceof LivingEntity living) {
+                living.setRemoveWhenFarAway(false);
+                living.setPersistent(true);
+                if (disableAi) {
+                    living.setAI(false);
+                }
+                // Prevent sunlight burn on undead mobs so daylight setups do not kill spawned mobs
+                if (living.getEquipment() != null) {
+                    if (living instanceof org.bukkit.entity.Zombie || living instanceof org.bukkit.entity.Skeleton) {
+                        if (living.getEquipment().getHelmet() == null || living.getEquipment().getHelmet().getType().isAir()) {
+                            living.getEquipment().setHelmet(new org.bukkit.inventory.ItemStack(org.bukkit.Material.LEATHER_HELMET));
+                        }
+                    }
+                }
             }
         }
 
