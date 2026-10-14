@@ -163,13 +163,47 @@ skill-rewards:
       xp-per-item: 5.0
 
 # ==============================================================================
-# COLLECTION COMMANDS
+# COLLECTION SYSTEM & COMMAND REWARDS
+# ==============================================================================
+# MinionX features native, plug-and-play integrations for top collection plugins:
+#   * EcoCollections: Automatically detected and credited via direct API.
+#   * SuperiorSkyblock2: Automatically forwards progress to Island Collections.
+#
+# NOTE: If you are using EcoCollections or SuperiorSkyblock2, NO commands are
+# needed below; collections will update automatically out of the box!
+#
+# For ANY other collections, battlepass, quest, leveling, or economy plugins,
+# you can configure console commands below. Commands execute synchronously
+# whenever a player collects harvested items from a minion (via "Collect All"
+# or individual slot clicks).
+#
+# Available Placeholders:
+#   %player%            - Player username (e.g., Steve)
+#   %player_uuid%       - Player UUID
+#   %amount%            - Amount of items collected (e.g., 64)
+#   %item%              - Material name of collected item (e.g., COBBLESTONE)
+#   %item_material%     - Same as %item%
+#   %minion_type%       - Display name of minion (e.g., Cobblestone)
+#   %minion_type_id%    - Internal minion ID (e.g., cobblestone)
+#   %minion_tier%       - Current tier number (e.g., 5)
+#   %minion_tier_roman% - Current tier in Roman numerals (e.g., V)
+#   {expression}        - Inline math evaluation, e.g., {amount * 1.5}
+#   PlaceholderAPI      - All PAPI placeholders are supported if PAPI is installed.
+#
+# Sections:
+#   global: Runs on EVERY collection event across all minion types.
+#   types.<minion_id>: Runs ONLY when collecting from that specific minion type.
 # ==============================================================================
 collection-commands:
   enabled: true
+  # Global commands run on every collection event
+  # Example: - "collections add %player% %item% %amount%"
   global: []
+  # Type-specific commands run only for the specified minion ID
   types:
     cobblestone: []
+    # Example:
+    #   - "quests progress %player% mine_cobble %amount%"
     iron: []
     diamond: []
 
