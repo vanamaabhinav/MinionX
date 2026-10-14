@@ -132,12 +132,119 @@ prices:
   ENCHANTED_ENDER_PEARL: 200.0
 
 # ==============================================================================
-# Custom Items Price Configuration
+# Custom Items Price Configuration (custom-prices)
 # ==============================================================================
-# Define prices for custom items from plugins (ItemsAdder, MMOItems, EcoItems)
-# or items with custom display names, CustomModelData, or PDC tags.
+# Configure base NPC sell prices for custom items when sold through Automated
+# Shipping hoppers (Budget Hopper, Enchanted Hopper) in Slot 28.
+#
+# When Minion storage and linked chests are completely full, hoppers sell overflow
+# items based on the base price defined here multiplied by the hopper's sell ratio:
+#   coins_earned = item_amount * base_price * hopper_sell_ratio
+#
+# ------------------------------------------------------------------------------
+# Price Resolution Priority Order (How MinionX Identifies an Item's Value):
+# ------------------------------------------------------------------------------
+# When an item enters an Automated Shipping hopper, MinionX evaluates in this
+# exact priority sequence:
+#
+#   1. custom-prices entries: Checks each rule below. If all specified attributes
+#      (material, CustomModelData, display name, PDC tags, or plugin hook) match,
+#      its configured price is used immediately.
+#   2. Exact Display Name: Checks the `prices` section above for the item's colored
+#      display name (e.g. "&cFresh Spider Eye: 15.0").
+#   3. Stripped Display Name: Checks `prices` for the color-stripped name
+#      (e.g. "Fresh Spider Eye: 15.0" or "FRESH_SPIDER_EYE: 15.0").
+#   4. CustomModelData: Checks `prices` for "MATERIAL:CMD" (e.g. "EMERALD:1001: 50.0")
+#      or generic "CMD:<number>" (e.g. "CMD:1001: 50.0").
+#   5. PersistentDataContainer (PDC): Checks `prices` for any stored string tag
+#      (e.g. "fresh_spider_eye: 15.0" or "minionx:fresh_spider_eye: 15.0").
+#   6. Super Compactor Compression Recipes: If the item was crafted via a recipe
+#      in recipes.yml, MinionX dynamically calculates its price:
+#      price = input_amount * base_input_material_price
+#      (e.g. 160 Cobblestone @ 1.0 each = 160.0 coins for Enchanted Cobblestone).
+#   7. Vanilla Material: Falls back to the standard material price in `prices`.
+#   8. Default Fallback: Falls back to `default-price` (default: 1.0).
+#
+# ------------------------------------------------------------------------------
+# Supported Attributes for custom-prices entries:
+# ------------------------------------------------------------------------------
+#   price: <double>               - (Required) Base NPC sell price per individual unit.
+#   material: <MATERIAL>          - Vanilla Bukkit Material (e.g. SPIDER_EYE, DIAMOND, STICK).
+#   display-name: "<string>"      - Custom display name (supports color codes '&' and hex '&#RRGGBB').
+#   custom-model-data: <integer>  - CustomModelData integer used by custom resource packs.
+#   glow: <boolean>               - Optional enchantment glint effect (true/false).
+#   pdc-key: "<namespace:key>"    - PersistentDataContainer NamespacedKey (e.g. "minionx:drop").
+#   pdc-value: "<string>"         - Expected string value stored in the PDC key.
+#   item: "<hook_identifier>"     - Direct third-party plugin item hook:
+#                                   * ItemsAdder:  "itemsadder:<namespace:id>" (e.g. "itemsadder:ruby")
+#                                   * MMOItems:    "mmoitems:<TYPE>.<ID>"     (e.g. "mmoitems:SWORD.CUTLASS")
+#                                   * EcoItems:    "ecoitems:<id>"            (e.g. "ecoitems:super_diamond")
 # ==============================================================================
 custom-prices:
+
+  # ----------------------------------------------------------------------------
+  # Example 1: Custom Drop from Combat Minion (minions.yml spider_example)
+  # Matches by Material, Display Name, CustomModelData, and PDC tag.
+  # ----------------------------------------------------------------------------
+  fresh_spider_eye:
+    material: SPIDER_EYE
+    display-name: "&cFresh Spider Eye"
+    custom-model-data: 1001
+    glow: true
+    pdc-key: "minionx:drop"
+    pdc-value: "fresh_spider_eye"
+    price: 15.0
+
+  # ----------------------------------------------------------------------------
+  # Example 2: Resource Pack Custom Model Item (Pure CustomModelData)
+  # Useful for custom ores, gems, or textures on a vanilla base item.
+  # ----------------------------------------------------------------------------
+  ruby_gem:
+    material: EMERALD
+    display-name: "&cRuby Gem"
+    custom-model-data: 5001
+    price: 45.0
+
+  # ----------------------------------------------------------------------------
+  # Example 3: ItemsAdder Custom Item Integration
+  # Automatically resolves the exact item from ItemsAdder.
+  # ----------------------------------------------------------------------------
+  itemsadder_ruby:
+    item: "itemsadder:ruby"
+    price: 60.0
+
+  # ----------------------------------------------------------------------------
+  # Example 4: MMOItems Custom Item Integration
+  # Automatically resolves the custom weapon, armor, or material from MMOItems.
+  # Format: "mmoitems:<TYPE>.<ID>"
+  # ----------------------------------------------------------------------------
+  mmoitems_mithril:
+    item: "mmoitems:MATERIAL.MITHRIL_INGOT"
+    price: 120.0
+
+  # ----------------------------------------------------------------------------
+  # Example 5: EcoItems Custom Item Integration
+  # Automatically resolves the custom item from EcoItems.
+  # Format: "ecoitems:<id>"
+  # ----------------------------------------------------------------------------
+  ecoitems_void_core:
+    item: "ecoitems:void_core"
+    price: 500.0
+
+  # ----------------------------------------------------------------------------
+  # Example 6: Custom NBT / PersistentDataContainer Tag Item
+  # Matches any item carrying custom persistent metadata.
+  # ----------------------------------------------------------------------------
+  amethyst_essence:
+    material: AMETHYST_SHARD
+    display-name: "&dAmethyst Essence"
+    pdc-key: "minionx:drop"
+    pdc-value: "amethyst_essence"
+    price: 35.0
+
+  # ----------------------------------------------------------------------------
+  # Pre-Configured Enchanted Items (Explicit Display Name Overrides)
+  # ----------------------------------------------------------------------------
   enchanted_cobblestone:
     display-name: "&aEnchanted Cobblestone"
     price: 160.0
@@ -150,3 +257,4 @@ custom-prices:
   enchanted_gold:
     display-name: "&aEnchanted Gold"
     price: 640.0
+

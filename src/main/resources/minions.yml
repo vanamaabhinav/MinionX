@@ -27,10 +27,29 @@
 #       lore:                      # Optional custom lore lines
 #         - "&7Lore description"
 #       glow: false                # Optional enchantment glint
-#       pdc-key: "minionx:item_id" # Optional NBT / PersistentDataContainer key
+#       pdc-key: "minionx:drop"    # Optional NBT / PersistentDataContainer key
 #       pdc-value: "custom_drop"   # Optional PDC value
 #
-# Optional Armor Customization:
+# Custom Drops Ecosystem Integration:
+#   - Automated Selling (prices.yml): Custom drops tagged with display names,
+#     CustomModelData, or PDC keys can be assigned explicit sell values under
+#     `custom-prices` in prices.yml so shipping hoppers credit players accurately!
+#   - Compression (recipes.yml): Super Compactor 3000 can compress custom drops
+#     into high-tier enchanted versions using matching recipes in recipes.yml.
+#
+# Archetype-Specific Configuration Options:
+#   - MINING:   `target-block: <MATERIAL>` (e.g., AMETHYST_CLUSTER, ANCIENT_DEBRIS, OBSIDIAN)
+#   - FARMING:  `target-crop: <MATERIAL>`  (e.g., WHEAT, CARROT, POTATO, PUMPKIN, SUGAR_CANE)
+#   - FORAGING: `target-sapling: <MATERIAL>` and `target-log: <MATERIAL>` (e.g. OAK_SAPLING / OAK_LOG)
+#   - COMBAT:   `target-mob: <ENTITY_OR_MYTHIC>` (e.g. SPIDER, BLAZE, or "MYTHIC_BOSS_NAME")
+#
+# Per-Minion Tier Overrides (Optional `tiers:` section):
+#   - If omitted, the minion adopts the global statistics defined in tiers.yml.
+#   - If defined under a minion, it completely customizes action delays, storage
+#     slots, and upgrade costs specifically for that individual minion type.
+#
+# Equipment & Visuals:
+#   held-tool: DIAMOND_PICKAXE     # Tool or weapon held in the minion's right hand
 #   armor-material: LEATHER        # LEATHER, IRON, GOLD, DIAMOND, NETHERITE
 #   armor-color: "#FF5555"         # Leather dye color: Hex (#RRGGBB) or RGB (255,85,85)
 #

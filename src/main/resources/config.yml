@@ -258,6 +258,32 @@ collection-commands:
 # ==============================================================================
 # MINION GUI LAYOUT CUSTOMIZATION (Standard MinionX Layout)
 # ==============================================================================
+# Configure the exact inventory slot positions for all components within the
+# 54-slot (6-row x 9-column) Minion Management GUI.
+#
+# Slot Indexing Quick Reference:
+#   Row 1: [ 0,  1,  2,  3,  4,  5,  6,  7,  8]
+#   Row 2: [ 9, 10, 11, 12, 13, 14, 15, 16, 17]
+#   Row 3: [18, 19, 20, 21, 22, 23, 24, 25, 26]
+#   Row 4: [27, 28, 29, 30, 31, 32, 33, 34, 35]
+#   Row 5: [36, 37, 38, 39, 40, 41, 42, 43, 44]
+#   Row 6: [45, 46, 47, 48, 49, 50, 51, 52, 53]
+#
+# Slot Functions:
+#   ideal-layout       - (Slot 3) Informational guide book showing ideal 5x5 minion setup.
+#   head               - (Slot 4) Central minion stat skull showing lifetime harvests & status.
+#   next-tier          - (Slot 5) Preview button showing stats gained by upgrading to next tier.
+#   skin               - (Slot 10) Minion skin cosmetic slot (located right above Fuel).
+#   fuel               - (Slot 19) Socket for temporary or permanent minion fuels (fuels.yml).
+#   automated-shipping - (Slot 28) Socket for Budget or Enchanted hoppers (prices.yml).
+#   upgrade-1          - (Slot 37) Primary modifier slot (Compactor, Auto-Smelter, etc.).
+#   upgrade-2          - (Slot 46) Secondary modifier slot (Diamond Spreading, Flycatcher, etc.).
+#   collect-all        - (Slot 48) One-click button to collect all stored items and grant skill XP.
+#   upgrade-tier       - (Slot 50) Button to upgrade minion to next tier using inventory resources.
+#   pickup             - (Slot 53) Reclaims minion, fuels, skins, upgrades, and items safely.
+#   storage            - (Slots 21-25, 30-34, 39-43) Symmetrical 3x5 grid (15 slots total).
+#                        Slots unlock progressively as minion tier increases (tiers.yml).
+# ==============================================================================
 gui:
   minion-menu:
     slots:

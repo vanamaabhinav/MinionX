@@ -46,6 +46,19 @@ messages:
   no-minion-access-permission: "&cYou do not have permission to access this minion!"
   partially-obstructed-status: "&ePartially Obstructed"
 
+# ==============================================================================
+# MINION DIALOGUES & FLOATING SPEECH BUBBLES
+# ==============================================================================
+# Minions occasionally speak cheerful, funny, or motivational quips while working
+# or when clicked by their owner!
+#
+# Mechanics:
+#   - Spoken dialogues float as lightweight temporary hologram text directly
+#     above the minion's head for `duration-seconds`.
+#   - Archetype-specific: Minions automatically pick lines matching their archetype
+#     (mining, foraging, farming, combat), falling back to 'general' lines.
+#   - Feel free to add unlimited custom phrases below to match your server's theme!
+# ==============================================================================
 dialogues:
   enabled: true
   format: "&e\"%message%\""
