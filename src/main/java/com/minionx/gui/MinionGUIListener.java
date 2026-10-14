@@ -807,27 +807,4 @@ public class MinionGUIListener implements Listener {
             SkillHook.addSkillXp(player, skill, xpPer * amount);
         }
     }
-
-    private boolean hasEnoughItems(Player player, Material mat, int amount) {
-        int count = 0;
-        for (ItemStack item : player.getInventory().getContents()) {
-            if (item != null && item.getType() == mat) {
-                count += item.getAmount();
-                if (count >= amount) return true;
-            }
-        }
-        return false;
-    }
-
-    private void removeItems(Player player, Material mat, int amount) {
-        int remaining = amount;
-        for (ItemStack item : player.getInventory().getContents()) {
-            if (item != null && item.getType() == mat) {
-                int take = Math.min(remaining, item.getAmount());
-                item.setAmount(item.getAmount() - take);
-                remaining -= take;
-                if (remaining <= 0) break;
-            }
-        }
-    }
 }

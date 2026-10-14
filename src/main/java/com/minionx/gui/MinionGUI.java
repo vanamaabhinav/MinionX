@@ -181,7 +181,6 @@ public class MinionGUI {
         }
 
         int nextTier = currentTier + 1;
-        int cost = minion.getUpgradeCost();
         MinionDefinition def = minion.getDefinition();
         double curDelay = minion.getBaseActionDelay();
         double nextDelay = def != null ? def.getActionDelay(nextTier) : MinionTier.getActionDelay(nextTier);

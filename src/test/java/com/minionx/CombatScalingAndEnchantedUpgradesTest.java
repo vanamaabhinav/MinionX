@@ -5,8 +5,6 @@ import com.minionx.core.CompressionManager;
 import com.minionx.core.Minion;
 import com.minionx.util.UpgradeCostHelper;
 import org.bukkit.Material;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

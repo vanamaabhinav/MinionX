@@ -14,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
  * Big upgrades (Tier 5+ or costs >= 640) require Enchanted versions to fit
  * within a player's physical 36-slot inventory.
  */
+@SuppressWarnings("deprecation")
 public class UpgradeCostHelper {
 
     public static class Requirement {
