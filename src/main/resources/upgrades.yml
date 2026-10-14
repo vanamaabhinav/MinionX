@@ -1,10 +1,34 @@
 # ==============================================================================
 # MinionX - Custom Upgrades Configuration (upgrades.yml)
 # ==============================================================================
-# Upgrades placed into Slots 27 and 36 of any Minion GUI.
-# Supported types:
-#   AUTO_SMELTER, COMPACTOR, SUPER_COMPACTOR, DIAMOND_SPREADING, SPEED_BUFF,
-#   BUDGET_HOPPER, ENCHANTED_HOPPER
+# Upgrades grant passive automation, compression, smelting, speed boosts,
+# bonus generation, or automated item selling to Minions.
+#
+# Socket Locations:
+#   - Upgrade Slot 1: Slot 37 (Row 5, Col 2)
+#   - Upgrade Slot 2: Slot 46 (Row 6, Col 2)
+#   - Automated Shipping: Slot 28 (Row 4, Col 2) - Hoppers only
+#
+# Supported Upgrade Types:
+#   AUTO_SMELTER       - Instantly smelts raw ores into ingots and blocks into smooth
+#                        variants (e.g., Cobblestone -> Stone, Raw Iron -> Iron Ingot).
+#   COMPACTOR          - Compacts 9 raw items into their basic 3x3 block forms
+#                        (e.g., 9 Iron Ingots -> 1 Iron Block).
+#   SUPER_COMPACTOR    - Advanced compression! Compresses 160 items into their
+#                        Enchanted forms using recipes defined in `recipes.yml`.
+#   DIAMOND_SPREADING  - Adds a configurable percentage chance (`chance: 0.10` = 10%)
+#                        to produce bonus diamonds on every single harvest action.
+#   SPEED_BUFF         - Multiplies minion action speed (`speed-buff: 0.20` = +20%).
+#                        Stacks additively or multiplicatively with fuels.
+#   AUTO_SELLER        - Equipped in the Automated Shipping slot (Slot 28). When minion
+#                        inventory and linked storage are 100% full, overflow items are
+#                        automatically sold for coins using base NPC prices from `prices.yml`
+#                        multiplied by `sell-ratio` (e.g. 0.50 = 50%, 0.90 = 90%).
+#                        Accumulated coins can be collected with a single click.
+#
+# In-Game Creator & Commands:
+#   - Give Upgrade: /minion give <player> upgrade <upgrade_id> [amount]
+#   - Live Studio: /minion create upgrade  (or /minionsx -> Upgrades Catalog Slot 22)
 # ==============================================================================
 
 upgrades:

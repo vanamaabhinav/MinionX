@@ -1,8 +1,38 @@
 # ==============================================================================
 # MinionX - Custom Fuels Configuration (fuels.yml)
 # ==============================================================================
-# Define temporary or permanent fuels to boost minion harvest speeds.
-# Duration formats: "30m", "1h", "12h", "1d", "permanent"
+# Fuels provide temporary or permanent speed boosts to Minions.
+#
+# Socket Location:
+#   Equipped in Slot 19 of the Minion GUI (directly below the Minion Skin at Slot 10).
+#   Left-click with a fuel item to socket. Click an equipped fuel to retrieve it.
+#
+# Speed Multiplier Formula:
+#   effective_delay = base_action_delay / (1.0 + speed_buff)
+#   Example: A minion with 10.0s delay and a 0.25 (+25%) fuel buff will act every
+#   10.0 / 1.25 = 8.0 seconds!
+#
+# Duration Formats:
+#   "30m"       - 30 minutes
+#   "1h" / "12h"- 1 or 12 hours
+#   "1d" / "7d" - 1 or 7 days
+#   "permanent" - Operates indefinitely (never expires).
+#
+# Stacking & Fuel Rules:
+#   - Stacking: Placing multiple temporary fuels of the same type stacks their
+#     burn duration linearly (e.g. 4x Coal @ 30m = 2 hours total burn time).
+#   - Temporary Fuels: Burn out and disappear upon removal if configured in
+#     config.yml (`settings.destroy-temporary-fuel-on-removal: true`).
+#   - Permanent Fuels: Never burn out and can always be retrieved safely.
+#
+# Security & Anti-Exploit Protections:
+#   - Minion fuels cannot be placed as blocks in the world.
+#   - Edible materials (like Enchanted Bread) cannot be eaten by players.
+#   - Minion fuels cannot be used as ingredients in vanilla crafting recipes.
+#
+# In-Game Creator & Commands:
+#   - Give Fuel: /minion give <player> fuel <fuel_id> [amount]
+#   - Live Studio: /minion create fuel  (or /minionsx -> Fuels Vault Slot 24)
 # ==============================================================================
 
 fuels:

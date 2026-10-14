@@ -33,21 +33,52 @@ settings:
   enable-animations: true
   enable-sounds: true
   enable-particles: true
-  # Emergency Quarantine Mode: Anti-Dupe & Exploit Failsafe
+
+  # ============================================================================
+  # EMERGENCY QUARANTINE MODE (Anti-Dupe & Exploit Failsafe)
+  # ============================================================================
+  # When enabled, the plugin enters strict lockdown mode to stop exploits immediately:
+  #   - Blocks all minion item pickups and placement
+  #   - Blocks minion storage chest placement, opening, and breaking
+  #   - Freezes inventory withdrawals and item collections
+  #
+  # Players with permission "minionx.quarantine.bypass" or OPs can still interact.
+  # Can also be toggled live in-game via `/minionsx` (Slot 51) or `/minion quarantine`.
   quarantine-mode: false
+
+  # If true, minion harvesting AI tick loop is completely paused during quarantine.
+  # If false, minions continue working in the background but players cannot withdraw.
   quarantine-freeze-ticks: false
 
-  # Combat Minions settings
+  # ============================================================================
+  # COMBAT MINIONS CONFIGURATION
+  # ============================================================================
   combat:
-    # Maximum alive mobs spawned by a single combat minion in its 5x5 area
+    # Maximum alive mobs spawned by a single combat minion in its 5x5 area at once.
+    # Prevents mob stacking, entity lag, and runaway spawning if left unattended.
     max-mobs-per-minion: 5
-    # Disable natural mob wandering (set AI false) for maximum server performance.
-    # Set to false if you prefer mobs to wander naturally inside a 6x6 fenced area.
-    # Set to true if you prefer mobs to stay still without AI wandering.
+
+    # Control natural mob wandering AI:
+    #   true  - Disables mob AI wandering. Mobs stand still until slain by minion.
+    #           Recommended for massive server performance and zero entity pathfinding lag.
+    #   false - Mobs wander naturally inside their enclosed 5x5 platform.
     disable-mob-wandering: false
 
 # ==============================================================================
 # STORAGE ENGINE (YAML, SQLITE, or MYSQL)
+# ==============================================================================
+# Choose where active minion data, placed locations, inventories, and tiers are saved:
+#
+#   YAML   - Flat-file storage saved in plugins/MinionX/minions_data.yml.
+#            Zero database configuration required. Ideal for small-to-medium servers.
+#
+#   SQLITE - High-speed local embedded database saved in plugins/MinionX/minions.db.
+#            Provides ACID compliance, corruption resistance, and fast async queries.
+#            Recommended for medium-to-large single servers.
+#
+#   MYSQL  - Enterprise relational database for multi-server networks and Bungee/Velocity.
+#            Allows cross-server minion synchronization and network-wide data centralization.
+#            Tables and schemas are automatically created on first startup.
 # ==============================================================================
 storage:
   type: YAML # Options: YAML (default), SQLITE, MYSQL
@@ -59,6 +90,10 @@ storage:
     database: "minions"
     username: "root"
     password: ""
+    # Advanced connection pool settings
+    maximum-pool-size: 10
+    minimum-idle: 2
+    connection-timeout-ms: 5000
 
 # ==============================================================================
 # FLOATING NAMETAGS (Holograms)
@@ -79,7 +114,20 @@ nametags:
   format: "&e[Lv.%tier_roman%] &a%minion_name% Minion &7(%status%&7)"
 
 # ==============================================================================
-# RPG SKILL REWARDS (AuraSkills & EcoSkills)
+# RPG SKILL REWARDS (AuraSkills, EcoSkills, & mcMMO)
+# ==============================================================================
+# Grants skill experience points to players when collecting resources from minions.
+# Automatically detects and hooks into:
+#   * AuraSkills (formerly EcoSkills)
+#   * mcMMO
+#
+# Supported Skill Names:
+#   mining, foraging, farming, combat, fishing, agility, alchemy, enchanting
+#
+# Schema:
+#   <minion_type_id>:
+#     skill: "<skill_name>"
+#     xp-per-item: <float>  # Amount of skill XP granted per single collected item
 # ==============================================================================
 skill-rewards:
   types:
@@ -267,19 +315,39 @@ messages:
 
 # ==============================================================================
 # MINION STORAGE SYMMETRICAL SLOT CONFIGURATION
-# Centered at Slot 13 (0-indexed) in a 27-slot chest GUI.
+# ==============================================================================
+# When players open a linked Minion Storage chest (Small, Medium, Large, etc.),
+# MinionX displays a 27-slot chest GUI. By default, unlocked slots are calculated
+# mathematically to radiate symmetrically outward from the exact center (Slot 13):
+#
+#   Capacity 1  -> [13]
+#   Capacity 3  -> [12, 13, 14]
+#   Capacity 9  -> Full row 2: [9, 10, 11, 12, 13, 14, 15, 16, 17]
+#   Capacity 15 -> Symmetrical grid across rows 1, 2, 3
+#   Capacity 27 -> Entire 27-slot inventory unlocked
+#
+# If you prefer to manually define specific slot patterns for each capacity level,
+# set `use-custom-layouts: true` and configure the slot lists below:
 # ==============================================================================
 storage-layouts:
   use-custom-layouts: false
+  # Example custom layout definition:
+  # layouts:
+  #   9: [10, 11, 12, 13, 14, 15, 16, 19, 20]
+  #   15: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 19]
 
 # ==============================================================================
 # UPDATES & METRICS
 # ==============================================================================
 update-checker:
-  # Check for new MinionX releases on GitHub asynchronously on startup
+  # Asynchronously checks the GitHub API on startup to see if a newer version
+  # of MinionX has been released. If an update is available, notifies console
+  # and operators upon joining. Does not block server startup.
   enabled: true
 
 metrics:
-  # Send anonymous bStats metrics to help development
+  # Sends anonymous plugin usage statistics to bStats.org (e.g. server version,
+  # Java version, and minion count). Helps developers track popularity and prioritize updates.
+  # No player names, IP addresses, or sensitive island coordinates are ever sent.
   enabled: true
 

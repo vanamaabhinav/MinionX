@@ -1,14 +1,29 @@
 # ==============================================================================
 # MinionX - Economy Sell Prices (prices.yml)
 # ==============================================================================
-# Used by Automated Shipping items (Budget Hopper, Enchanted Hopper)
-# to calculate coin earnings when minion inventory and storage are full.
+# Configures base NPC sell prices used by Automated Shipping hoppers
+# (Budget Hopper, Enchanted Hopper) when minion storage is completely full.
 #
-# Values represent base NPC sell prices per single unit of each item.
-# Supports vanilla items, compressed enchanted items, and full custom items
-# (ItemsAdder, MMOItems, EcoItems, CustomModelData, Display Names, and PDC tags).
+# Selling Formula & Hopper Ratios:
+#   coins_earned = base_item_price * hopper_sell_ratio * item_amount
+#
+#   - Budget Hopper: 50% sell ratio (sell-ratio: 0.50)
+#   - Enchanted Hopper: 90% sell ratio (sell-ratio: 0.90)
+#
+# Economy & Vault Integration:
+#   - MinionX hooks seamlessly into Vault to deposit collected coins directly
+#     into the player's account.
+#   - If Vault is temporarily absent, earned coins accumulate safely inside
+#     the minion's shipping hopper and can be claimed anytime.
+#   - Shift-Clicking the Automated Shipping slot (Slot 28) retrieves the hopper,
+#     automatically collecting all accumulated coins.
+#
+# Custom Item Matching (custom-prices):
+#   Matches items by display name, CustomModelData, PDC NBT tags, or external
+#   plugin identifiers (ItemsAdder, MMOItems, EcoItems).
 # ==============================================================================
 
+# Default fallback price if an item is not found in the prices tables
 default-price: 1.0
 
 prices:

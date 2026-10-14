@@ -1,34 +1,41 @@
 # ==============================================================================
 # MinionX - Custom Minions Configuration (minions.yml)
 # ==============================================================================
-# Server owners can configure custom minions here.
-# Minions support 4 archetypes: MINING, FARMING, FORAGING, COMBAT.
+# In addition to the 35+ built-in Hypixel minions included by default (Cobblestone,
+# Diamond, Wheat, Oak, Zombie, etc.), server owners can define unlimited brand-new,
+# custom data-driven minions here.
 #
-# Schema:
-#   <minion_id>:
-#     display-name: "&dDisplay Name"
-#     archetype: MINING | FARMING | FORAGING | COMBAT
-#     target-block: <MATERIAL>       # Used by MINING, FARMING, FORAGING
-#     target-mob: <ENTITY_TYPE|ID>   # Used by COMBAT (Vanilla EntityType or MythicMob ID)
-#     held-tool: <MATERIAL>          # Held tool in hand (e.g. DIAMOND_PICKAXE)
-#     skull-texture: "<base64>"      # Optional custom head texture
-#     max-tier: 12                   # Custom maximum tier cap (e.g. 5, 8, 12, etc.)
-#     drops:                         # Unified custom item drop schema
-#       - material: <MATERIAL|HOOK>  # or item: <MATERIAL|HOOK>
-#         amount: 1
-#         chance: 1.0                # 1.0 = 100%, 0.5 = 50%, 0.1 = 10%
-#         display-name: "&dCustom Item Name"
-#         custom-model-data: 1001
-#         lore:
-#           - "&7Custom item description"
-#         glow: false
-#         pdc-key: "minionx:item_id"
-#         pdc-value: "custom_drop"
-#     tiers:                         # Optional per-minion tier overrides
-#       1:
-#         action-delay: 24.0         # Seconds per action for this tier
-#         storage-slots: 2           # Inventory slots unlocked
-#         upgrade-cost: 64           # Items required to upgrade to next tier
+# Supported Archetypes & How They Operate:
+#   MINING   - Places its target ore/block on valid ground within its 5x5 area,
+#              then mines and harvests it into its inventory.
+#   FARMING  - Tills soil, hydrates, plants seeds/stems (Wheat, Carrots, Potatoes,
+#              Pumpkins, Melons, Nether Wart, Mushrooms), and harvests once fully grown.
+#   FORAGING - Plants saplings in its 5x5 area, grows trees with simulated bonemeal,
+#              and chops logs from root to canopy.
+#   COMBAT   - Spawns mobs on its 5x5 platform (up to `max-mobs-per-minion`), attacks
+#              them with its held weapon, and collects mob drops upon slaying.
+#              Supports vanilla entities (ZOMBIE, SKELETON, BLAZE, SPIDER, etc.)
+#              AND MythicMobs (e.g. `target-mob: "MYTHIC_SKELETON_KING"`).
+#
+# Unified Drop Schema:
+#   drops:
+#     - material: <MATERIAL|HOOK>  # Vanilla Material or Hook (e.g., itemsadder:ruby)
+#       amount: 1                  # Quantity per drop
+#       chance: 1.0                # Drop rate: 1.0 = 100%, 0.50 = 50%, 0.05 = 5%
+#       display-name: "&dName"     # Optional custom display name
+#       custom-model-data: 1001    # Optional CustomModelData integer
+#       lore:                      # Optional custom lore lines
+#         - "&7Lore description"
+#       glow: false                # Optional enchantment glint
+#       pdc-key: "minionx:item_id" # Optional NBT / PersistentDataContainer key
+#       pdc-value: "custom_drop"   # Optional PDC value
+#
+# Optional Armor Customization:
+#   armor-material: LEATHER        # LEATHER, IRON, GOLD, DIAMOND, NETHERITE
+#   armor-color: "#FF5555"         # Leather dye color: Hex (#RRGGBB) or RGB (255,85,85)
+#
+# In-Game Minion Creator Studio:
+#   You can build and test custom minions interactively in-game using `/minion create`!
 # ==============================================================================
 
 custom-minions:

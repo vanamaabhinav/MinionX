@@ -1,13 +1,24 @@
 # ==============================================================================
 # MinionX - Custom Skins Configuration (skins.yml)
 # ==============================================================================
-# Configure cosmetic skins for Minions.
-# Skins customize the Minion ArmorStand with:
-#   - Custom player head texture (base64 texture string or built-in head ID)
-#   - Matching armor color (full set: chestplate, leggings, and boots)
-#   - Custom armor material (LEATHER, CHAINMAIL, IRON, GOLD, DIAMOND, NETHERITE)
-#   - Custom held hand weapon/tool
-#   - Custom display name and lore description
+# Configure cosmetic skins for Minion ArmorStands.
+#
+# Socket Location & Mechanics:
+#   - Equipped in Slot 10 of the Minion GUI (directly above Fuel at Slot 19).
+#   - Click Slot 10 with a skin item on cursor to equip.
+#   - Click an active skin empty-handed to retrieve it back to your inventory.
+#   - Shift-clicking a skin from your player inventory will auto-equip it!
+#
+# Skin Visual Components:
+#   - Custom player head texture (Mojang base64 texture string or built-in head key).
+#   - Full 3-piece armor set (Chestplate, Leggings, Boots).
+#   - Dynamic armor material: LEATHER, CHAINMAIL, IRON, GOLD, DIAMOND, NETHERITE.
+#   - Custom leather dye colors: Hex (#RRGGBB), RGB (r,g,b), or Bukkit color names.
+#   - Held hand tool or weapon (e.g., DIAMOND_SWORD, NETHERITE_AXE, SUGAR_CANE, EMERALD).
+#
+# Security & Anti-Exploit Protections:
+#   - Minion skins cannot be placed onto the ground as vanilla player head blocks.
+#   - Armor stands cannot be stripped, manipulated, or destroyed by players or mobs.
 #
 # Schema:
 #   <skin_id>:
@@ -15,10 +26,14 @@
 #     skull-texture: "<base64_texture_or_head_key>"
 #     armor-color: "#FF5555"          # Hex (#RRGGBB), RGB (255,85,85), or Color Name (RED, BLUE, GOLD, etc.)
 #     armor-material: LEATHER         # LEATHER, IRON, GOLD, DIAMOND, NETHERITE (default: LEATHER)
-#     hand-item: DIAMOND_SWORD        # Optional held weapon/tool
+#     hand-item: DIAMOND_SWORD        # Optional held weapon or tool
 #     description:
 #       - "&7Lore description line 1"
 #       - "&7Lore description line 2"
+#
+# In-Game Creator & Commands:
+#   - Give Skin: /minion give <player> skin <skin_id> [amount]
+#   - Live Studio: /minion create skin  (or /minionsx -> Skins Catalog Slot 28)
 # ==============================================================================
 
 skins:

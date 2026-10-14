@@ -1,8 +1,21 @@
 # ==============================================================================
-# MinionX - Language & Messages Configuration (messages.yml)
+# MinionX - Language, Alerts & Messages Configuration (messages.yml)
 # ==============================================================================
-# Customize all plugin messages and chat prefixes.
-# Placeholders: %player%, %minion%, %tier%, %amount%, %time%, %xp%, %limit%, %fuel%
+# Customize all user-facing chat messages, alerts, security warnings, and prefixes.
+#
+# Color & Formatting Codes:
+#   - Standard Minecraft codes: &0 - &9, &a - &f, &k, &l, &m, &n, &o, &r
+#   - Modern RGB Hex colors: #RRGGBB (e.g. #FF5555 for vibrant red)
+#
+# Global Placeholders:
+#   %player%  - Player username
+#   %minion%  - Minion name (e.g., Diamond Minion)
+#   %tier%    - Tier number or Roman numeral (e.g., V)
+#   %amount%  - Count or quantity of items
+#   %time%    - Formatted duration (e.g., 2 hours, 1 day)
+#   %xp%      - Skill or player experience gained
+#   %limit%   - Max placement limit
+#   %fuel%    - Name of active fuel
 # ==============================================================================
 
 prefix: "&6&l[Minion&c&lX&6&l] &r"
