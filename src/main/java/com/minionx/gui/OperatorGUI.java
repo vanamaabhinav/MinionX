@@ -282,13 +282,26 @@ public class OperatorGUI {
 
         inv.setItem(4, createNamedItem(Material.LAVA_BUCKET, ColorUtil.color("&6Fuel Supplies Catalog"),
                 List.of(ColorUtil.color("&7Click any fuel item to receive it directly."),
-                        ColorUtil.color("&7Shift-Click to receive 64 items."))));
+                        ColorUtil.color("&7Shift-Click to receive 64 items."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eLeft-Click: &fGet Fuel"),
+                        ColorUtil.color("&bRight-Click: &fCustomize in Fuel Studio"))));
 
         int[] slots = {19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
         int idx = 0;
         for (CustomFuel fuel : FuelRegistry.getAll()) {
             if (idx >= slots.length) break;
-            inv.setItem(slots[idx++], MinionItemFactory.createFuelItem(fuel));
+            ItemStack fuelItem = MinionItemFactory.createFuelItem(fuel);
+            ItemMeta meta = fuelItem.getItemMeta();
+            if (meta != null) {
+                List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                lore.add(ColorUtil.color("&7"));
+                lore.add(ColorUtil.color("&eLeft-Click &7to receive"));
+                lore.add(ColorUtil.color("&bRight-Click &7to customize in Studio"));
+                meta.setLore(lore);
+                fuelItem.setItemMeta(meta);
+            }
+            inv.setItem(slots[idx++], fuelItem);
         }
 
         inv.setItem(49, createNamedItem(Material.ARROW, ColorUtil.color("&cBack to Main Menu"),

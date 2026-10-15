@@ -1,18 +1,20 @@
 package com.minionx.hook;
 
+import com.minionx.MinionX;
 import com.minionx.core.Minion;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.UUID;
 
 /**
  * Universal protection hook manager for land claim and protection plugins:
- * GriefPrevention, BentoBox, WorldGuard, Towny, Lands,
- * with secure owner-only fallback.
+ * GriefPrevention, BentoBox, Towny, Lands,
+ * with cached reflection handles and secure owner-only fallback.
  */
 public class ProtectionHookManager {
 
@@ -21,85 +23,164 @@ public class ProtectionHookManager {
     private static boolean townyAvailable = false;
     private static boolean landsAvailable = false;
 
+    // --- Cached Reflection Handles ---
+    // GriefPrevention
+    private static Object gpDataStore = null;
+    private static Method gpGetClaimAt = null;
+    private static Method gpAllowBuild = null;
+    private static Method gpAllowContainers = null;
+
+    // BentoBox
+    private static Object bentoIslandsManager = null;
+    private static Method bentoGetIslandAt = null;
+    private static Method bentoOptionalIsPresent = null;
+    private static Method bentoOptionalGet = null;
+    private static Method bentoIslandIsMember = null;
+
+    // Towny
+    private static Object townyApi = null;
+    private static Method townyGetTownBlock = null;
+    private static Method townyCanPlayerBuild = null;
+
+    // Lands
+    private static Object landsIntegration = null;
+    private static Method landsGetArea = null;
+    private static Method landsCanBuild = null;
+    private static Method landsCanAccess = null;
+
     static {
         checkHooks();
     }
 
     public static void checkHooks() {
-        bentoBoxAvailable = Bukkit.getPluginManager().isPluginEnabled("BentoBox");
+        initGriefPrevention();
+        initBentoBox();
+        initTowny();
+        initLands();
+    }
+
+    private static void initGriefPrevention() {
         griefPreventionAvailable = Bukkit.getPluginManager().isPluginEnabled("GriefPrevention");
+        if (!griefPreventionAvailable) return;
+        try {
+            Class<?> gpClass = Class.forName("me.ryanhamshire.GriefPrevention.GriefPrevention");
+            Field instanceField = gpClass.getField("instance");
+            Object gpInstance = instanceField.get(null);
+            Field dataStoreField = gpClass.getField("dataStore");
+            gpDataStore = dataStoreField.get(gpInstance);
+
+            gpGetClaimAt = gpDataStore.getClass().getMethod("getClaimAt", Location.class, boolean.class, Object.class);
+            Class<?> claimClass = Class.forName("me.ryanhamshire.GriefPrevention.Claim");
+            gpAllowBuild = claimClass.getMethod("allowBuild", Player.class, Material.class);
+            gpAllowContainers = claimClass.getMethod("allowContainers", Player.class);
+        } catch (Throwable t) {
+            griefPreventionAvailable = false;
+            gpDataStore = null;
+        }
+    }
+
+    private static void initBentoBox() {
+        bentoBoxAvailable = Bukkit.getPluginManager().isPluginEnabled("BentoBox");
+        if (!bentoBoxAvailable) return;
+        try {
+            Class<?> bentoClass = Class.forName("world.bentobox.bentobox.BentoBox");
+            Object bentoInstance = bentoClass.getMethod("getInstance").invoke(null);
+            bentoIslandsManager = bentoInstance.getClass().getMethod("getIslands").invoke(bentoInstance);
+            bentoGetIslandAt = bentoIslandsManager.getClass().getMethod("getIslandAt", Location.class);
+
+            Class<?> optionalClass = Class.forName("java.util.Optional");
+            bentoOptionalIsPresent = optionalClass.getMethod("isPresent");
+            bentoOptionalGet = optionalClass.getMethod("get");
+
+            Class<?> islandClass = Class.forName("world.bentobox.bentobox.database.objects.Island");
+            bentoIslandIsMember = islandClass.getMethod("isMember", UUID.class);
+        } catch (Throwable t) {
+            bentoBoxAvailable = false;
+            bentoIslandsManager = null;
+        }
+    }
+
+    private static void initTowny() {
         townyAvailable = Bukkit.getPluginManager().isPluginEnabled("Towny");
+        if (!townyAvailable) return;
+        try {
+            Class<?> townyApiClass = Class.forName("com.palmergames.bukkit.towny.TownyAPI");
+            townyApi = townyApiClass.getMethod("getInstance").invoke(null);
+            townyGetTownBlock = townyApiClass.getMethod("getTownBlock", Location.class);
+
+            Class<?> townBlockClass = Class.forName("com.palmergames.bukkit.towny.object.TownBlock");
+            townyCanPlayerBuild = townBlockClass.getMethod("canPlayerBuild", Player.class);
+        } catch (Throwable t) {
+            townyAvailable = false;
+            townyApi = null;
+        }
+    }
+
+    private static void initLands() {
         landsAvailable = Bukkit.getPluginManager().isPluginEnabled("Lands");
+        if (!landsAvailable) return;
+        try {
+            Class<?> landsIntegrationClass = Class.forName("me.angeschossen.lands.api.integration.LandsIntegration");
+            if (MinionX.getInstance() != null) {
+                landsIntegration = landsIntegrationClass.getConstructor(org.bukkit.plugin.Plugin.class).newInstance(MinionX.getInstance());
+                landsGetArea = landsIntegrationClass.getMethod("getArea", Location.class);
+                Class<?> areaClass = Class.forName("me.angeschossen.lands.api.land.Area");
+                landsCanBuild = areaClass.getMethod("canBuild", Player.class, Location.class);
+                landsCanAccess = areaClass.getMethod("canAccess", Player.class, Location.class);
+            } else {
+                landsAvailable = false;
+            }
+        } catch (Throwable t) {
+            landsAvailable = false;
+            landsIntegration = null;
+        }
     }
 
     /**
      * Determines whether a player is authorized to place a minion at a location.
      */
     public static boolean canPlaceMinion(Player player, Location location) {
+        if (player == null || location == null) return false;
         if (player.hasPermission("minionx.admin")) return true;
 
         // 1. GriefPrevention claim check
-        if (griefPreventionAvailable) {
+        if (griefPreventionAvailable && gpDataStore != null && gpGetClaimAt != null && gpAllowBuild != null) {
             try {
-                Class<?> gpClass = Class.forName("me.ryanhamshire.GriefPrevention.GriefPrevention");
-                Object gpInstance = gpClass.getField("instance").get(null);
-                Object dataStore = gpClass.getField("dataStore").get(gpInstance);
-                Method getClaimAt = dataStore.getClass().getMethod("getClaimAt", Location.class, boolean.class, Object.class);
-                Object claim = getClaimAt.invoke(dataStore, location, false, null);
-
+                Object claim = gpGetClaimAt.invoke(gpDataStore, location, false, null);
                 if (claim != null) {
-                    Method allowBuild = claim.getClass().getMethod("allowBuild", Player.class, Material.class);
-                    Object denyReason = allowBuild.invoke(claim, player, Material.STONE);
+                    Object denyReason = gpAllowBuild.invoke(claim, player, Material.STONE);
                     if (denyReason != null) return false;
                 }
             } catch (Throwable ignored) {}
         }
 
         // 2. BentoBox Island check
-        if (bentoBoxAvailable) {
+        if (bentoBoxAvailable && bentoIslandsManager != null && bentoGetIslandAt != null) {
             try {
-                Object bentoInstance = Class.forName("world.bentobox.bentobox.BentoBox").getMethod("getInstance").invoke(null);
-                Object islandsManager = bentoInstance.getClass().getMethod("getIslands").invoke(bentoInstance);
-                Method getIslandAt = islandsManager.getClass().getMethod("getIslandAt", Location.class);
-                Object optionalIsland = getIslandAt.invoke(islandsManager, location);
-
-                if (optionalIsland != null) {
-                    Method isPresent = optionalIsland.getClass().getMethod("isPresent");
-                    if ((boolean) isPresent.invoke(optionalIsland)) {
-                        Object island = optionalIsland.getClass().getMethod("get").invoke(optionalIsland);
-                        Method isMember = island.getClass().getMethod("isMember", UUID.class);
-                        return (boolean) isMember.invoke(island, player.getUniqueId());
-                    }
+                Object optionalIsland = bentoGetIslandAt.invoke(bentoIslandsManager, location);
+                if (optionalIsland != null && (boolean) bentoOptionalIsPresent.invoke(optionalIsland)) {
+                    Object island = bentoOptionalGet.invoke(optionalIsland);
+                    return (boolean) bentoIslandIsMember.invoke(island, player.getUniqueId());
                 }
             } catch (Throwable ignored) {}
         }
 
-
-
-        // 4. Towny check
-        if (townyAvailable) {
+        // 3. Towny check
+        if (townyAvailable && townyApi != null && townyGetTownBlock != null) {
             try {
-                Class<?> townyApiClass = Class.forName("com.palmergames.bukkit.towny.TownyAPI");
-                Object api = townyApiClass.getMethod("getInstance").invoke(null);
-                Method getTownBlock = api.getClass().getMethod("getTownBlock", Location.class);
-                Object townBlock = getTownBlock.invoke(api, location);
-                if (townBlock != null) {
-                    Method canPlayerBuild = townBlock.getClass().getMethod("canPlayerBuild", Player.class);
-                    return (boolean) canPlayerBuild.invoke(townBlock, player);
+                Object townBlock = townyGetTownBlock.invoke(townyApi, location);
+                if (townBlock != null && townyCanPlayerBuild != null) {
+                    return (boolean) townyCanPlayerBuild.invoke(townBlock, player);
                 }
             } catch (Throwable ignored) {}
         }
 
-        // 5. Lands check
-        if (landsAvailable) {
+        // 4. Lands check
+        if (landsAvailable && landsIntegration != null && landsGetArea != null && landsCanBuild != null) {
             try {
-                Class<?> landsIntegrationClass = Class.forName("me.angeschossen.lands.api.integration.LandsIntegration");
-                Object lands = landsIntegrationClass.getConstructor(org.bukkit.plugin.Plugin.class).newInstance(com.minionx.MinionX.getInstance());
-                Method getArea = landsIntegrationClass.getMethod("getArea", Location.class);
-                Object area = getArea.invoke(lands, location);
+                Object area = landsGetArea.invoke(landsIntegration, location);
                 if (area != null) {
-                    Method canBuild = area.getClass().getMethod("canBuild", Player.class, Location.class);
-                    return (boolean) canBuild.invoke(area, player, location);
+                    return (boolean) landsCanBuild.invoke(area, player, location);
                 }
             } catch (Throwable ignored) {}
         }
@@ -120,53 +201,33 @@ public class ProtectionHookManager {
         if (loc == null) return false;
 
         // 1. GriefPrevention Container check
-        if (griefPreventionAvailable) {
+        if (griefPreventionAvailable && gpDataStore != null && gpGetClaimAt != null && gpAllowContainers != null) {
             try {
-                Class<?> gpClass = Class.forName("me.ryanhamshire.GriefPrevention.GriefPrevention");
-                Object gpInstance = gpClass.getField("instance").get(null);
-                Object dataStore = gpClass.getField("dataStore").get(gpInstance);
-                Method getClaimAt = dataStore.getClass().getMethod("getClaimAt", Location.class, boolean.class, Object.class);
-                Object claim = getClaimAt.invoke(dataStore, loc, false, null);
-
+                Object claim = gpGetClaimAt.invoke(gpDataStore, loc, false, null);
                 if (claim != null) {
-                    Method allowContainers = claim.getClass().getMethod("allowContainers", Player.class);
-                    Object denyReason = allowContainers.invoke(claim, player);
+                    Object denyReason = gpAllowContainers.invoke(claim, player);
                     return denyReason == null;
                 }
             } catch (Throwable ignored) {}
         }
 
         // 2. BentoBox Island team member check
-        if (bentoBoxAvailable) {
+        if (bentoBoxAvailable && bentoIslandsManager != null && bentoGetIslandAt != null) {
             try {
-                Object bentoInstance = Class.forName("world.bentobox.bentobox.BentoBox").getMethod("getInstance").invoke(null);
-                Object islandsManager = bentoInstance.getClass().getMethod("getIslands").invoke(bentoInstance);
-                Method getIslandAt = islandsManager.getClass().getMethod("getIslandAt", Location.class);
-                Object optionalIsland = getIslandAt.invoke(islandsManager, loc);
-
-                if (optionalIsland != null) {
-                    Method isPresent = optionalIsland.getClass().getMethod("isPresent");
-                    if ((boolean) isPresent.invoke(optionalIsland)) {
-                        Object island = optionalIsland.getClass().getMethod("get").invoke(optionalIsland);
-                        Method isMember = island.getClass().getMethod("isMember", UUID.class);
-                        return (boolean) isMember.invoke(island, player.getUniqueId());
-                    }
+                Object optionalIsland = bentoGetIslandAt.invoke(bentoIslandsManager, loc);
+                if (optionalIsland != null && (boolean) bentoOptionalIsPresent.invoke(optionalIsland)) {
+                    Object island = bentoOptionalGet.invoke(optionalIsland);
+                    return (boolean) bentoIslandIsMember.invoke(island, player.getUniqueId());
                 }
             } catch (Throwable ignored) {}
         }
 
-
-
-        // 4. Lands team/access check
-        if (landsAvailable) {
+        // 3. Lands team/access check
+        if (landsAvailable && landsIntegration != null && landsGetArea != null && landsCanAccess != null) {
             try {
-                Class<?> landsIntegrationClass = Class.forName("me.angeschossen.lands.api.integration.LandsIntegration");
-                Object lands = landsIntegrationClass.getConstructor(org.bukkit.plugin.Plugin.class).newInstance(com.minionx.MinionX.getInstance());
-                Method getArea = landsIntegrationClass.getMethod("getArea", Location.class);
-                Object area = getArea.invoke(lands, loc);
+                Object area = landsGetArea.invoke(landsIntegration, loc);
                 if (area != null) {
-                    Method canAccess = area.getClass().getMethod("canAccess", Player.class, Location.class);
-                    return (boolean) canAccess.invoke(area, player, loc);
+                    return (boolean) landsCanAccess.invoke(area, player, loc);
                 }
             } catch (Throwable ignored) {}
         }

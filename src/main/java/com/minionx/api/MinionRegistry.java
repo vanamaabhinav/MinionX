@@ -40,6 +40,11 @@ public class MinionRegistry {
         DEFINITIONS.put(def.getId().toLowerCase(), def);
     }
 
+    public static void unregister(String id) {
+        if (id == null) return;
+        DEFINITIONS.remove(id.toLowerCase());
+    }
+
     static {
         registerDefaults();
     }

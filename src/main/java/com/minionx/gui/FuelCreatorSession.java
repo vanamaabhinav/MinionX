@@ -3,6 +3,8 @@ package com.minionx.gui;
 import com.minionx.api.CustomFuel;
 import com.minionx.util.ColorUtil;
 import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +43,48 @@ public class FuelCreatorSession {
         this.durationMinutes = 60; // 1 hour default
         this.glow = true;
         this.customModelData = 0;
+    }
+
+    public FuelCreatorSession(CustomFuel existing) {
+        if (existing == null) {
+            this.id = "custom_fuel";
+            this.displayName = "&eCustom Fuel";
+            this.material = Material.BLAZE_POWDER;
+            this.speedBuff = 0.20;
+            this.permanent = false;
+            this.durationMinutes = 60;
+            this.glow = true;
+            this.customModelData = 0;
+            return;
+        }
+        this.id = existing.getId();
+        this.displayName = existing.getDisplayName();
+        this.material = existing.getMaterial() != null ? existing.getMaterial() : Material.BLAZE_POWDER;
+        this.speedBuff = existing.getSpeedBuff();
+        this.permanent = existing.isPermanent();
+        if (existing.isPermanent()) {
+            this.durationMinutes = 60;
+        } else {
+            this.durationMinutes = (int) Math.max(1, existing.getDurationMillis() / (60L * 1000L));
+        }
+        this.glow = existing.isGlow();
+        this.customModelData = existing.getCustomModelData();
+    }
+
+    public void applyIconFrom(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return;
+        this.material = item.getType();
+        if (item.hasItemMeta()) {
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                if (meta.hasCustomModelData()) {
+                    this.customModelData = meta.getCustomModelData();
+                }
+                if (meta.hasEnchants()) {
+                    this.glow = true;
+                }
+            }
+        }
     }
 
     private static String formatName(String id) {

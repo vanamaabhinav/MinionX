@@ -397,4 +397,187 @@ compression-recipes:
         - "&7Potent condensed spider essence"
         - "&7compressed by Super Compactor 3000."
 
+# ==============================================================================
+# Standard Compactor Recipes (compactor-recipes)
+# ==============================================================================
+# Used by standard Compactor upgrades to compress base items into standard blocks
+# (e.g. 9 Redstone -> 1 Redstone Block, 4 Quartz -> 1 Quartz Block).
+# Fully customizable: players and server admins can add custom compacting items!
+# ==============================================================================
+compactor-recipes:
+  redstone_block:
+    input: REDSTONE
+    input-amount: 9
+    output:
+      material: REDSTONE_BLOCK
+
+  coal_block:
+    input: COAL
+    input-amount: 9
+    output:
+      material: COAL_BLOCK
+
+  iron_block:
+    input: IRON_INGOT
+    input-amount: 9
+    output:
+      material: IRON_BLOCK
+
+  gold_block:
+    input: GOLD_INGOT
+    input-amount: 9
+    output:
+      material: GOLD_BLOCK
+
+  diamond_block:
+    input: DIAMOND
+    input-amount: 9
+    output:
+      material: DIAMOND_BLOCK
+
+  emerald_block:
+    input: EMERALD
+    input-amount: 9
+    output:
+      material: EMERALD_BLOCK
+
+  lapis_block:
+    input: LAPIS_LAZULI
+    input-amount: 9
+    output:
+      material: LAPIS_BLOCK
+
+  copper_block:
+    input: COPPER_INGOT
+    input-amount: 9
+    output:
+      material: COPPER_BLOCK
+
+  hay_block:
+    input: WHEAT
+    input-amount: 9
+    output:
+      material: HAY_BLOCK
+
+  slime_block:
+    input: SLIME_BALL
+    input-amount: 9
+    output:
+      material: SLIME_BLOCK
+
+  quartz_block:
+    input: QUARTZ
+    input-amount: 4
+    output:
+      material: QUARTZ_BLOCK
+
+  glowstone:
+    input: GLOWSTONE_DUST
+    input-amount: 4
+    output:
+      material: GLOWSTONE
+
+  snow_block:
+    input: SNOWBALL
+    input-amount: 4
+    output:
+      material: SNOW_BLOCK
+
+  clay_block:
+    input: CLAY_BALL
+    input-amount: 4
+    output:
+      material: CLAY
+
+  magma_block:
+    input: MAGMA_CREAM
+    input-amount: 4
+    output:
+      material: MAGMA_BLOCK
+
+  melon_block:
+    input: MELON_SLICE
+    input-amount: 9
+    output:
+      material: MELON
+
+  bone_block:
+    input: BONE
+    input-amount: 3
+    output:
+      material: BONE_BLOCK
+
+  sandstone:
+    input: SAND
+    input-amount: 4
+    output:
+      material: SANDSTONE
+
+  red_sandstone:
+    input: RED_SAND
+    input-amount: 4
+    output:
+      material: RED_SANDSTONE
+
+  packed_ice:
+    input: ICE
+    input-amount: 9
+    output:
+      material: PACKED_ICE
+
+  blue_ice:
+    input: PACKED_ICE
+    input-amount: 9
+    output:
+      material: BLUE_ICE
+
+  honeycomb_block:
+    input: HONEYCOMB
+    input-amount: 4
+    output:
+      material: HONEYCOMB_BLOCK
+
+  amethyst_block:
+    input: AMETHYST_SHARD
+    input-amount: 4
+    output:
+      material: AMETHYST_BLOCK
+
+  netherite_block:
+    input: NETHERITE_INGOT
+    input-amount: 9
+    output:
+      material: NETHERITE_BLOCK
+
+  raw_copper_block:
+    input: RAW_COPPER
+    input-amount: 9
+    output:
+      material: RAW_COPPER_BLOCK
+
+  raw_iron_block:
+    input: RAW_IRON
+    input-amount: 9
+    output:
+      material: RAW_IRON_BLOCK
+
+  raw_gold_block:
+    input: RAW_GOLD
+    input-amount: 9
+    output:
+      material: RAW_GOLD_BLOCK
+
+  prismarine:
+    input: PRISMARINE_SHARD
+    input-amount: 4
+    output:
+      material: PRISMARINE
+
+  dried_kelp_block:
+    input: DRIED_KELP
+    input-amount: 9
+    output:
+      material: DRIED_KELP_BLOCK
+
+
 

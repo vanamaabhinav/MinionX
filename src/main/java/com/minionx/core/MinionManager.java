@@ -4,6 +4,8 @@ import com.minionx.visual.MinionHologram;
 import com.minionx.visual.MinionVisual;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +28,7 @@ public class MinionManager {
     private final Map<ChunkKey, List<Minion>> minionsByChunk = new ConcurrentHashMap<>();
     private final Map<String, UUID> minionLocationIndex = new ConcurrentHashMap<>();
     private final Map<String, UUID> storageBlockIndex = new ConcurrentHashMap<>();
+    private final Set<Minion> activeLoadedMinions = ConcurrentHashMap.newKeySet();
 
     public void register(Minion minion) {
         if (minion == null) return;
@@ -39,6 +42,11 @@ public class MinionManager {
             minionLocationIndex.put(toBlockKey(minion.getLocation()), minion.getMinionId());
             ChunkKey chunkKey = getChunkKey(minion.getLocation());
             minionsByChunk.computeIfAbsent(chunkKey, k -> new CopyOnWriteArrayList<>()).add(minion);
+            if (minion.getLocation().isChunkLoaded()) {
+                activeLoadedMinions.add(minion);
+            }
+        } else {
+            activeLoadedMinions.add(minion);
         }
 
         if (minion.hasLinkedStorage() && minion.getLinkedStorageLocation() != null) {
@@ -49,6 +57,7 @@ public class MinionManager {
     public void unregister(Minion minion) {
         if (minion == null) return;
         minionsById.remove(minion.getMinionId());
+        activeLoadedMinions.remove(minion);
 
         if (minion.getArmorStandId() != null) {
             minionsByEntityId.remove(minion.getArmorStandId());
@@ -133,6 +142,38 @@ public class MinionManager {
         return minionsById.values();
     }
 
+    public Collection<Minion> getActiveLoadedMinions() {
+        return Collections.unmodifiableSet(activeLoadedMinions);
+    }
+
+    public void markChunkLoaded(Chunk chunk) {
+        if (chunk == null || chunk.getWorld() == null) return;
+        ChunkKey key = new ChunkKey(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ());
+        List<Minion> inChunk = minionsByChunk.get(key);
+        if (inChunk != null) {
+            activeLoadedMinions.addAll(inChunk);
+        }
+    }
+
+    public void markChunkUnloaded(Chunk chunk) {
+        if (chunk == null || chunk.getWorld() == null) return;
+        ChunkKey key = new ChunkKey(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ());
+        List<Minion> inChunk = minionsByChunk.get(key);
+        if (inChunk != null) {
+            for (Minion m : inChunk) {
+                activeLoadedMinions.remove(m);
+            }
+        }
+    }
+
+    public void markLoaded(Minion minion) {
+        if (minion != null) activeLoadedMinions.add(minion);
+    }
+
+    public void markUnloaded(Minion minion) {
+        if (minion != null) activeLoadedMinions.remove(minion);
+    }
+
     public void linkEntity(UUID entityId, Minion minion) {
         if (entityId != null && minion != null) {
             minionsByEntityId.put(entityId, minion);
@@ -145,6 +186,8 @@ public class MinionManager {
             MinionHologram.remove(minion);
         }
     }
+
+    private final Map<ChunkKey, Set<String>> pendingStoragePurgesByChunk = new ConcurrentHashMap<>();
 
     // --- Spatial Storage Indexing (O(1) Lookups) ---
 
@@ -166,6 +209,72 @@ public class MinionManager {
     public boolean isStorageBlock(Location loc) {
         if (loc == null) return false;
         return storageBlockIndex.containsKey(toBlockKey(loc));
+    }
+
+    public void markStorageForPendingPurge(Location loc) {
+        if (loc == null || loc.getWorld() == null) return;
+        ChunkKey key = getChunkKey(loc);
+        pendingStoragePurgesByChunk.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet())
+                .add(toLocationString(loc));
+    }
+
+    public boolean hasPendingStoragePurges(Chunk chunk) {
+        if (chunk == null) return false;
+        Set<String> set = pendingStoragePurgesByChunk.get(getChunkKey(chunk));
+        return set != null && !set.isEmpty();
+    }
+
+    public void processPendingStoragePurges(Chunk chunk) {
+        if (chunk == null) return;
+        ChunkKey key = getChunkKey(chunk);
+        Set<String> locations = pendingStoragePurgesByChunk.remove(key);
+        if (locations == null || locations.isEmpty()) return;
+
+        org.bukkit.World world = chunk.getWorld();
+        for (String locStr : locations) {
+            try {
+                String[] parts = locStr.split(":");
+                if (parts.length >= 4) {
+                    int x = Integer.parseInt(parts[1]);
+                    int y = Integer.parseInt(parts[2]);
+                    int z = Integer.parseInt(parts[3]);
+                    Block b = world.getBlockAt(x, y, z);
+                    if (b.getType() != Material.AIR) {
+                        b.setType(Material.AIR);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    public List<String> getPendingStoragePurgeLocations() {
+        List<String> list = new ArrayList<>();
+        for (Set<String> set : pendingStoragePurgesByChunk.values()) {
+            list.addAll(set);
+        }
+        return list;
+    }
+
+    public void loadPendingStoragePurges(List<String> serializedCoords) {
+        pendingStoragePurgesByChunk.clear();
+        if (serializedCoords == null) return;
+        for (String s : serializedCoords) {
+            try {
+                String[] parts = s.split(":");
+                if (parts.length >= 4) {
+                    UUID wid = UUID.fromString(parts[0]);
+                    int x = Integer.parseInt(parts[1]);
+                    int z = Integer.parseInt(parts[3]);
+                    ChunkKey key = new ChunkKey(wid, x >> 4, z >> 4);
+                    pendingStoragePurgesByChunk.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet()).add(s);
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private String toLocationString(Location loc) {
+        if (loc == null || loc.getWorld() == null) return "";
+        return loc.getWorld().getUID().toString() + ":" + loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ();
     }
 
     private String toBlockKey(Location loc) {
@@ -197,7 +306,28 @@ public class MinionManager {
     public int killAndPurgeAll() {
         int count = minionsById.size();
 
-        // 1. Unregister all minions from memory and remove tracked visuals
+        // 1. Cleanly handle all linked minion storage chests before unregistering
+        for (Minion minion : minionsById.values()) {
+            if (minion.hasLinkedStorage() && minion.getLinkedStorageLocation() != null) {
+                Location sLoc = minion.getLinkedStorageLocation();
+                if (sLoc.getWorld() != null) {
+                    if (sLoc.isChunkLoaded()) {
+                        // Loaded chunk: instant O(1) removal without dropping items (prevents entity lag)
+                        Block b = sLoc.getBlock();
+                        if (b.getType() != Material.AIR) {
+                            b.setType(Material.AIR);
+                        }
+                    } else {
+                        // Unloaded chunk: queue for lazy cleanup on ChunkLoadEvent (prevents disk IO freeze)
+                        markStorageForPendingPurge(sLoc);
+                    }
+                }
+                minion.getStorageContents().clear();
+                minion.unlinkStorage();
+            }
+        }
+
+        // 2. Unregister all minions from memory and remove tracked visuals
         List<Minion> all = new ArrayList<>(minionsById.values());
         for (Minion minion : all) {
             unregister(minion);
@@ -208,13 +338,13 @@ public class MinionManager {
         minionLocationIndex.clear();
         storageBlockIndex.clear();
 
-        // 2. Persist empty state to storage so they don't reload on restart
+        // 3. Persist empty state to storage so they don't reload on restart
         if (com.minionx.MinionX.getInstance() != null &&
                 com.minionx.MinionX.getInstance().getMinionStorage() != null) {
             com.minionx.MinionX.getInstance().getMinionStorage().saveAll(this);
         }
 
-        // 3. World sweep: aggressively search every loaded world for any entity with MINION_ENTITY_KEY, HOLOGRAM_KEY,
+        // 4. World sweep: aggressively search every loaded world for any entity with MINION_ENTITY_KEY, HOLOGRAM_KEY,
         // or metadata and remove them so ZERO orphan armor stands or holograms remain.
         try {
             for (org.bukkit.World world : org.bukkit.Bukkit.getWorlds()) {

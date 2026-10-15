@@ -9,6 +9,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -53,13 +54,34 @@ public class FuelCreatorGUI {
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to change ID / Name via chat"))));
 
-        // Slot 4: Fuel Material Selector
-        inv.setItem(4, createNamedItem(session.getMaterial(),
-                ColorUtil.color("&aFuel Item Material"),
-                List.of(ColorUtil.color("&7Current: &f" + session.getMaterial().name()),
-                        ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick to cycle popular materials"),
-                        ColorUtil.color("&7(or cursor-drop any item to set)"))));
+        // Slot 4: Fuel Icon & Material Selector
+        ItemStack iconItem = new ItemStack(session.getMaterial());
+        ItemMeta iconMeta = iconItem.getItemMeta();
+        if (iconMeta != null) {
+            iconMeta.setDisplayName(ColorUtil.color("&aFuel Item Icon & Material"));
+            List<String> iconLore = new ArrayList<>();
+            iconLore.add(ColorUtil.color("&7Material: &f" + session.getMaterial().name()));
+            if (session.getCustomModelData() > 0) {
+                iconLore.add(ColorUtil.color("&7CustomModelData: &e" + session.getCustomModelData()));
+            }
+            iconLore.add(ColorUtil.color("&7"));
+            iconLore.add(ColorUtil.color("&eHow to change icon:"));
+            iconLore.add(ColorUtil.color("&7• &fHover & press &b1–9 &7to use hotbar item"));
+            iconLore.add(ColorUtil.color("&7• &fHover & press &bF &7to use offhand item"));
+            iconLore.add(ColorUtil.color("&7• &fClick any item &7in your inventory below"));
+            iconLore.add(ColorUtil.color("&7• &fDrag & drop &7cursor item onto this slot"));
+            iconLore.add(ColorUtil.color("&7• &fLeft-Click &7to cycle popular materials"));
+            iconMeta.setLore(iconLore);
+            if (session.getCustomModelData() > 0) {
+                iconMeta.setCustomModelData(session.getCustomModelData());
+            }
+            if (session.isGlow()) {
+                iconMeta.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true);
+                iconMeta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+            }
+            iconItem.setItemMeta(iconMeta);
+        }
+        inv.setItem(4, iconItem);
 
         // Slot 6: Custom Model Data
         inv.setItem(6, createNamedItem(Material.ITEM_FRAME,
@@ -68,6 +90,14 @@ public class FuelCreatorGUI {
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eLeft-Click: &a+1  &7|  &eRight-Click: &c-1"),
                         ColorUtil.color("&eShift-Left: &a+100 &7|  &eShift-Right: &cReset (0)"))));
+
+        // Slot 8: Preset Fuel Selector
+        inv.setItem(8, createNamedItem(Material.KNOWLEDGE_BOOK, ColorUtil.color("&bCustomize Existing Preset"),
+                List.of(ColorUtil.color("&7Load an existing preset fuel"),
+                        ColorUtil.color("&7(Enchanted Lava Bucket, Plasma, etc.)"),
+                        ColorUtil.color("&7to edit its speed, duration, or model!"),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to browse preset fuels!"))));
 
         // Speed Multiplier Controls (Row 2: slots 19, 20, 22, 24, 25)
         inv.setItem(19, createNamedItem(Material.RED_CONCRETE, ColorUtil.color("&c-10% Speed"),
@@ -98,10 +128,10 @@ public class FuelCreatorGUI {
                         ColorUtil.color("&730m -> 1h -> 2h -> 6h -> 12h -> 1d -> 3d -> 7d"))));
 
         inv.setItem(31, createNamedItem(session.isPermanent() ? Material.NETHER_STAR : Material.CAMPFIRE,
-                ColorUtil.color(session.isPermanent() ? "&b&lPermanent Fuel: &aYES" : "&e&lTemporary Fuel: &cNO"),
-                List.of(ColorUtil.color("&7Mode: " + (session.isPermanent() ? "&bPermanent (Never expires)" : "&eTemporary (Burns down)")),
+                ColorUtil.color(session.isPermanent() ? "&b&lFuel Mode: &aPermanent" : "&e&lFuel Mode: &6Temporary"),
+                List.of(ColorUtil.color("&7Current Mode: " + (session.isPermanent() ? "&bPermanent (Never expires)" : "&6Temporary (" + session.getFormattedDuration() + ")")),
                         ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick to toggle Permanent vs Temporary"))));
+                        ColorUtil.color("&eClick to toggle Permanent ⇄ Temporary"))));
 
         inv.setItem(33, createNamedItem(Material.EXPERIENCE_BOTTLE,
                 ColorUtil.color("&dEnchantment Glint: " + (session.isGlow() ? "&aON" : "&cOFF")),

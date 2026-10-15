@@ -36,6 +36,7 @@ public class MinionHeadsAndSkinsTest {
         assertTrue(definitions.size() >= 37, "Expected at least 37 builtin minions, found " + definitions.size());
 
         for (MinionDefinition def : definitions) {
+            if (MinionRegistry.isCustom(def.getId())) continue;
             String defaultHead = def.getDefaultSkullTexture();
             assertNotNull(defaultHead, "Default head texture should not be null for " + def.getId());
             assertFalse(defaultHead.isEmpty(), "Default head texture should not be empty for " + def.getId());

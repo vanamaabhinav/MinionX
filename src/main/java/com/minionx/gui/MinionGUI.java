@@ -51,8 +51,7 @@ public class MinionGUI {
             inv.setItem(i, filler);
         }
 
-        // Top Row: Information & Requirements
-        inv.setItem(MinionGUIConfig.getIdealLayoutSlot(), createIdealLayoutItem());
+        inv.setItem(MinionGUIConfig.getIdealLayoutSlot(), createIdealLayoutItem(minion));
         inv.setItem(MinionGUIConfig.getHeadSlot(), createHeadItem(minion));
         inv.setItem(MinionGUIConfig.getNextTierSlot(), createNextTierInfoItem(minion));
 
@@ -111,13 +110,25 @@ public class MinionGUI {
         player.openInventory(inv);
     }
 
-    private static ItemStack createIdealLayoutItem() {
-        return createNamedItem(Material.REDSTONE_TORCH, ColorUtil.color("&aIdeal Layout"),
-                List.of(ColorUtil.color("&7Click to view the optimal 5x5 block setup"),
-                        ColorUtil.color("&7and environment required around the minion"),
-                        ColorUtil.color("&7for it to harvest and spawn correctly."),
-                        ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick to view layout guide!")));
+    private static ItemStack createIdealLayoutItem(Minion minion) {
+        int r = minion != null ? minion.getWorkingRadius() : 2;
+        int dim = (r * 2) + 1;
+        int blocks = (dim * dim) - 1;
+        int expanders = minion != null ? minion.getAreaExpansion() : 0;
+
+        List<String> lore = new ArrayList<>();
+        lore.add(ColorUtil.color("&7Optimal Working Area: &a" + dim + "x" + dim + " &7(" + blocks + " blocks)"));
+        lore.add(ColorUtil.color("&7Current Radius: &f" + r + " blocks"));
+        lore.add(ColorUtil.color("&7Equipped Expanders: &e" + expanders + "/2"));
+        if (expanders < 2) {
+            lore.add(ColorUtil.color("&8• &7Equip &aMinion Expander &7for &a+" + (dim + 2) + "x" + (dim + 2)));
+        } else {
+            lore.add(ColorUtil.color("&8• &bMaximized Working Area (9x9)!"));
+        }
+        lore.add(ColorUtil.color("&7"));
+        lore.add(ColorUtil.color("&eClick to view layout guide!"));
+
+        return createNamedItem(Material.REDSTONE_TORCH, ColorUtil.color("&aIdeal Layout: &e" + dim + "x" + dim), lore);
     }
 
     private static ItemStack createHeadItem(Minion minion) {
@@ -257,7 +268,22 @@ public class MinionGUI {
             lore.add(ColorUtil.color("&eClick to retrieve fuel!"));
         }
 
-        return createNamedItem(Material.LAVA_BUCKET, ColorUtil.color("&aFuel Active: " + name), lore);
+        Material mat = (fuel != null && fuel.getMaterial() != null) ? fuel.getMaterial() : Material.LAVA_BUCKET;
+        ItemStack fuelItem = createNamedItem(mat, ColorUtil.color("&aFuel Active: " + name), lore);
+        if (fuel != null && fuelItem.hasItemMeta()) {
+            ItemMeta meta = fuelItem.getItemMeta();
+            if (meta != null) {
+                if (fuel.getCustomModelData() > 0) {
+                    meta.setCustomModelData(fuel.getCustomModelData());
+                }
+                if (fuel.isGlowing()) {
+                    meta.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true);
+                    meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+                }
+                fuelItem.setItemMeta(meta);
+            }
+        }
+        return fuelItem;
     }
 
     private static ItemStack createActiveShippingItem(Minion minion) {

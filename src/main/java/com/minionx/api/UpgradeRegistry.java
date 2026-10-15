@@ -63,8 +63,12 @@ public class UpgradeRegistry {
                 List<String> lore = ColorUtil.color(rawLore);
                 boolean glow = upSec.getBoolean("glow", false);
                 int customModelData = upSec.getInt("custom-model-data", 0);
+                int areaExpansion = upSec.getInt("area-expansion", upSec.getInt("area_expansion", 0));
+                if (key.equalsIgnoreCase("minion_expander") && areaExpansion <= 0) {
+                    areaExpansion = 1;
+                }
 
-                CustomUpgrade upgrade = new CustomUpgrade(key, displayName, mat, behavior, speedBuff, chance, sellRatio, lore, glow, customModelData);
+                CustomUpgrade upgrade = new CustomUpgrade(key, displayName, mat, behavior, speedBuff, chance, sellRatio, areaExpansion, lore, glow, customModelData);
                 UPGRADES.put(key.toLowerCase(), upgrade);
             }
         }
@@ -94,8 +98,8 @@ public class UpgradeRegistry {
                 ColorUtil.color(List.of("&7Adds a 10% chance to generate diamonds", "&7when harvesting resources.")), true, 0));
 
         registerDefaultIfMissing("minion_expander", new CustomUpgrade("minion_expander", ColorUtil.color("&aMinion Expander"), Material.PISTON,
-                CustomUpgrade.UpgradeBehavior.SPEED_BUFF, 0.05, 0.0,
-                ColorUtil.color(List.of("&7Increases production speed by &a+5%&7.")), true, 0));
+                CustomUpgrade.UpgradeBehavior.SPEED_BUFF, 0.05, 0.0, 0.0, 1,
+                ColorUtil.color(List.of("&7Increases production speed by &a+5%&7.", "&7Expands working area by &a+1 block&7.", "&7(5x5 -> 7x7 -> 9x9 when stacked!)")), true, 0));
 
         registerDefaultIfMissing("flycatcher", new CustomUpgrade("flycatcher", ColorUtil.color("&dFlycatcher"), Material.STRING,
                 CustomUpgrade.UpgradeBehavior.SPEED_BUFF, 0.20, 0.0,
@@ -136,6 +140,9 @@ public class UpgradeRegistry {
         }
         if (upgrade.getSellRatio() > 0) {
             config.set(path + ".sell-ratio", upgrade.getSellRatio());
+        }
+        if (upgrade.getAreaExpansion() > 0) {
+            config.set(path + ".area-expansion", upgrade.getAreaExpansion());
         }
         config.set(path + ".glow", upgrade.isGlowing());
         if (upgrade.getCustomModelData() > 0) {

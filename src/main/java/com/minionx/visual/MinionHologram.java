@@ -90,7 +90,13 @@ public class MinionHologram {
         }
 
         // 2. Fetch existing TextDisplay if alive
-        TextDisplay liveDisplay = getLiveTextDisplay(minion.getHologramId());
+        TextDisplay liveDisplay = minion.getCachedHologram();
+        if (liveDisplay == null) {
+            liveDisplay = getLiveTextDisplay(minion.getHologramId());
+            if (liveDisplay != null) {
+                minion.setCachedHologram(liveDisplay);
+            }
+        }
         if (liveDisplay != null) {
             liveDisplay.text(ColorUtil.component(combinedText));
             minion.setLastHologramText(combinedText);
@@ -116,11 +122,13 @@ public class MinionHologram {
         });
 
         minion.setHologramId(spawned.getUniqueId());
+        minion.setCachedHologram(spawned);
         minion.setLastHologramText(combinedText);
     }
 
     public static void remove(Minion minion) {
         if (minion == null) return;
+        minion.setCachedHologram(null);
 
         if (minion.getHologramId() != null) {
             Entity main = Bukkit.getEntity(minion.getHologramId());

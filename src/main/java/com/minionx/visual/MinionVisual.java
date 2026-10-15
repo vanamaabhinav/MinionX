@@ -112,6 +112,7 @@ public class MinionVisual {
         });
 
         minion.setArmorStandId(stand.getUniqueId());
+        minion.setCachedArmorStand(stand);
         if (com.minionx.MinionX.getInstance() != null && com.minionx.MinionX.getInstance().getMinionManager() != null) {
             com.minionx.MinionX.getInstance().getMinionManager().linkEntity(stand.getUniqueId(), minion);
         }
@@ -217,6 +218,7 @@ public class MinionVisual {
      */
     public static void remove(Minion minion) {
         if (minion == null || minion.getLocation() == null || minion.getLocation().getWorld() == null) return;
+        minion.setCachedArmorStand(null);
 
         if (minion.getArmorStandId() != null) {
             Entity entity = Bukkit.getEntity(minion.getArmorStandId());

@@ -149,6 +149,10 @@ public class MinionCreatorListener implements Listener {
             handleFuelCreatorClick(event, (Player) event.getWhoClicked(), fuelHolder.getSession());
             return;
         }
+        if (event.getInventory().getHolder() instanceof FuelPresetSelectorHolder presetHolder) {
+            handleFuelPresetSelectorClick(event, (Player) event.getWhoClicked(), presetHolder.getSession());
+            return;
+        }
         if (event.getInventory().getHolder() instanceof UpgradeCreatorHolder upgradeHolder) {
             handleUpgradeCreatorClick(event, (Player) event.getWhoClicked(), upgradeHolder.getSession());
             return;
@@ -871,8 +875,23 @@ public class MinionCreatorListener implements Listener {
     private void handleFuelCreatorClick(InventoryClickEvent event, Player player, FuelCreatorSession session) {
         event.setCancelled(true);
         int slot = event.getRawSlot();
-        if (slot < 0 || slot >= 54) return;
+        if (slot < 0) return;
         ItemStack cursor = event.getCursor();
+
+        // Allow player clicking items in their own inventory (slots 54-89) to change fuel icon
+        if (slot >= 54) {
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked != null && clicked.getType() != Material.AIR) {
+                session.applyIconFrom(clicked);
+                String itemName = (clicked.hasItemMeta() && clicked.getItemMeta().hasDisplayName())
+                        ? clicked.getItemMeta().getDisplayName()
+                        : clicked.getType().name();
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aApplied fuel icon from inventory item: &e" + itemName));
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                FuelCreatorGUI.open(player, session);
+            }
+            return;
+        }
 
         if (slot == 45) {
             player.closeInventory();
@@ -889,11 +908,47 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
+        // Slot 4: Universal Icon & Material Selector
         if (slot == 4) {
+            // 1. Hotbar hover swap (number keys 1-9)
+            if (event.getClick() == org.bukkit.event.inventory.ClickType.NUMBER_KEY && event.getHotbarButton() >= 0) {
+                ItemStack hotbarItem = player.getInventory().getItem(event.getHotbarButton());
+                if (hotbarItem != null && hotbarItem.getType() != Material.AIR) {
+                    session.applyIconFrom(hotbarItem);
+                    String itemName = (hotbarItem.hasItemMeta() && hotbarItem.getItemMeta().hasDisplayName())
+                            ? hotbarItem.getItemMeta().getDisplayName()
+                            : hotbarItem.getType().name();
+                    player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aApplied fuel icon from hotbar: &e" + itemName));
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                    FuelCreatorGUI.open(player, session);
+                    return;
+                }
+            }
+
+            // 2. Offhand swap (key F)
+            if (event.getClick() == org.bukkit.event.inventory.ClickType.SWAP_OFFHAND) {
+                ItemStack offhand = player.getInventory().getItemInOffHand();
+                if (offhand != null && offhand.getType() != Material.AIR) {
+                    session.applyIconFrom(offhand);
+                    String itemName = (offhand.hasItemMeta() && offhand.getItemMeta().hasDisplayName())
+                            ? offhand.getItemMeta().getDisplayName()
+                            : offhand.getType().name();
+                    player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aApplied fuel icon from offhand: &e" + itemName));
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                    FuelCreatorGUI.open(player, session);
+                    return;
+                }
+            }
+
+            // 3. Cursor drop
             if (cursor != null && cursor.getType() != Material.AIR) {
-                session.setMaterial(cursor.getType());
-                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSet fuel material to: &e" + cursor.getType().name()));
+                session.applyIconFrom(cursor);
+                String itemName = (cursor.hasItemMeta() && cursor.getItemMeta().hasDisplayName())
+                        ? cursor.getItemMeta().getDisplayName()
+                        : cursor.getType().name();
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aApplied fuel icon from cursor: &e" + itemName));
             } else {
+                // 4. Left/Right-click cycle popular materials
                 Material[] mats = FuelCreatorGUI.PRESET_MATERIALS;
                 int curIdx = 0;
                 for (int i = 0; i < mats.length; i++) {
@@ -906,6 +961,13 @@ public class MinionCreatorListener implements Listener {
             }
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
             FuelCreatorGUI.open(player, session);
+            return;
+        }
+
+        // Slot 8: Browse and load existing preset fuels
+        if (slot == 8) {
+            FuelPresetSelectorGUI.open(player, session);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
             return;
         }
 
@@ -1115,6 +1177,29 @@ public class MinionCreatorListener implements Listener {
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
             player.closeInventory();
             return;
+        }
+    }
+
+    private void handleFuelPresetSelectorClick(InventoryClickEvent event, Player player, FuelCreatorSession session) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot < 0 || slot >= 54) return;
+
+        if (slot == 49) {
+            FuelCreatorGUI.open(player, session);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+            return;
+        }
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+
+        com.minionx.api.CustomFuel fuel = com.minionx.api.FuelRegistry.fromItemStack(clicked);
+        if (fuel != null) {
+            FuelCreatorSession newSession = new FuelCreatorSession(fuel);
+            FuelCreatorGUI.open(player, newSession);
+            player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aLoaded preset fuel &e" + fuel.getDisplayName() + " &ainto Fuel Studio!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.4f);
         }
     }
 

@@ -222,6 +222,17 @@ public class OperatorGUIListener implements Listener {
             return;
         }
 
+        if (event.isRightClick()) {
+            CustomFuel fuel = FuelRegistry.fromItemStack(clicked);
+            if (fuel != null) {
+                FuelCreatorSession session = new FuelCreatorSession(fuel);
+                FuelCreatorGUI.open(player, session);
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aLoaded fuel &e" + fuel.getDisplayName() + " &ainto Fuel Studio!"));
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.2f);
+                return;
+            }
+        }
+
         int amount = event.isShiftClick() ? 64 : 1;
         giveItem(player, clicked, amount);
     }

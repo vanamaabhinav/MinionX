@@ -19,8 +19,8 @@ settings:
   destroy-temporary-fuel-on-removal: true
   # Geyser / Bedrock edition touch friendly menu mode
   geyser-touch-friendly: true
-  # Tick interval for the minion AI task (20 ticks = 1 second)
-  tick-interval: 20
+  # Tick interval for the minion AI task (1 tick = sub-second distributed spread)
+  tick-interval: 1
   # Periodic auto-save interval in ticks (6000 ticks = 5 minutes)
   auto-save-interval: 6000
   # Maximum placed minions per player (-1 for unlimited)
@@ -361,6 +361,26 @@ storage-layouts:
   # layouts:
   #   9: [10, 11, 12, 13, 14, 15, 16, 19, 20]
   #   15: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 19]
+
+# ==============================================================================
+# DATABASE & PERSISTENCE STORAGE
+# ==============================================================================
+# MinionX works completely out-of-the-box with ZERO database setup required!
+# Supported storage backends:
+#   - YAML   : (Default) Ultra-fast, self-contained flat file (plugins/MinionX/data/minions.yml).
+#              Requires zero setup, zero drivers, and features atomic writes to prevent corruption.
+#   - SQLITE : Local zero-configuration embedded database (plugins/MinionX/data/minions.db).
+#   - MYSQL  : External relational database for multi-server networks.
+# ==============================================================================
+storage:
+  # Storage type: YAML (Recommended default), SQLITE, or MYSQL
+  type: "YAML"
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "minions"
+    username: "root"
+    password: ""
 
 # ==============================================================================
 # UPDATES & METRICS

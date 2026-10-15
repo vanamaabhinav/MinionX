@@ -61,6 +61,10 @@ public class CustomFuel {
         return glowing;
     }
 
+    public boolean isGlow() {
+        return glowing;
+    }
+
     public int getCustomModelData() {
         return customModelData;
     }

@@ -2,7 +2,7 @@ package com.minionx.listener;
 
 import com.minionx.MinionX;
 import com.minionx.core.Minion;
-import com.minionx.core.OfflineCalculator;
+import com.minionx.core.OfflineCoordinator;
 import com.minionx.gui.MinionGUI;
 import com.minionx.hook.IslandHookManager;
 import com.minionx.util.ColorUtil;
@@ -53,7 +53,7 @@ public class MinionInteractListener implements Listener {
         }
 
         // Process any offline/unloaded accumulation catch-up
-        OfflineCalculator.processOfflineCatchup(minion);
+        OfflineCoordinator.catchUpIfNeeded(minion);
 
         // Open minion menu
         player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.8f, 1.2f);

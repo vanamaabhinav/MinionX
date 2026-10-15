@@ -57,6 +57,11 @@ public class MinionX extends JavaPlugin {
         this.minionManager = new MinionManager();
         this.playerLimitManager = new PlayerLimitManager(this);
         this.minionStorage = new MinionStorage(this);
+        if (!this.minionStorage.init()) {
+            getLogger().severe("MinionStorage failed to initialize. Aborting startup and disabling MinionX.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         // Load all saved minions from disk / database
         this.minionStorage.loadAll(this.minionManager);
@@ -88,10 +93,10 @@ public class MinionX extends JavaPlugin {
             opCmd.setExecutor(operatorCommand);
         }
 
-        // Start repeating tick task (every 20 ticks = 1s)
-        int tickInterval = getConfig().getInt("settings.tick-interval", 20);
+        // Start repeating tick task (1-tick scheduler dispatch with sub-millisecond spread)
+        int tickInterval = getConfig().getInt("settings.tick-interval", 1);
         this.minionTickTask = new MinionTickTask(this.minionManager);
-        this.minionTickTask.runTaskTimer(this, 20L, tickInterval);
+        this.minionTickTask.runTaskTimer(this, 1L, tickInterval);
 
         // Start periodic auto-save task (every 5 minutes) asynchronously
         int autoSaveInterval = getConfig().getInt("settings.auto-save-interval", 6000);
@@ -108,6 +113,7 @@ public class MinionX extends JavaPlugin {
             for (com.minionx.core.Minion minion : minionManager.getAllMinions()) {
                 if (minion.getLocation() != null && minion.getLocation().getWorld() != null) {
                     if (minion.getLocation().isChunkLoaded()) {
+                        com.minionx.core.OfflineCoordinator.catchUpIfNeeded(minion);
                         com.minionx.visual.MinionVisual.spawnOrUpdate(minion);
                         com.minionx.visual.MinionHologram.updateHologram(minion);
                     }

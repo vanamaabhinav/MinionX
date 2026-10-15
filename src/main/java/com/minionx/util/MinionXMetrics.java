@@ -43,7 +43,11 @@ public class MinionXMetrics {
             String serverVersion = Bukkit.getVersion();
             String pluginVersion = plugin.getDescription().getVersion();
             int onlinePlayers = Bukkit.getOnlinePlayers().size();
-            String serverUUID = UUID.nameUUIDFromBytes(Bukkit.getServer().getIp().getBytes(StandardCharsets.UTF_8)).toString();
+            String serverUUID = plugin.getConfig().getString("metrics.server-uuid");
+            if (serverUUID == null || serverUUID.isBlank()) {
+                serverUUID = UUID.randomUUID().toString();
+                plugin.getConfig().set("metrics.server-uuid", serverUUID);
+            }
 
             String json = String.format(
                     "{\"serverUUID\":\"%s\",\"service\":{\"id\":%d,\"customCharts\":[],\"activeMinions\":%d,\"onlinePlayers\":%d,\"version\":\"%s\",\"serverVersion\":\"%s\"}}",

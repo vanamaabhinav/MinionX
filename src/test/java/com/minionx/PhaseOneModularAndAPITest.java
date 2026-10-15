@@ -152,6 +152,7 @@ public class PhaseOneModularAndAPITest {
                 custom-minions:
                   custom_spider:
                     display-name: "&cCustom Spider"
+                    head-texture: "eyJcustomspider"
                     archetype: COMBAT
                     target-mob: SPIDER
                     held-tool: IRON_SWORD
@@ -173,20 +174,24 @@ public class PhaseOneModularAndAPITest {
             fail("Failed to parse YAML: " + e.getMessage());
         }
 
-        MinionRegistry.load(config);
-        MinionDefinition def = MinionRegistry.get("custom_spider");
-        assertNotNull(def, "custom_spider should be loaded in registry");
-        assertEquals(2, def.getDrops().size());
+        try {
+            MinionRegistry.load(config);
+            MinionDefinition def = MinionRegistry.get("custom_spider");
+            assertNotNull(def, "custom_spider should be loaded in registry");
+            assertEquals(2, def.getDrops().size());
 
-        MinionDefinition.DropEntry d1 = def.getDrops().get(0);
-        assertEquals(Material.STRING, d1.getItem().getType());
-        assertEquals(3, d1.getAmount());
-        assertEquals(1.0, d1.getChance());
+            MinionDefinition.DropEntry d1 = def.getDrops().get(0);
+            assertEquals(Material.STRING, d1.getItem().getType());
+            assertEquals(3, d1.getAmount());
+            assertEquals(1.0, d1.getChance());
 
-        MinionDefinition.DropEntry d2 = def.getDrops().get(1);
-        assertEquals(Material.SPIDER_EYE, d2.getItem().getType());
-        assertEquals(2, d2.getAmount());
-        assertEquals(0.75, d2.getChance());
+            MinionDefinition.DropEntry d2 = def.getDrops().get(1);
+            assertEquals(Material.SPIDER_EYE, d2.getItem().getType());
+            assertEquals(2, d2.getAmount());
+            assertEquals(0.75, d2.getChance());
+        } finally {
+            MinionRegistry.unregister("custom_spider");
+        }
     }
 
     @Test

@@ -72,9 +72,12 @@ upgrades:
     material: PISTON
     type: SPEED_BUFF
     speed-buff: 0.05
+    area-expansion: 1
     glow: true
     lore:
       - "&7Increases production speed by &a+5%&7."
+      - "&7Expands working area by &a+1 block&7."
+      - "&7(5x5 -> 7x7 -> 9x9 when stacked!)"
 
   flycatcher:
     display-name: "&dFlycatcher"

@@ -27,28 +27,32 @@ public class PhaseTwoCustomItemsAndTiersTest {
     void testMinionSpecificMaxTier() {
         // Create custom minion capped at Tier 5
         MinionDefinition defTier5 = new MinionDefinition("capped_spider", "Capped Spider", MinionArchetype.COMBAT,
-                null, Material.LEATHER_CHESTPLATE, null, new ItemStack(Material.IRON_SWORD),
+                "eyJtest", Material.LEATHER_CHESTPLATE, null, new ItemStack(Material.IRON_SWORD),
                 null, "SPIDER", List.of(new MinionDefinition.DropEntry(new ItemStack(Material.STRING), 1, 1.0)),
                 2, 12.0, 1)
                 .withMaxTier(5);
 
         assertEquals(5, defTier5.getMaxTier(), "Minion definition max tier should be 5");
 
-        MinionRegistry.register(defTier5);
+        try {
+            MinionRegistry.register(defTier5);
 
-        // Instantiate minion with definition ID
-        Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), null, 1, null);
-        minion.setCustomDefinitionId("capped_spider");
+            // Instantiate minion with definition ID
+            Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), null, 1, null);
+            minion.setCustomDefinitionId("capped_spider");
 
-        assertEquals(5, minion.getMaxTier(), "Minion instance should return definition's max tier of 5");
+            assertEquals(5, minion.getMaxTier(), "Minion instance should return definition's max tier of 5");
 
-        // Attempt to upgrade to Tier 10
-        minion.setTier(10);
-        assertEquals(5, minion.getTier(), "Minion tier should be clamped to its individual max tier of 5");
+            // Attempt to upgrade to Tier 10
+            minion.setTier(10);
+            assertEquals(5, minion.getTier(), "Minion tier should be clamped to its individual max tier of 5");
 
-        // Set to lower tier
-        minion.setTier(3);
-        assertEquals(3, minion.getTier());
+            // Set to lower tier
+            minion.setTier(3);
+            assertEquals(3, minion.getTier());
+        } finally {
+            MinionRegistry.unregister("capped_spider");
+        }
 
         // Default minion without explicit cap defaults to 12
         MinionDefinition defDefault = new MinionDefinition("default_miner", "Default Miner", MinionArchetype.MINER,
@@ -134,7 +138,7 @@ public class PhaseTwoCustomItemsAndTiersTest {
     @DisplayName("Per-Minion Tier Data overrides action-delay, storage-slots, max-capacity, and upgrade-cost with fallback")
     void testPerMinionTierDataOverrides() {
         MinionDefinition customDef = new MinionDefinition("speedy_farmer", "Speedy Farmer", MinionArchetype.FARMING,
-                null, Material.LEATHER_CHESTPLATE, null, new ItemStack(Material.IRON_HOE),
+                "eyJtest", Material.LEATHER_CHESTPLATE, null, new ItemStack(Material.IRON_HOE),
                 Material.WHEAT, null, List.of(new MinionDefinition.DropEntry(new ItemStack(Material.WHEAT), 1, 1.0)),
                 1, 20.0, 1)
                 .withMaxTier(6);
@@ -144,46 +148,50 @@ public class PhaseTwoCustomItemsAndTiersTest {
         // Custom override for Tier 2: custom delay 4.0s, 6 slots (384 capacity), upgrade cost 128
         customDef.setTierData(2, new MinionDefinition.TierData(4.0, 6, 128));
 
-        MinionRegistry.register(customDef);
+        try {
+            MinionRegistry.register(customDef);
 
-        // Verify definition returns custom tier 1 data
-        assertEquals(5.5, customDef.getActionDelay(1), 0.001);
-        assertEquals(4, customDef.getStorageSlots(1));
-        assertEquals(256, customDef.getMaxCapacity(1));
-        assertEquals(32, customDef.getUpgradeCost(1));
+            // Verify definition returns custom tier 1 data
+            assertEquals(5.5, customDef.getActionDelay(1), 0.001);
+            assertEquals(4, customDef.getStorageSlots(1));
+            assertEquals(256, customDef.getMaxCapacity(1));
+            assertEquals(32, customDef.getUpgradeCost(1));
 
-        // Verify definition returns custom tier 2 data
-        assertEquals(4.0, customDef.getActionDelay(2), 0.001);
-        assertEquals(6, customDef.getStorageSlots(2));
-        assertEquals(384, customDef.getMaxCapacity(2));
-        assertEquals(128, customDef.getUpgradeCost(2));
+            // Verify definition returns custom tier 2 data
+            assertEquals(4.0, customDef.getActionDelay(2), 0.001);
+            assertEquals(6, customDef.getStorageSlots(2));
+            assertEquals(384, customDef.getMaxCapacity(2));
+            assertEquals(128, customDef.getUpgradeCost(2));
 
-        // Verify fallback to global MinionTier for tier 3 (which was not explicitly overridden)
-        assertEquals(com.minionx.api.MinionTier.getActionDelay(3), customDef.getActionDelay(3), 0.001);
-        assertEquals(com.minionx.api.MinionTier.getStorageSlots(3), customDef.getStorageSlots(3));
-        assertEquals(com.minionx.api.MinionTier.getUpgradeCost(3), customDef.getUpgradeCost(3));
+            // Verify fallback to global MinionTier for tier 3 (which was not explicitly overridden)
+            assertEquals(com.minionx.api.MinionTier.getActionDelay(3), customDef.getActionDelay(3), 0.001);
+            assertEquals(com.minionx.api.MinionTier.getStorageSlots(3), customDef.getStorageSlots(3));
+            assertEquals(com.minionx.api.MinionTier.getUpgradeCost(3), customDef.getUpgradeCost(3));
 
-        // Verify minion instance reflections
-        Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), null, 1, null);
-        minion.setCustomDefinitionId("speedy_farmer");
+            // Verify minion instance reflections
+            Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), null, 1, null);
+            minion.setCustomDefinitionId("speedy_farmer");
 
-        assertEquals(5.5, minion.getBaseActionDelay(), 0.001);
-        assertEquals(4, minion.getStorageSlots());
-        assertEquals(256, minion.getMaxCapacity());
-        assertEquals(32, minion.getUpgradeCost());
+            assertEquals(5.5, minion.getBaseActionDelay(), 0.001);
+            assertEquals(4, minion.getStorageSlots());
+            assertEquals(256, minion.getMaxCapacity());
+            assertEquals(32, minion.getUpgradeCost());
 
-        // Level up minion to tier 2
-        minion.setTier(2);
-        assertEquals(4.0, minion.getBaseActionDelay(), 0.001);
-        assertEquals(6, minion.getStorageSlots());
-        assertEquals(384, minion.getMaxCapacity());
-        assertEquals(128, minion.getUpgradeCost());
+            // Level up minion to tier 2
+            minion.setTier(2);
+            assertEquals(4.0, minion.getBaseActionDelay(), 0.001);
+            assertEquals(6, minion.getStorageSlots());
+            assertEquals(384, minion.getMaxCapacity());
+            assertEquals(128, minion.getUpgradeCost());
 
-        // Level up minion to tier 3 (fallback)
-        minion.setTier(3);
-        assertEquals(com.minionx.api.MinionTier.getActionDelay(3), minion.getBaseActionDelay(), 0.001);
-        assertEquals(com.minionx.api.MinionTier.getStorageSlots(3), minion.getStorageSlots());
-        assertEquals(com.minionx.api.MinionTier.getUpgradeCost(3), minion.getUpgradeCost());
+            // Level up minion to tier 3 (fallback)
+            minion.setTier(3);
+            assertEquals(com.minionx.api.MinionTier.getActionDelay(3), minion.getBaseActionDelay(), 0.001);
+            assertEquals(com.minionx.api.MinionTier.getStorageSlots(3), minion.getStorageSlots());
+            assertEquals(com.minionx.api.MinionTier.getUpgradeCost(3), minion.getUpgradeCost());
+        } finally {
+            MinionRegistry.unregister("speedy_farmer");
+        }
     }
 
     @Test
@@ -247,22 +255,26 @@ public class PhaseTwoCustomItemsAndTiersTest {
     @DisplayName("MinionRegistry saveMinionTier dynamically modifies in-memory definition")
     void testMinionRegistrySaveTierData() {
         MinionDefinition testDef = new MinionDefinition("test_tier_minion", "Test Tier Minion", MinionArchetype.COMBAT,
-                null, Material.LEATHER_CHESTPLATE, null, new ItemStack(Material.BOW),
+                "eyJtest", Material.LEATHER_CHESTPLATE, null, new ItemStack(Material.BOW),
                 null, "SKELETON", List.of(new MinionDefinition.DropEntry(new ItemStack(Material.BONE), 1, 1.0)),
                 1, 22.0, 1)
                 .withMaxTier(8);
 
-        MinionRegistry.register(testDef);
+        try {
+            MinionRegistry.register(testDef);
 
-        MinionDefinition.TierData newTier3 = new MinionDefinition.TierData(15.0, 5, 250);
-        // Note: saveMinionTier will update memory even if minions.yml doesn't have existing custom entry on disk
-        MinionRegistry.saveMinionTier("test_tier_minion", 3, newTier3);
+            MinionDefinition.TierData newTier3 = new MinionDefinition.TierData(15.0, 5, 250);
+            // Note: saveMinionTier will update memory even if minions.yml doesn't have existing custom entry on disk
+            MinionRegistry.saveMinionTier("test_tier_minion", 3, newTier3);
 
-        MinionDefinition updatedDef = MinionRegistry.get("test_tier_minion");
-        assertNotNull(updatedDef);
-        assertEquals(15.0, updatedDef.getActionDelay(3), 0.001);
-        assertEquals(5, updatedDef.getStorageSlots(3));
-        assertEquals(250, updatedDef.getUpgradeCost(3));
+            MinionDefinition updatedDef = MinionRegistry.get("test_tier_minion");
+            assertNotNull(updatedDef);
+            assertEquals(15.0, updatedDef.getActionDelay(3), 0.001);
+            assertEquals(5, updatedDef.getStorageSlots(3));
+            assertEquals(250, updatedDef.getUpgradeCost(3));
+        } finally {
+            MinionRegistry.unregister("test_tier_minion");
+        }
     }
 }
 

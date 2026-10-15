@@ -23,7 +23,12 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.UUID;
+import java.util.logging.Level;
+import com.minionx.storage.PendingOperation;
 
 /**
  * Handles clicks and interactions inside the Minion GUI.
@@ -123,12 +128,17 @@ public class MinionGUIListener implements Listener {
 
         // Ideal Layout (Slot 3)
         if (slot == MinionGUIConfig.getIdealLayoutSlot()) {
+            int r = minion.getWorkingRadius();
+            int dim = (r * 2) + 1;
+            int blocks = (dim * dim) - 1;
+            int expanders = minion.getAreaExpansion();
+
             player.sendMessage(ColorUtil.color("&e----------------------------------------"));
-            player.sendMessage(ColorUtil.color("&6&lMinion Ideal Layout Guide"));
-            player.sendMessage(ColorUtil.color("&7To function optimally, this minion requires a"));
-            player.sendMessage(ColorUtil.color("&a5x5 square area &7centered around the minion"));
-            player.sendMessage(ColorUtil.color("&7on the same ground level."));
-            player.sendMessage(ColorUtil.color("&7Keep the area flat and free of obstacles!"));
+            player.sendMessage(ColorUtil.color("&6&lMinion Ideal Layout Guide &7(" + dim + "x" + dim + ")"));
+            player.sendMessage(ColorUtil.color("&7Working Area: &a" + dim + "x" + dim + " square &7(" + blocks + " blocks)"));
+            player.sendMessage(ColorUtil.color("&7Radius: &f" + r + " blocks &7centered around the minion ground level."));
+            player.sendMessage(ColorUtil.color("&7Minion Expanders equipped: &e" + expanders + "/2" + (expanders == 0 ? " &7(Base 5x5)" : (expanders == 1 ? " &7(+1 -> 7x7)" : " &b(+2 -> 9x9 Max)"))));
+            player.sendMessage(ColorUtil.color("&7Keep the area flat and free of obstructions!"));
             player.sendMessage(ColorUtil.color("&e----------------------------------------"));
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.5f);
             return;
@@ -214,13 +224,15 @@ public class MinionGUIListener implements Listener {
 
         // Click with empty hand on active skin -> retrieve skin
         if (minion.hasSkin()) {
+            if (player.getInventory().firstEmpty() == -1) {
+                player.sendMessage(ColorUtil.color("&cYour inventory is full! Make space to retrieve the minion skin."));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
+            }
             MinionSkin oldSkin = minion.getSkin();
             minion.setSkinId(null);
             ItemStack skinItem = com.minionx.item.MinionItemFactory.createSkinItem(oldSkin);
-            java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(skinItem);
-            for (ItemStack item : leftover.values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), item);
-            }
+            player.getInventory().addItem(skinItem);
             com.minionx.visual.MinionVisual.spawnOrUpdate(minion);
             MinionGUI.open(player, minion);
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aRemoved &d" + oldSkin.getDisplayName() + " &afrom minion!"));
@@ -237,12 +249,14 @@ public class MinionGUIListener implements Listener {
 
         // If minion already has a skin, return old skin first
         if (minion.hasSkin()) {
+            if (player.getInventory().firstEmpty() == -1 && skinItem.getAmount() > 1) {
+                player.sendMessage(ColorUtil.color("&cYour inventory is full! Make space to receive the previous minion skin."));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
+            }
             MinionSkin oldSkin = minion.getSkin();
             ItemStack oldItem = com.minionx.item.MinionItemFactory.createSkinItem(oldSkin);
-            java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(oldItem);
-            for (ItemStack item : leftover.values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), item);
-            }
+            player.getInventory().addItem(oldItem);
         }
 
         minion.setSkinId(skinId);
@@ -254,85 +268,136 @@ public class MinionGUIListener implements Listener {
     }
 
     private void handleCollectAll(Player player, Minion minion) {
-        if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
-            player.sendMessage(ColorUtil.color("&c[Quarantine] Item collection is disabled during emergency quarantine mode!"));
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+        if (!minion.tryAcquireTransaction()) {
+            player.sendMessage(ColorUtil.color("&cMinion is busy. Please try again."));
             return;
         }
-        if (minion.getInventory().isEmpty() && minion.getStorageContents().isEmpty() && minion.getShippingCoins() <= 0) {
-            player.sendMessage(ColorUtil.color("&cYour minion has no items to collect!"));
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-            return;
-        }
-
-        // Fire MinionCollectionEvent
-        com.minionx.api.event.MinionCollectionEvent collectEvent = new com.minionx.api.event.MinionCollectionEvent(
-                player, minion, minion.getInventory(), minion.getStoredXp());
-        org.bukkit.Bukkit.getPluginManager().callEvent(collectEvent);
-        if (collectEvent.isCancelled()) {
-            return;
-        }
-
-        int collectedCount = 0;
-        // 1. Collect from minion internal inventory
-        for (ItemStack item : minion.getInventory()) {
-            if (item == null || item.getType() == Material.AIR) continue;
-            int amount = item.getAmount();
-            Material itemType = item.getType();
-            collectedCount += amount;
-            HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
-            for (ItemStack left : leftover.values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), left);
+        try {
+            if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
+                player.sendMessage(ColorUtil.color("&c[Quarantine] Item collection is disabled during emergency quarantine mode!"));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
             }
-            CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, amount);
-            com.minionx.hook.CollectionsHook.recordCollection(player, minion, itemType, amount);
-        }
-        minion.getInventory().clear();
-
-        // 2. Collect from linked minion storage chest
-        for (ItemStack item : minion.getStorageContents()) {
-            if (item == null || item.getType() == Material.AIR) continue;
-            int amount = item.getAmount();
-            Material itemType = item.getType();
-            collectedCount += amount;
-            HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
-            for (ItemStack left : leftover.values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), left);
+            if (minion.getInventory().isEmpty() && minion.getStorageContents().isEmpty() && minion.getShippingCoins() <= 0) {
+                player.sendMessage(ColorUtil.color("&cYour minion has no items to collect!"));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
             }
-            CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, amount);
-            com.minionx.hook.CollectionsHook.recordCollection(player, minion, itemType, amount);
-        }
-        minion.getStorageContents().clear();
 
-        // 3. Collect coins from Automated Shipping hopper
-        if (minion.getShippingCoins() > 0) {
-            double coins = minion.claimShippingCoins();
-            if (com.minionx.hook.EconomyHook.hasEconomy()) {
-                com.minionx.hook.EconomyHook.deposit(player, coins);
+            // Check if player has any room at all
+            if (player.getInventory().firstEmpty() == -1 && !hasStackableRoom(player, minion)) {
+                player.sendMessage(ColorUtil.color("&cYour inventory is full! Make space to collect items."));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
             }
-            player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &afrom Automated Shipping!"));
+
+            // Fire MinionCollectionEvent
+            com.minionx.api.event.MinionCollectionEvent collectEvent = new com.minionx.api.event.MinionCollectionEvent(
+                    player, minion, minion.getInventory(), minion.getStoredXp());
+            org.bukkit.Bukkit.getPluginManager().callEvent(collectEvent);
+            if (collectEvent.isCancelled()) {
+                return;
+            }
+
+            int collectedCount = 0;
+            boolean anyLeftover = false;
+
+            // 1. Collect from minion internal inventory
+            List<ItemStack> remainingInv = new ArrayList<>();
+            for (ItemStack item : minion.getInventory()) {
+                if (item == null || item.getType() == Material.AIR) continue;
+                int originalAmount = item.getAmount();
+                Material itemType = item.getType();
+                HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+                int delivered = originalAmount;
+                if (!leftover.isEmpty()) {
+                    anyLeftover = true;
+                    int remaining = 0;
+                    for (ItemStack left : leftover.values()) {
+                        remaining += left.getAmount();
+                    }
+                    delivered = originalAmount - remaining;
+                    ItemStack remStack = item.clone();
+                    remStack.setAmount(remaining);
+                    remainingInv.add(remStack);
+                }
+                if (delivered > 0) {
+                    collectedCount += delivered;
+                    CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, delivered);
+                    com.minionx.hook.CollectionsHook.recordCollection(player, minion, itemType, delivered);
+                }
+            }
+            minion.getInventory().clear();
+            minion.getInventory().addAll(remainingInv);
+
+            // 2. Collect from linked minion storage chest
+            List<ItemStack> remainingStore = new ArrayList<>();
+            for (ItemStack item : minion.getStorageContents()) {
+                if (item == null || item.getType() == Material.AIR) continue;
+                int originalAmount = item.getAmount();
+                Material itemType = item.getType();
+                HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+                int delivered = originalAmount;
+                if (!leftover.isEmpty()) {
+                    anyLeftover = true;
+                    int remaining = 0;
+                    for (ItemStack left : leftover.values()) {
+                        remaining += left.getAmount();
+                    }
+                    delivered = originalAmount - remaining;
+                    ItemStack remStack = item.clone();
+                    remStack.setAmount(remaining);
+                    remainingStore.add(remStack);
+                }
+                if (delivered > 0) {
+                    collectedCount += delivered;
+                    CollectionCommandHandler.executeCollectionCommands(player, minion, itemType, delivered);
+                    com.minionx.hook.CollectionsHook.recordCollection(player, minion, itemType, delivered);
+                }
+            }
+            minion.getStorageContents().clear();
+            minion.getStorageContents().addAll(remainingStore);
+
+            // 3. Collect coins from Automated Shipping hopper
+            if (minion.getShippingCoins() > 0) {
+                double coins = minion.claimShippingCoins();
+                if (com.minionx.hook.EconomyHook.hasEconomy()) {
+                    com.minionx.hook.EconomyHook.deposit(player, coins);
+                }
+                player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &afrom Automated Shipping!"));
+            }
+
+            minion.wakeUp();
+            if (minion.getState() == MinionState.FULL && !anyLeftover) {
+                minion.setState(MinionState.IDLE);
+                // Advance timing anchor so paused time is never credited
+                minion.setLastActionTime(System.currentTimeMillis());
+            }
+            MinionHologram.updateHologram(minion);
+            MinionVisual.spawnOrUpdate(minion);
+
+            int xp = minion.claimStoredXp();
+            if (xp > 0) {
+                player.giveExp(xp);
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+            }
+
+            grantSkillRewards(player, minion, collectedCount);
+
+            String template = MinionX.getInstance().getConfig().getString("messages.collected", "&aCollected %amount% items and &e+%xp% XP &afrom your minion!");
+            String msg = template.replace("%amount%", String.valueOf(collectedCount)).replace("%xp%", String.valueOf(xp));
+            player.sendMessage(ColorUtil.color(msg));
+            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+
+            if (anyLeftover) {
+                player.sendMessage(ColorUtil.color("&eSome items could not fit in your inventory and remain safely inside the minion."));
+            }
+
+            minion.advanceStateRevision();
+            MinionGUI.open(player, minion);
+        } finally {
+            minion.releaseTransaction();
         }
-
-        if (minion.getState() == MinionState.FULL) {
-            minion.setState(MinionState.IDLE);
-        }
-        MinionHologram.updateHologram(minion);
-        MinionVisual.spawnOrUpdate(minion);
-
-        int xp = minion.claimStoredXp();
-        if (xp > 0) {
-            player.giveExp(xp);
-            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
-        }
-
-        grantSkillRewards(player, minion, collectedCount);
-
-        String template = MinionX.getInstance().getConfig().getString("messages.collected", "&aCollected %amount% items and &e+%xp% XP &afrom your minion!");
-        String msg = template.replace("%amount%", String.valueOf(collectedCount)).replace("%xp%", String.valueOf(xp));
-        player.sendMessage(ColorUtil.color(msg));
-        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
-
-        MinionGUI.open(player, minion);
     }
 
     private void handleShippingSlotClick(Player player, Minion minion, InventoryClickEvent event) {
@@ -342,6 +407,11 @@ public class MinionGUIListener implements Listener {
         if (minion.getShippingId() != null) {
             if (event.isShiftClick()) {
                 CustomUpgrade hopper = minion.getShippingUpgrade();
+                if (hopper != null && player.getInventory().firstEmpty() == -1) {
+                    player.sendMessage(ColorUtil.color("&cYour inventory is full! Make space to retrieve the hopper."));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                    return;
+                }
                 minion.setShippingId(null);
 
                 // Collect accumulated coins
@@ -354,7 +424,7 @@ public class MinionGUIListener implements Listener {
                 }
 
                 if (hopper != null) {
-                    giveOrDrop(player, MinionItemFactory.createUpgradeItem(hopper));
+                    player.getInventory().addItem(MinionItemFactory.createUpgradeItem(hopper));
                     player.sendMessage(ColorUtil.color("&aRemoved Automated Shipping hopper (&f" + hopper.getDisplayName() + "&a)!"));
                 }
                 player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
@@ -448,21 +518,21 @@ public class MinionGUIListener implements Listener {
     private void handlePickup(Player player, Minion minion) {
         player.closeInventory();
 
-        // 1. Anti-dupe check: verify minion is still registered (prevents rapid double-click packet dupe)
+        if (!minion.tryAcquireTransaction()) {
+            player.sendMessage(ColorUtil.color("&cMinion is busy. Please try again."));
+            return;
+        }
+
+        // 1. Anti-dupe check: verify minion is still registered
         if (MinionX.getInstance().getMinionManager().getMinionById(minion.getMinionId()) == null) {
+            minion.releaseTransaction();
             return;
         }
 
         if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
             player.sendMessage(ColorUtil.color("&c[Quarantine] Minion pickup is disabled during emergency quarantine mode!"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-            return;
-        }
-
-        // Check if player has at least 1 free inventory slot
-        if (player.getInventory().firstEmpty() == -1) {
-            player.sendMessage(ColorUtil.color("&cYour inventory is full! Make space before picking up this minion."));
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            minion.releaseTransaction();
             return;
         }
 
@@ -470,55 +540,14 @@ public class MinionGUIListener implements Listener {
         com.minionx.api.event.MinionPickupEvent pickupEvent = new com.minionx.api.event.MinionPickupEvent(player, minion);
         org.bukkit.Bukkit.getPluginManager().callEvent(pickupEvent);
         if (pickupEvent.isCancelled()) {
+            minion.releaseTransaction();
             return;
         }
 
-        // 2. Unregister from MinionManager FIRST so no concurrent events or clicks can trigger pickup twice
-        MinionX.getInstance().getMinionManager().unregister(minion);
+        // 2. Preflight: Collect all candidate items that must be transferred to player
+        List<ItemStack> itemsToTransfer = new ArrayList<>();
 
-        // If minion has a linked storage chest, remove it from the world and drop storage item + contents
-        MinionStorageListener.removeStorageOnMinionRemoval(minion);
-
-        // Return stored inventory items
-        for (ItemStack item : minion.getInventory()) {
-            HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
-            for (ItemStack left : leftover.values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), left);
-            }
-        }
-        minion.getInventory().clear();
-
-        // Return permanent fuel if active, or temporary fuel if configured to not destroy
-        if (minion.isFuelActive()) {
-            CustomFuel fuel = minion.getCustomFuel();
-            if (fuel != null) {
-                if (fuel.isPermanent()) {
-                    giveOrDrop(player, MinionItemFactory.createFuelItem(fuel));
-                } else {
-                    boolean destroyOnRemoval = MinionX.getInstance().getConfig()
-                            .getBoolean("settings.destroy-temporary-fuel-on-removal", true);
-                    if (!destroyOnRemoval) {
-                        giveOrDrop(player, MinionItemFactory.createFuelItem(fuel));
-                    }
-                }
-            }
-        }
-
-        // Return upgrades
-        if (minion.getCustomUpgrade1() != null) {
-            giveOrDrop(player, MinionItemFactory.createUpgradeItem(minion.getCustomUpgrade1()));
-        }
-        if (minion.getCustomUpgrade2() != null) {
-            giveOrDrop(player, MinionItemFactory.createUpgradeItem(minion.getCustomUpgrade2()));
-        }
-
-        // Claim stored XP
-        int xp = minion.claimStoredXp();
-        if (xp > 0) {
-            player.giveExp(xp);
-        }
-
-        // Give placeable minion item
+        // Placeable minion item
         ItemStack minionItem;
         if (minion.getCustomDefinitionId() != null) {
             MinionDefinition def = MinionRegistry.get(minion.getCustomDefinitionId());
@@ -526,18 +555,217 @@ public class MinionGUIListener implements Listener {
         } else {
             minionItem = MinionItemFactory.createMinionItem(minion.getType(), minion.getTier(), minion.getTotalHarvested());
         }
-        giveOrDrop(player, minionItem);
+        if (minionItem != null) itemsToTransfer.add(minionItem);
+
+        // Equipped upgrades
+        if (minion.getCustomUpgrade1() != null) {
+            itemsToTransfer.add(MinionItemFactory.createUpgradeItem(minion.getCustomUpgrade1()));
+        }
+        if (minion.getCustomUpgrade2() != null) {
+            itemsToTransfer.add(MinionItemFactory.createUpgradeItem(minion.getCustomUpgrade2()));
+        }
+
+        // Shipping upgrade
+        if (minion.getShippingUpgrade() != null) {
+            itemsToTransfer.add(MinionItemFactory.createUpgradeItem(minion.getShippingUpgrade()));
+        }
+
+        // Skin
+        if (minion.hasSkin()) {
+            itemsToTransfer.add(MinionItemFactory.createSkinItem(minion.getSkin()));
+        }
+
+        // Fuel
+        if (minion.isFuelActive()) {
+            CustomFuel fuel = minion.getCustomFuel();
+            if (fuel != null) {
+                if (fuel.isPermanent()) {
+                    itemsToTransfer.add(MinionItemFactory.createFuelItem(fuel));
+                } else {
+                    boolean destroyOnRemoval = MinionX.getInstance().getConfig()
+                            .getBoolean("settings.destroy-temporary-fuel-on-removal", true);
+                    if (!destroyOnRemoval) {
+                        itemsToTransfer.add(MinionItemFactory.createFuelItem(fuel));
+                    }
+                }
+            }
+        }
+
+        // Linked storage chest item
+        if (minion.hasLinkedStorage()) {
+            CustomMinionStorage st = minion.getLinkedStorage();
+            if (st != null) {
+                itemsToTransfer.add(MinionItemFactory.createStorageItem(st));
+            }
+        }
+
+        // Internal inventory items
+        for (ItemStack item : minion.getInventory()) {
+            if (item != null && item.getType() != Material.AIR) {
+                itemsToTransfer.add(item.clone());
+            }
+        }
+
+        // Linked storage contents
+        for (ItemStack item : minion.getStorageContents()) {
+            if (item != null && item.getType() != Material.AIR) {
+                itemsToTransfer.add(item.clone());
+            }
+        }
+
+        // 3. Preflight capacity check across ALL candidate items
+        if (!canHoldAll(player.getInventory(), itemsToTransfer)) {
+            player.sendMessage(ColorUtil.color("&cYour inventory cannot hold all items from this minion! Make room before picking it up."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            minion.releaseTransaction();
+            return;
+        }
+
+        // 4. Record durable intent (PICKUP_PENDING) before mutating player inventory
+        String operationId = UUID.randomUUID().toString();
+        PendingOperation op = new PendingOperation(
+                operationId,
+                minion.getMinionId(),
+                player.getUniqueId(),
+                "PICKUP_PENDING",
+                System.currentTimeMillis()
+        );
+        try {
+            MinionX.getInstance().getMinionStorage().recordPendingOperation(op);
+        } catch (Exception e) {
+            MinionX.getInstance().getLogger().log(Level.SEVERE, "Failed to record durable pickup intent: " + operationId, e);
+            player.sendMessage(ColorUtil.color("&cFailed to initiate minion pickup. Please try again."));
+            minion.releaseTransaction();
+            return;
+        }
+
+        // 5. Snapshot player inventory for atomic rollback
+        ItemStack[] preContents = player.getInventory().getContents();
+        ItemStack[] invSnapshot = new ItemStack[preContents.length];
+        for (int i = 0; i < preContents.length; i++) {
+            invSnapshot[i] = preContents[i] != null ? preContents[i].clone() : null;
+        }
+
+        // 6. Synchronous player inventory transfer
+        try {
+            for (ItemStack item : itemsToTransfer) {
+                HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+                if (!leftover.isEmpty()) {
+                    throw new IllegalStateException("Capacity invariant breached: item transfer failed to fit completely");
+                }
+            }
+        } catch (Throwable t) {
+            MinionX.getInstance().getLogger().log(Level.SEVERE, "Error during player inventory pickup mutation! Rolling back.", t);
+            player.getInventory().setContents(invSnapshot);
+
+            // Acknowledge compensating deletion BEFORE restoring ACTIVE or releasing guard
+            try {
+                MinionX.getInstance().getMinionStorage().removePendingOperation(operationId);
+            } catch (Exception ex) {
+                MinionX.getInstance().getLogger().log(Level.SEVERE, "CRITICAL: Failed to remove pending operation during rollback: " + operationId, ex);
+            }
+
+            player.sendMessage(ColorUtil.color("&cAn error occurred during pickup. Pickup cancelled and inventory restored."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            minion.releaseTransaction();
+            return;
+        }
+
+        // 7. Atomic persistence finalization (WHERE operation_id = ?)
+        boolean finalized = MinionX.getInstance().getMinionStorage().finalizePickup(operationId, minion.getMinionId());
+        if (!finalized) {
+            MinionX.getInstance().getLogger().warning("Pickup finalization returned false for operation " + operationId);
+        }
+
+        // 8. Clean up runtime state
+        MinionX.getInstance().getMinionManager().unregister(minion);
+        MinionVisual.remove(minion);
+        MinionHologram.remove(minion);
+        if (minion.hasLinkedStorage()) {
+            MinionStorageListener.removeStorageOnMinionRemoval(minion, false);
+        }
+
+        // Claim XP and coins
+        int xp = minion.claimStoredXp();
+        if (xp > 0) {
+            player.giveExp(xp);
+        }
+        if (minion.getShippingCoins() > 0) {
+            double coins = minion.claimShippingCoins();
+            if (com.minionx.hook.EconomyHook.hasEconomy()) {
+                com.minionx.hook.EconomyHook.deposit(player, coins);
+            }
+        }
 
         player.sendMessage(ColorUtil.color("&eYou picked up your " + minion.getDisplayName() + " Minion!"));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
+        minion.releaseTransaction();
     }
 
-    private void giveOrDrop(Player player, ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) return;
-        HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
-        for (ItemStack left : leftover.values()) {
-            player.getWorld().dropItemNaturally(player.getLocation(), left);
+    public static boolean canHoldAll(org.bukkit.inventory.PlayerInventory inv, List<ItemStack> items) {
+        if (items == null || items.isEmpty()) return true;
+        ItemStack[] storage = inv.getStorageContents();
+        ItemStack[] sim = new ItemStack[storage.length];
+        for (int i = 0; i < storage.length; i++) {
+            sim[i] = storage[i] != null ? storage[i].clone() : null;
         }
+
+        for (ItemStack item : items) {
+            if (item == null || item.getType() == Material.AIR) continue;
+            ItemStack rem = item.clone();
+
+            for (int i = 0; i < sim.length; i++) {
+                if (sim[i] != null && sim[i].isSimilar(rem)) {
+                    int space = sim[i].getMaxStackSize() - sim[i].getAmount();
+                    if (space > 0) {
+                        int toAdd = Math.min(space, rem.getAmount());
+                        sim[i].setAmount(sim[i].getAmount() + toAdd);
+                        rem.setAmount(rem.getAmount() - toAdd);
+                        if (rem.getAmount() <= 0) break;
+                    }
+                }
+            }
+
+            if (rem.getAmount() > 0) {
+                for (int i = 0; i < sim.length; i++) {
+                    if (sim[i] == null || sim[i].getType() == Material.AIR) {
+                        int toAdd = Math.min(rem.getMaxStackSize(), rem.getAmount());
+                        ItemStack added = rem.clone();
+                        added.setAmount(toAdd);
+                        sim[i] = added;
+                        rem.setAmount(rem.getAmount() - toAdd);
+                        if (rem.getAmount() <= 0) break;
+                    }
+                }
+            }
+
+            if (rem.getAmount() > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean hasStackableRoom(Player player, Minion minion) {
+        for (ItemStack item : minion.getInventory()) {
+            if (item != null && item.getType() != Material.AIR) {
+                for (ItemStack pItem : player.getInventory().getStorageContents()) {
+                    if (pItem != null && pItem.isSimilar(item) && pItem.getAmount() < pItem.getMaxStackSize()) {
+                        return true;
+                    }
+                }
+            }
+        }
+        for (ItemStack item : minion.getStorageContents()) {
+            if (item != null && item.getType() != Material.AIR) {
+                for (ItemStack pItem : player.getInventory().getStorageContents()) {
+                    if (pItem != null && pItem.isSimilar(item) && pItem.getAmount() < pItem.getMaxStackSize()) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private void handleFuelSlot(Player player, Minion minion, InventoryClickEvent event) {
@@ -788,8 +1016,10 @@ public class MinionGUIListener implements Listener {
 
             grantSkillRewards(player, minion, amount);
 
+            minion.wakeUp();
             if (minion.getState() == MinionState.FULL) {
                 minion.setState(MinionState.IDLE);
+                minion.setLastActionTime(System.currentTimeMillis());
             }
             MinionHologram.updateHologram(minion);
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);

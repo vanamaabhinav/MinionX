@@ -27,6 +27,7 @@ public class Minion {
     private String skinId;
     private String shippingId;
     private double shippingCoins;
+    private long shippingCoinsMicros;
 
     private long lastActionTime;
     private boolean lastActionWasPlace;
@@ -46,8 +47,21 @@ public class Minion {
     private String activeDialogue;
     private long dialogueExpiresAt;
 
+    // Transaction Guard & Revisions
+    private final java.util.concurrent.atomic.AtomicBoolean isTransacting = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicBoolean isFullSleeping = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicLong stateRevision = new java.util.concurrent.atomic.AtomicLong(0L);
+    private long schedulingGeneration = 0L;
+    private long lastCatchupTime = 0L;
+    private boolean initialCatchupDone = false;
+    private final Map<String, Long> dropRemaindersMicros = new java.util.concurrent.ConcurrentHashMap<>();
+    private long fractionalProgressMicros = 0L;
+
     private transient String lastHologramText;
     private transient float lastRenderedYaw = Float.NaN;
+    private transient org.bukkit.entity.Entity cachedArmorStand;
+    private transient org.bukkit.entity.TextDisplay cachedHologram;
+    private final Set<UUID> trackedSpawnedMobs = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public Minion(UUID minionId, UUID ownerId, MinionType type, int tier, Location location) {
         this.minionId = minionId != null ? minionId : UUID.randomUUID();
@@ -350,22 +364,44 @@ public class Minion {
     }
 
     public double getShippingCoins() {
-        return shippingCoins;
+        return shippingCoinsMicros > 0 ? shippingCoinsMicros / 1_000_000.0 : shippingCoins;
     }
 
     public void setShippingCoins(double coins) {
-        this.shippingCoins = Math.max(0.0, coins);
+        double clamped = Math.max(0.0, coins);
+        this.shippingCoins = clamped;
+        this.shippingCoinsMicros = Math.round(clamped * 1_000_000.0);
+        advanceStateRevision();
+    }
+
+    public long getShippingCoinsMicros() {
+        return shippingCoinsMicros;
+    }
+
+    public void setShippingCoinsMicros(long micros) {
+        this.shippingCoinsMicros = Math.max(0L, micros);
+        this.shippingCoins = this.shippingCoinsMicros / 1_000_000.0;
+        advanceStateRevision();
     }
 
     public void addShippingCoins(double coins) {
         if (coins > 0) {
-            this.shippingCoins += coins;
+            long addMicros = Math.round(coins * 1_000_000.0);
+            try {
+                this.shippingCoinsMicros = Math.addExact(this.shippingCoinsMicros, addMicros);
+            } catch (ArithmeticException e) {
+                this.shippingCoinsMicros = Long.MAX_VALUE;
+            }
+            this.shippingCoins = this.shippingCoinsMicros / 1_000_000.0;
+            advanceStateRevision();
         }
     }
 
     public double claimShippingCoins() {
-        double c = this.shippingCoins;
+        double c = getShippingCoins();
         this.shippingCoins = 0.0;
+        this.shippingCoinsMicros = 0L;
+        advanceStateRevision();
         return c;
     }
 
@@ -565,8 +601,67 @@ public class Minion {
         return count;
     }
 
+    public record BlockOffset(int dx, int dz) {}
+
+    private static final List<BlockOffset> OFFSETS_5X5;
+    private static final List<BlockOffset> OFFSETS_7X7;
+    private static final List<BlockOffset> OFFSETS_9X9;
+
+    static {
+        OFFSETS_5X5 = computeOffsets(2); // 24 offsets (5x5)
+        OFFSETS_7X7 = computeOffsets(3); // 48 offsets (7x7)
+        OFFSETS_9X9 = computeOffsets(4); // 80 offsets (9x9)
+    }
+
+    private static List<BlockOffset> computeOffsets(int radius) {
+        List<BlockOffset> list = new ArrayList<>();
+        for (int x = -radius; x <= radius; x++) {
+            for (int z = -radius; z <= radius; z++) {
+                if (x == 0 && z == 0) continue; // Skip center where minion stands
+                list.add(new BlockOffset(x, z));
+            }
+        }
+        return Collections.unmodifiableList(list);
+    }
+
     /**
-     * Returns the 24 perimeter blocks in the 5x5 working radius around the minion at its elevation.
+     * Total area expansion radius bonus (+1 per equipped Minion Expander, stacks up to +2).
+     */
+    public int getAreaExpansion() {
+        int expansion = 0;
+        CustomUpgrade u1 = getCustomUpgrade1();
+        if (u1 != null) {
+            expansion += u1.getAreaExpansion();
+        } else if ("minion_expander".equalsIgnoreCase(upgrade1Id)) {
+            expansion += 1;
+        }
+
+        CustomUpgrade u2 = getCustomUpgrade2();
+        if (u2 != null) {
+            expansion += u2.getAreaExpansion();
+        } else if ("minion_expander".equalsIgnoreCase(upgrade2Id)) {
+            expansion += 1;
+        }
+
+        return Math.clamp(expansion, 0, 2);
+    }
+
+    /**
+     * Working radius around the minion: 2 (5x5, 24 blocks), 3 (7x7, 48 blocks), or 4 (9x9, 80 blocks).
+     */
+    public int getWorkingRadius() {
+        return 2 + getAreaExpansion();
+    }
+
+    public List<BlockOffset> getWorkingOffsets() {
+        int r = getWorkingRadius();
+        if (r >= 4) return OFFSETS_9X9;
+        if (r == 3) return OFFSETS_7X7;
+        return OFFSETS_5X5;
+    }
+
+    /**
+     * Returns the ground blocks (Y - 1) in the working area around the minion.
      */
     public List<Block> getWorkingGroundBlocks() {
         return getWorkingAreaBlocks();
@@ -576,16 +671,13 @@ public class Minion {
         List<Block> blocks = new ArrayList<>();
         if (location == null || location.getWorld() == null) return blocks;
 
+        org.bukkit.World world = location.getWorld();
         int centerX = location.getBlockX();
         int cropY = location.getBlockY();
         int centerZ = location.getBlockZ();
 
-        for (int x = -2; x <= 2; x++) {
-            for (int z = -2; z <= 2; z++) {
-                if (x == 0 && z == 0) continue;
-                Block block = location.getWorld().getBlockAt(centerX + x, cropY, centerZ + z);
-                blocks.add(block);
-            }
+        for (BlockOffset offset : getWorkingOffsets()) {
+            blocks.add(world.getBlockAt(centerX + offset.dx(), cropY, centerZ + offset.dz()));
         }
         return blocks;
     }
@@ -594,16 +686,13 @@ public class Minion {
         List<Block> blocks = new ArrayList<>();
         if (location == null || location.getWorld() == null) return blocks;
 
+        org.bukkit.World world = location.getWorld();
         int centerX = location.getBlockX();
         int resourceY = location.getBlockY() - 1;
         int centerZ = location.getBlockZ();
 
-        for (int x = -2; x <= 2; x++) {
-            for (int z = -2; z <= 2; z++) {
-                if (x == 0 && z == 0) continue; // Skip center where minion stands
-                Block block = location.getWorld().getBlockAt(centerX + x, resourceY, centerZ + z);
-                blocks.add(block);
-            }
+        for (BlockOffset offset : getWorkingOffsets()) {
+            blocks.add(world.getBlockAt(centerX + offset.dx(), resourceY, centerZ + offset.dz()));
         }
 
         return blocks;
@@ -782,5 +871,121 @@ public class Minion {
 
     public void setLastRenderedYaw(float lastRenderedYaw) {
         this.lastRenderedYaw = lastRenderedYaw;
+    }
+
+    public org.bukkit.entity.Entity getCachedArmorStand() {
+        if (cachedArmorStand != null && cachedArmorStand.isValid() && !cachedArmorStand.isDead()) {
+            return cachedArmorStand;
+        }
+        return null;
+    }
+
+    public void setCachedArmorStand(org.bukkit.entity.Entity cachedArmorStand) {
+        this.cachedArmorStand = cachedArmorStand;
+    }
+
+    public org.bukkit.entity.TextDisplay getCachedHologram() {
+        if (cachedHologram != null && cachedHologram.isValid() && !cachedHologram.isDead()) {
+            return cachedHologram;
+        }
+        return null;
+    }
+
+    public void setCachedHologram(org.bukkit.entity.TextDisplay cachedHologram) {
+        this.cachedHologram = cachedHologram;
+    }
+
+    public Set<UUID> getTrackedSpawnedMobs() {
+        return trackedSpawnedMobs;
+    }
+
+    public void trackSpawnedMob(UUID uuid) {
+        if (uuid != null) trackedSpawnedMobs.add(uuid);
+    }
+
+    public void untrackSpawnedMob(UUID uuid) {
+        if (uuid != null) trackedSpawnedMobs.remove(uuid);
+    }
+
+    public boolean tryAcquireTransaction() {
+        return isTransacting.compareAndSet(false, true);
+    }
+
+    public void releaseTransaction() {
+        isTransacting.set(false);
+    }
+
+    public boolean isTransacting() {
+        return isTransacting.get();
+    }
+
+    public long getStateRevision() {
+        return stateRevision.get();
+    }
+
+    public long advanceStateRevision() {
+        return stateRevision.incrementAndGet();
+    }
+
+    public long getSchedulingGeneration() {
+        return schedulingGeneration;
+    }
+
+    public void advanceSchedulingGeneration() {
+        this.schedulingGeneration++;
+    }
+
+    public boolean isFullSleeping() {
+        return isFullSleeping.get();
+    }
+
+    public void sleepFull() {
+        this.isFullSleeping.set(true);
+    }
+
+    public void wakeUp() {
+        if (this.isFullSleeping.compareAndSet(true, false)) {
+            advanceStateRevision();
+        }
+    }
+
+    public long getLastCatchupTime() {
+        return lastCatchupTime;
+    }
+
+    public void setLastCatchupTime(long lastCatchupTime) {
+        this.lastCatchupTime = lastCatchupTime;
+    }
+
+    public boolean isInitialCatchupDone() {
+        return initialCatchupDone;
+    }
+
+    public void setInitialCatchupDone(boolean initialCatchupDone) {
+        this.initialCatchupDone = initialCatchupDone;
+    }
+
+    public Map<String, Long> getDropRemaindersMicros() {
+        return dropRemaindersMicros;
+    }
+
+    public long getChannelRemainder(String channel) {
+        return dropRemaindersMicros.getOrDefault(channel != null ? channel.toLowerCase() : "", 0L);
+    }
+
+    public void setChannelRemainder(String channel, long remainder) {
+        if (channel != null) {
+            dropRemaindersMicros.put(channel.toLowerCase(), remainder);
+            advanceStateRevision();
+        }
+    }
+
+    public long getFractionalProgressMicros() {
+        return fractionalProgressMicros;
+    }
+
+    public void setFractionalProgressMicros(long fractionalProgressMicros) {
+        this.fractionalProgressMicros = fractionalProgressMicros;
+        advanceStateRevision();
     }
 }

@@ -24,17 +24,24 @@ public class CustomUpgrade {
     private final double speedBuff; // e.g. 0.20 for +20%
     private final double chance;    // e.g. 0.10 for 10%
     private final double sellRatio; // e.g. 0.50 for Budget Hopper, 0.90 for Enchanted Hopper
+    private final int areaExpansion; // e.g. 1 for Minion Expander (+1 radius, 5x5 -> 7x7)
     private final List<String> lore;
     private final boolean glowing;
     private final int customModelData;
 
     public CustomUpgrade(String id, String displayName, Material material, UpgradeBehavior behavior,
                          double speedBuff, double chance, List<String> lore, boolean glowing, int customModelData) {
-        this(id, displayName, material, behavior, speedBuff, chance, 0.0, lore, glowing, customModelData);
+        this(id, displayName, material, behavior, speedBuff, chance, 0.0, 0, lore, glowing, customModelData);
     }
 
     public CustomUpgrade(String id, String displayName, Material material, UpgradeBehavior behavior,
                          double speedBuff, double chance, double sellRatio, List<String> lore, boolean glowing, int customModelData) {
+        this(id, displayName, material, behavior, speedBuff, chance, sellRatio, 0, lore, glowing, customModelData);
+    }
+
+    public CustomUpgrade(String id, String displayName, Material material, UpgradeBehavior behavior,
+                         double speedBuff, double chance, double sellRatio, int areaExpansion,
+                         List<String> lore, boolean glowing, int customModelData) {
         this.id = id.toLowerCase();
         this.displayName = displayName;
         this.material = material;
@@ -42,6 +49,7 @@ public class CustomUpgrade {
         this.speedBuff = speedBuff;
         this.chance = chance;
         this.sellRatio = sellRatio;
+        this.areaExpansion = Math.max(0, areaExpansion);
         this.lore = lore;
         this.glowing = glowing;
         this.customModelData = customModelData;
@@ -77,6 +85,10 @@ public class CustomUpgrade {
 
     public boolean isAutoSeller() {
         return behavior == UpgradeBehavior.AUTO_SELLER;
+    }
+
+    public int getAreaExpansion() {
+        return areaExpansion;
     }
 
     public List<String> getLore() {

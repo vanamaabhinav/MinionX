@@ -197,7 +197,14 @@ public class MinionStorageListener implements Listener {
         if (block == null) return;
 
         Minion minion = getLinkedMinionAt(block);
-        if (minion == null) return;
+        if (minion == null) {
+            // Self-heal orphan storage chest if minion was purged or deleted
+            if (block.getState() instanceof TileState tile && tile.getPersistentDataContainer().has(STORAGE_BLOCK_KEY, PersistentDataType.BYTE)) {
+                block.setType(Material.AIR);
+                event.setCancelled(true);
+            }
+            return;
+        }
 
         // Prevent opening as regular vanilla chest!
         event.setCancelled(true);
@@ -226,7 +233,14 @@ public class MinionStorageListener implements Listener {
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         Minion minion = getLinkedMinionAt(block);
-        if (minion == null) return;
+        if (minion == null) {
+            // Self-heal orphan storage chest if minion was purged or deleted
+            if (block.getState() instanceof TileState tile && tile.getPersistentDataContainer().has(STORAGE_BLOCK_KEY, PersistentDataType.BYTE)) {
+                block.setType(Material.AIR);
+                event.setCancelled(true);
+            }
+            return;
+        }
 
         Player player = event.getPlayer();
 
@@ -518,26 +532,31 @@ public class MinionStorageListener implements Listener {
      * Completely removes and unlinks the storage chest block when a minion is removed or picked up.
      */
     public static void removeStorageOnMinionRemoval(Minion minion) {
+        removeStorageOnMinionRemoval(minion, true);
+    }
+
+    public static void removeStorageOnMinionRemoval(Minion minion, boolean dropItems) {
         if (minion == null || !minion.hasLinkedStorage()) return;
         Location sl = minion.getLinkedStorageLocation();
         if (sl == null || sl.getWorld() == null) return;
 
         Block block = sl.getBlock();
         if (block.getType() != Material.AIR) {
-            // Drop stored items
-            for (ItemStack item : minion.getStorageContents()) {
-                if (item != null && item.getType() != Material.AIR) {
-                    sl.getWorld().dropItemNaturally(sl, item);
+            if (dropItems) {
+                // Drop stored items
+                for (ItemStack item : minion.getStorageContents()) {
+                    if (item != null && item.getType() != Material.AIR) {
+                        sl.getWorld().dropItemNaturally(sl, item);
+                    }
+                }
+
+                // Drop storage item
+                CustomMinionStorage st = minion.getLinkedStorage();
+                if (st != null) {
+                    sl.getWorld().dropItemNaturally(sl, MinionItemFactory.createStorageItem(st));
                 }
             }
             minion.getStorageContents().clear();
-
-            // Drop storage item
-            CustomMinionStorage st = minion.getLinkedStorage();
-            if (st != null) {
-                sl.getWorld().dropItemNaturally(sl, MinionItemFactory.createStorageItem(st));
-            }
-
             block.setType(Material.AIR);
         }
         if (com.minionx.MinionX.getInstance() != null && com.minionx.MinionX.getInstance().getMinionManager() != null && sl != null) {

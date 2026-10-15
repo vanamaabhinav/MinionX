@@ -5,20 +5,22 @@ import com.minionx.api.*;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Ultra-optimized O(1) constant-time offline production engine.
- * Computes exact item yields, Super Compaction batches, and XP in single-step
- * integer arithmetic without tick/simulation loops, eliminating server lag.
+ * Ultra-optimized constant-time offline production engine.
+ * Computes exact item yields, Super Compaction batches, and XP in checked
+ * 64-bit integer arithmetic with action-phase precision and paused-time advancement.
  */
 public class OfflineCalculator {
 
     public static int processOfflineCatchup(Minion minion) {
         if (minion == null) return 0;
 
-        // If minion is in not working state (full or blocked), do not generate resources
+        // 1. Paused-state anchor advance: paused duration is never credited as work
         if (minion.getState() == MinionState.FULL || minion.getState() == MinionState.NO_SPACE) {
+            minion.setLastActionTime(System.currentTimeMillis());
             return 0;
         }
 
@@ -26,7 +28,7 @@ public class OfflineCalculator {
         long elapsedMillis = now - minion.getLastActionTime();
         if (elapsedMillis <= 0) return 0;
 
-        // Cap offline calculation to configured max hours (default 720 hours = 30 days)
+        // 2. Cap offline calculation to configured max hours (default 720 hours = 30 days)
         long maxOfflineMillis = 720L * 3600L * 1000L;
         if (MinionX.getInstance() != null && MinionX.getInstance().getConfig() != null) {
             int cfgHours = MinionX.getInstance().getConfig().getInt("settings.max-offline-hours", 720);
@@ -41,15 +43,29 @@ public class OfflineCalculator {
 
         double delaySeconds = minion.getEffectiveActionDelay();
         if (delaySeconds <= 0) delaySeconds = 14.0;
-        long cycleMillis = (long) (delaySeconds * 2000L); // Two-action cycle (Place + Mine)
+        long actionMillis = (long) (delaySeconds * 1000L);
+        if (actionMillis <= 0) actionMillis = 1000L;
 
-        long totalCycles = elapsedMillis / cycleMillis;
-        long leftoverMillis = elapsedMillis % cycleMillis;
+        // 3. Action-based time resolution
+        long totalActions = elapsedMillis / actionMillis;
+        long leftoverMillis = elapsedMillis % actionMillis;
         minion.setLastActionTime(now - leftoverMillis);
 
-        if (totalCycles <= 0) return 0;
+        if (totalActions <= 0) return 0;
 
-        // Determine drop item and XP
+        // 4. Alternating phase resolution (Action 0 = Place, Action 1 = Mine/Yield)
+        long harvestActions;
+        if (!minion.wasLastActionPlace()) {
+            harvestActions = totalActions / 2L;
+            minion.setLastActionWasPlace(totalActions % 2L == 1L);
+        } else {
+            harvestActions = (totalActions + 1L) / 2L;
+            minion.setLastActionWasPlace(totalActions % 2L == 0L);
+        }
+
+        if (harvestActions <= 0) return 0;
+
+        // 5. Determine definition, drop item, and XP
         MinionDefinition def = minion.getCustomDefinitionId() != null
                 ? MinionRegistry.get(minion.getCustomDefinitionId())
                 : (minion.getType() != null ? MinionRegistry.get(minion.getType().name().toLowerCase()) : null);
@@ -57,123 +73,122 @@ public class OfflineCalculator {
         ItemStack baseDrop = determineDropItem(minion, def);
         int xpPerHarvest = def != null && def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1;
 
-        // Calculate available capacity in unlocked storage slots
-        int unlockedSlots = MinionTier.getStorageSlots(minion.getTier());
-        int maxCapacity = unlockedSlots * 64;
-        int currentStored = minion.getTotalStoredCount();
-        int spaceRemaining = Math.max(0, maxCapacity - currentStored);
+        // 6. Snapshot pre-production state for atomic rollback on overflow
+        List<ItemStack> invSnapshot = cloneItemList(minion.getInventory());
+        List<ItemStack> storeSnapshot = cloneItemList(minion.getStorageContents());
+        double coinsSnapshot = minion.getShippingCoins();
 
-        if (spaceRemaining <= 0) {
+        // 7. Calculate secondary drops and Diamond Spreading via fixed-point micro-math (100% = 1,000,000)
+        long secProduced = 0;
+        long newSecRemainder = 0;
+        boolean hasSecondary = def != null && def.hasSecondaryDrop() && def.getSecondaryDropChance() > 0 && def.getSecondaryDropItem() != null;
+        if (hasSecondary && def != null) {
+            long secChanceMicros = (long) (def.getSecondaryDropChance() * 1_000_000.0);
+            long existingSecRem = minion.getChannelRemainder("secondary");
+            long totalSecMicros = Math.addExact(existingSecRem, Math.multiplyExact(harvestActions, secChanceMicros));
+            secProduced = totalSecMicros / 1_000_000L;
+            newSecRemainder = totalSecMicros % 1_000_000L;
+        }
+
+        long diaProduced = 0;
+        long newDiaRemainder = 0;
+        boolean hasSpreading = minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
+                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING);
+        if (hasSpreading) {
+            long existingDiaRem = minion.getChannelRemainder("diamond_spreading");
+            long totalDiaMicros = Math.addExact(existingDiaRem, Math.multiplyExact(harvestActions, 100_000L)); // 10%
+            diaProduced = totalDiaMicros / 1_000_000L;
+            newDiaRemainder = totalDiaMicros % 1_000_000L;
+        }
+
+        // 8. Safely simulate pipeline insertion into internal slots, virtual storage, and Auto-Shipper
+        long totalBase = Math.multiplyExact(harvestActions, (long) baseDrop.getAmount());
+        boolean success = true;
+        int actualAdded = 0;
+
+        // Base items
+        long remBase = totalBase;
+        while (remBase > 0) {
+            int batch = (int) Math.min(64L, remBase);
+            ItemStack stack = baseDrop.clone();
+            stack.setAmount(batch);
+            if (!minion.addItem(stack)) {
+                success = false;
+                break;
+            }
+            actualAdded += batch;
+            remBase -= batch;
+            CompressionManager.processCompaction(minion);
+        }
+
+        // Secondary drops
+        if (success && secProduced > 0 && def != null && def.getSecondaryDropItem() != null) {
+            long remSec = secProduced;
+            while (remSec > 0) {
+                int batch = (int) Math.min(64L, remSec);
+                ItemStack stack = def.getSecondaryDropItem().clone();
+                stack.setAmount(batch);
+                if (!minion.addItem(stack)) {
+                    success = false;
+                    break;
+                }
+                actualAdded += batch;
+                remSec -= batch;
+                CompressionManager.processCompaction(minion);
+            }
+        }
+
+        // Diamond spreading
+        if (success && diaProduced > 0) {
+            long remDia = diaProduced;
+            while (remDia > 0) {
+                int batch = (int) Math.min(64L, remDia);
+                ItemStack stack = new ItemStack(Material.DIAMOND, batch);
+                if (!minion.addItem(stack)) {
+                    success = false;
+                    break;
+                }
+                actualAdded += batch;
+                remDia -= batch;
+                CompressionManager.processCompaction(minion);
+            }
+        }
+
+        // 9. All-or-nothing rollback on capacity overflow without Auto-Shipper
+        if (!success) {
+            restoreItemList(minion.getInventory(), invSnapshot);
+            restoreItemList(minion.getStorageContents(), storeSnapshot);
+            minion.setShippingCoins(coinsSnapshot);
+
             minion.setState(MinionState.FULL);
+            minion.setLastActionTime(now); // Advance paused-time anchor
             return 0;
         }
 
-        // Check Super Compactor
-        boolean hasSuperCompactor = minion.hasUpgrade(MinionUpgradeType.SUPER_COMPACTOR)
-                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.COMPACTOR);
+        // 10. Commit changes atomically
+        if (hasSecondary) minion.setChannelRemainder("secondary", newSecRemainder);
+        if (hasSpreading) minion.setChannelRemainder("diamond_spreading", newDiaRemainder);
 
-        int itemsToProduce = (int) Math.min(totalCycles, (long) spaceRemaining);
-
-        if (hasSuperCompactor) {
-            CompressionManager.CompressionRecipe recipe = CompressionManager.getRecipe(baseDrop.getType());
-            if (recipe != null && recipe.getInputAmount() > 0) {
-                int req = recipe.getInputAmount();
-                // O(1) compression arithmetic
-                int totalRaw = currentStored + (int) totalCycles;
-                int compressedYield = totalRaw / req;
-                int rawRemainder = totalRaw % req;
-
-                // Re-batch minion inventory in O(1)
-                minion.clearInventory();
-                int itemsAdded = 0;
-
-                // Add compressed stacks directly
-                if (compressedYield > 0) {
-                    ItemStack compItem = recipe.createOutput();
-                    int fullStacks = compressedYield / 64;
-                    int compRem = compressedYield % 64;
-                    for (int s = 0; s < fullStacks && minion.getInventory().size() < unlockedSlots; s++) {
-                        ItemStack stack = compItem.clone();
-                        stack.setAmount(64);
-                        minion.addItemDirect(stack);
-                        itemsAdded += 64;
-                    }
-                    if (compRem > 0 && minion.getInventory().size() < unlockedSlots) {
-                        ItemStack stack = compItem.clone();
-                        stack.setAmount(compRem);
-                        minion.addItemDirect(stack);
-                        itemsAdded += compRem;
-                    }
-                }
-
-                // Add remaining raw stacks
-                if (rawRemainder > 0 && minion.getInventory().size() < unlockedSlots) {
-                    ItemStack rawStack = baseDrop.clone();
-                    rawStack.setAmount(Math.min(64, rawRemainder));
-                    minion.addItemDirect(rawStack);
-                    itemsAdded += rawStack.getAmount();
-                }
-
-                minion.incrementHarvested((int) totalCycles);
-                minion.addStoredXp((int) totalCycles * xpPerHarvest);
-                return itemsAdded;
-            }
-        }
-
-        // Standard batch allocation in O(1)
-        int actualAdded = batchAddItems(minion, baseDrop, itemsToProduce, unlockedSlots);
-
-        minion.incrementHarvested(actualAdded);
-        minion.addStoredXp(actualAdded * xpPerHarvest);
-
-        // Secondary drop in O(1) (Apples, Saplings, Seeds, Leather, etc.)
-        if (def != null && def.hasSecondaryDrop() && def.getSecondaryDropChance() > 0 && def.getSecondaryDropItem() != null) {
-            int secCount = (int) (actualAdded * def.getSecondaryDropChance());
-            if (secCount > 0) {
-                batchAddItems(minion, def.getSecondaryDropItem(), secCount, unlockedSlots);
-            }
-        }
-
-        // Diamond Spreading 10% perk in O(1)
-        boolean hasSpreading = minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
-                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING);
-        if (hasSpreading && actualAdded >= 10) {
-            int diamonds = actualAdded / 10;
-            batchAddItems(minion, new ItemStack(Material.DIAMOND), diamonds, unlockedSlots);
-        }
-
-        if (minion.getTotalStoredCount() >= maxCapacity) {
-            minion.setState(MinionState.FULL);
-        }
+        minion.incrementHarvested((int) Math.min(Integer.MAX_VALUE, harvestActions));
+        minion.addStoredXp((int) Math.min(Integer.MAX_VALUE, harvestActions * (long) xpPerHarvest));
+        CompressionManager.processCompaction(minion);
 
         return actualAdded;
     }
 
-    private static int batchAddItems(Minion minion, ItemStack baseItem, int count, int maxSlots) {
-        if (count <= 0) return 0;
-        int remaining = count;
-        List<ItemStack> inventory = minion.getInventory();
-
-        // 1. Fill existing partial stacks of the same material
-        for (ItemStack slotItem : inventory) {
-            if (slotItem.isSimilar(baseItem) && slotItem.getAmount() < 64) {
-                int canAdd = Math.min(64 - slotItem.getAmount(), remaining);
-                slotItem.setAmount(slotItem.getAmount() + canAdd);
-                remaining -= canAdd;
-                if (remaining <= 0) break;
-            }
+    private static List<ItemStack> cloneItemList(List<ItemStack> source) {
+        List<ItemStack> clone = new ArrayList<>(source.size());
+        for (ItemStack item : source) {
+            clone.add(item != null ? item.clone() : null);
         }
+        return clone;
+    }
 
-        // 2. Fill empty slots with remaining items in full 64-stacks
-        while (remaining > 0 && inventory.size() < maxSlots) {
-            int stackAmount = Math.min(64, remaining);
-            ItemStack newStack = baseItem.clone();
-            newStack.setAmount(stackAmount);
-            minion.addItemDirect(newStack);
-            remaining -= stackAmount;
+    private static void restoreItemList(List<ItemStack> target, List<ItemStack> source) {
+        target.clear();
+        for (ItemStack item : source) {
+            target.add(item != null ? item.clone() : null);
         }
-
-        return count - remaining;
     }
 
     private static ItemStack determineDropItem(Minion minion, MinionDefinition def) {
@@ -188,6 +203,8 @@ public class OfflineCalculator {
         if (hasSmelter) {
             if (drop.getType() == Material.COBBLESTONE) return new ItemStack(Material.STONE, drop.getAmount());
             if (drop.getType() == Material.RAW_IRON) return new ItemStack(Material.IRON_INGOT, drop.getAmount());
+            if (drop.getType() == Material.RAW_GOLD) return new ItemStack(Material.GOLD_INGOT, drop.getAmount());
+            if (drop.getType() == Material.RAW_COPPER) return new ItemStack(Material.COPPER_INGOT, drop.getAmount());
         }
         return drop;
     }
