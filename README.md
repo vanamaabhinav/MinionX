@@ -10,7 +10,7 @@
 [![Performance](https://img.shields.io/badge/TPS-20.0%20Guaranteed-success?style=for-the-badge&logo=speedtest)](https://github.com/vanamaabhinav/MinionX)
 [![Status](https://img.shields.io/badge/Release-v0.2.0--Pre--Release-blueviolet?style=for-the-badge)](https://github.com/vanamaabhinav/MinionX)
 
-[Explore Full Wiki & Docs](WIKI.md) • [Administrator Manual](DOCUMENTATION.md) • [Report Issue](https://github.com/vanamaabhinav/MinionX/issues)
+[Explore Full Wiki](https://av-studios-1.gitbook.io/av-studios-minionx-wiki/) • [Administrator Manual](DOCUMENTATION.md) • [Report Issue](https://github.com/vanamaabhinav/MinionX/issues)
 
 </div>
 
