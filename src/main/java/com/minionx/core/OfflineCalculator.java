@@ -104,7 +104,7 @@ public class OfflineCalculator {
         int xpPerHarvest = def != null && def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1;
 
         boolean hasSecondary = def != null && def.hasSecondaryDrop() && def.getSecondaryDropChance() > 0 && def.getSecondaryDropItem() != null;
-        long secChanceMicros = hasSecondary ? (long) (def.getSecondaryDropChance() * 1_000_000.0) : 0L;
+        long secChanceMicros = (def != null && hasSecondary) ? (long) (def.getSecondaryDropChance() * 1_000_000.0) : 0L;
 
         boolean hasSpreading = minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
                 || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING);

@@ -482,10 +482,13 @@ public class MockSqlHelper {
         );
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static class TombstoneEntryHolder {
+        Map.Entry<String, Long> entry;
+    }
+
     private static ResultSet createTombstonesResultSet(Map<String, Long> tombstones) {
         Iterator<Map.Entry<String, Long>> it = tombstones.entrySet().iterator();
-        final Map.Entry<String, Long>[] cur = new Map.Entry[1];
+        final TombstoneEntryHolder cur = new TombstoneEntryHolder();
         return (ResultSet) Proxy.newProxyInstance(
                 ResultSet.class.getClassLoader(),
                 new Class<?>[]{ResultSet.class},
@@ -493,16 +496,16 @@ public class MockSqlHelper {
                     String name = method.getName();
                     if ("next".equals(name)) {
                         if (it.hasNext()) {
-                            cur[0] = it.next();
+                            cur.entry = it.next();
                             return true;
                         }
                         return false;
                     }
                     if ("getString".equals(name)) {
-                        return cur[0].getKey();
+                        return cur.entry != null ? cur.entry.getKey() : null;
                     }
                     if ("getLong".equals(name)) {
-                        return cur[0].getValue();
+                        return cur.entry != null && cur.entry.getValue() != null ? cur.entry.getValue() : 0L;
                     }
                     if ("close".equals(name)) return null;
                     return defaultValue(method.getReturnType());

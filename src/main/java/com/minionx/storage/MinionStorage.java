@@ -1003,6 +1003,7 @@ public class MinionStorage implements AutoCloseable {
         double normalizedAmount = BigDecimal.valueOf(amount).setScale(4, RoundingMode.HALF_UP).doubleValue();
 
         if (databaseStorage != null) {
+            // Delegate atomic dual-balance reservation to DatabaseStorage
             return databaseStorage.reservePayoutAtomic(operationId, minionId, playerUuid, normalizedAmount, revision);
         }
 

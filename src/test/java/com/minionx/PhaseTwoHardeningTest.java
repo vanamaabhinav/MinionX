@@ -11,7 +11,6 @@ import com.minionx.hook.EconomyHook;
 import com.minionx.storage.DatabaseStorage;
 import com.minionx.storage.PendingOperation;
 import org.bukkit.Material;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
@@ -19,8 +18,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.util.*;
@@ -122,6 +119,7 @@ public class PhaseTwoHardeningTest {
     public void testPartialPickupDelivery() {
         // Escrow payload format representing candidate items
         String initialPayload = "DIAMOND:64;;;ITEM;;;EMERALD:64";
+        assertNotNull(initialPayload);
 
         // Simulate delivery where player inventory holds DIAMOND but returns leftover EMERALD
         List<String> leftovers = List.of("EMERALD:64");

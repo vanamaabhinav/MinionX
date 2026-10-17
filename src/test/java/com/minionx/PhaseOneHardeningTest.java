@@ -12,12 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
