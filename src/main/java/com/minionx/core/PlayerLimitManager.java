@@ -124,7 +124,7 @@ public class PlayerLimitManager {
         setBonusSlots(uuid, Math.max(0, current - delta));
     }
 
-    public void load() {
+    public final void load() {
         if (!file.exists()) return;
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
         for (String key : yaml.getKeys(false)) {

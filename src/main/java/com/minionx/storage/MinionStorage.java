@@ -13,9 +13,9 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
@@ -31,7 +31,7 @@ import java.util.logging.Level;
  * Enforces atomic file writes, main-thread snapshotting, non-overlapping saves,
  * and durable operations journaling across both SQL and YAML backends.
  */
-public class MinionStorage {
+public class MinionStorage implements AutoCloseable {
 
     private final MinionX plugin;
     private final File dataFile;
@@ -45,6 +45,9 @@ public class MinionStorage {
     });
     private final ConcurrentMap<UUID, MinionMutation> pendingMutations = new ConcurrentHashMap<>();
     private final Set<UUID> barrierMinions = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> tombstoneSet = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> payoutLocks = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> quarantinedMinions = ConcurrentHashMap.newKeySet();
 
     public MinionStorage(MinionX plugin) {
         this(plugin, plugin != null ? plugin.getDataFolder() : new File("."));
@@ -57,16 +60,73 @@ public class MinionStorage {
     }
 
     public boolean init() {
-        if (plugin == null) return true;
-        String type = plugin.getConfig().getString("storage.type", "YAML").toUpperCase();
-        if ("SQLITE".equals(type) || "MYSQL".equals(type)) {
-            this.databaseStorage = new DatabaseStorage(plugin);
-            if (!this.databaseStorage.init()) {
-                plugin.getLogger().severe("CRITICAL: Failed to initialize database storage! Aborting startup to prevent silent fallback.");
-                return false;
+        if (plugin != null) {
+            String type = plugin.getConfig().getString("storage.type", "YAML").toUpperCase();
+            if ("SQLITE".equals(type) || "MYSQL".equals(type)) {
+                this.databaseStorage = new DatabaseStorage(plugin);
+                if (!this.databaseStorage.init()) {
+                    plugin.getLogger().severe("CRITICAL: Failed to initialize database storage! Aborting startup to prevent silent fallback.");
+                    return false;
+                }
+                // Pre-load tombstones before allowing mutations or normal minion loading
+                Set<UUID> dbTombstones = this.databaseStorage.loadAllTombstones();
+                tombstoneSet.addAll(dbTombstones);
+                logInfo("Loaded " + dbTombstones.size() + " tombstones from database into tombstone fence.");
+                return true;
             }
         }
+        // YAML mode
+        verifyAndRecoverYamlFiles();
+        loadTombstonesFromYaml();
         return true;
+    }
+
+    public ExecutorService getPersistenceExecutor() {
+        return persistenceExecutor;
+    }
+
+    public boolean isPayoutActive(UUID minionId) {
+        return minionId != null && payoutLocks.contains(minionId);
+    }
+
+    public boolean acquirePayoutLock(UUID minionId) {
+        return minionId != null && payoutLocks.add(minionId);
+    }
+
+    public void releasePayoutLock(UUID minionId) {
+        if (minionId != null) {
+            payoutLocks.remove(minionId);
+        }
+    }
+
+    public Set<UUID> getQuarantinedMinions() {
+        return Collections.unmodifiableSet(quarantinedMinions);
+    }
+
+    public boolean isQuarantined(UUID minionId) {
+        return minionId != null && quarantinedMinions.contains(minionId);
+    }
+
+    public void quarantineMinion(UUID minionId) {
+        if (minionId != null) {
+            quarantinedMinions.add(minionId);
+            barrierMinions.add(minionId);
+        }
+    }
+
+    public void unquarantineMinion(UUID minionId) {
+        if (minionId != null) {
+            quarantinedMinions.remove(minionId);
+            barrierMinions.remove(minionId);
+        }
+    }
+
+    public Set<UUID> getTombstoneSet() {
+        return Collections.unmodifiableSet(tombstoneSet);
+    }
+
+    public boolean isTombstoned(UUID minionId) {
+        return minionId != null && tombstoneSet.contains(minionId);
     }
 
     public DatabaseStorage getDatabaseStorage() {
@@ -92,11 +152,15 @@ public class MinionStorage {
     public void submitMutation(DatabaseStorage.MinionSnapshot snapshot, long revision) {
         if (snapshot == null) return;
         UUID id = snapshot.id();
+        if (tombstoneSet.contains(id)) {
+            // Permanently reject snapshot write for tombstoned minion (preserves tombstone in pendingMutations)
+            return;
+        }
         if (barrierMinions.contains(id)) return;
 
         pendingMutations.compute(id, (k, existing) -> {
             if (existing != null && existing.isTombstone()) {
-                if (revision <= existing.stateRevision()) return existing;
+                return existing;
             }
             if (existing == null || revision >= existing.stateRevision()) {
                 return MinionMutation.of(snapshot, revision);
@@ -107,11 +171,9 @@ public class MinionStorage {
 
     public void recordTombstone(UUID minionId, long revision) {
         if (minionId == null) return;
+        tombstoneSet.add(minionId);
         pendingMutations.compute(minionId, (k, existing) -> {
-            if (existing == null || revision >= existing.stateRevision()) {
-                return MinionMutation.tombstone(minionId, revision);
-            }
-            return existing;
+            return MinionMutation.tombstone(minionId, revision);
         });
     }
 
@@ -159,42 +221,148 @@ public class MinionStorage {
         if (pendingMutations.isEmpty()) return;
 
         Map<UUID, MinionMutation> batch = new HashMap<>(pendingMutations);
-        for (UUID id : batch.keySet()) {
-            pendingMutations.remove(id, batch.get(id));
-        }
+        boolean success = false;
 
-        if (databaseStorage != null) {
-            List<DatabaseStorage.MinionSnapshot> snapshotsToSave = new ArrayList<>();
-            for (MinionMutation m : batch.values()) {
-                if (m.isTombstone()) {
-                    databaseStorage.deleteMinionData(m.minionId());
-                } else if (m.snapshot() != null) {
-                    snapshotsToSave.add(m.snapshot());
-                }
-            }
-            if (!snapshotsToSave.isEmpty()) {
-                databaseStorage.saveSnapshots(snapshotsToSave);
-            }
-            return;
-        }
-
-        // YAML Document-Safe Merge
         try {
-            YamlConfiguration config = dataFile.exists() ?
-                    YamlConfiguration.loadConfiguration(dataFile) : new YamlConfiguration();
+            if (databaseStorage != null) {
+                List<DatabaseStorage.MinionSnapshot> snapshotsToSave = new ArrayList<>();
+                for (MinionMutation m : batch.values()) {
+                    if (m.isTombstone()) {
+                        databaseStorage.deleteMinion(m.minionId(), m.stateRevision(), System.currentTimeMillis());
+                    } else if (m.snapshot() != null && !tombstoneSet.contains(m.minionId())) {
+                        if (!payoutLocks.contains(m.minionId())) {
+                            snapshotsToSave.add(m.snapshot());
+                        }
+                    }
+                }
+                if (!snapshotsToSave.isEmpty()) {
+                    success = databaseStorage.saveSnapshots(snapshotsToSave);
+                } else {
+                    success = true;
+                }
+            } else {
+                success = flushBatchToYaml(batch);
+            }
+        } catch (Exception e) {
+            logSevere("Failed to flush pending mutations to persistence storage!", e);
+            success = false;
+        }
+
+        if (success) {
+            // Exact revision compare-and-remove eviction with tombstone protection
+            for (Map.Entry<UUID, MinionMutation> entry : batch.entrySet()) {
+                UUID id = entry.getKey();
+                if (!entry.getValue().isTombstone() && payoutLocks.contains(id)) {
+                    continue; // Defer eviction of in-flight payout snapshot
+                }
+                long savedRev = entry.getValue().stateRevision();
+                boolean wasTombstone = entry.getValue().isTombstone();
+                pendingMutations.computeIfPresent(id, (k, current) -> {
+                    if (current.isTombstone()) {
+                        // Only evict tombstone if the saved mutation was actually a tombstone
+                        if (wasTombstone && current.stateRevision() <= savedRev) {
+                            return null;
+                        }
+                        return current;
+                    }
+                    if (current.stateRevision() <= savedRev) {
+                        return null; // Evict saved mutation
+                    }
+                    return current; // Retain newer mutation queued while save was in-flight
+                });
+            }
+        } else {
+            logWarning("Persistence write failed: retaining " + batch.size() + " mutations in queue for retry.");
+        }
+    }
+
+    private synchronized boolean flushBatchToYaml(Map<UUID, MinionMutation> batch) {
+        try {
+            YamlConfiguration config;
+            if (dataFile.exists() && dataFile.length() > 0) {
+                config = YamlConfiguration.loadConfiguration(dataFile);
+            } else {
+                config = new YamlConfiguration();
+                config.set("schema-version", 2);
+            }
 
             for (MinionMutation m : batch.values()) {
                 String path = "minions." + m.minionId().toString();
                 if (m.isTombstone()) {
                     config.set(path, null);
-                } else if (m.snapshot() != null) {
-                    populateConfigSectionFromSnapshot(config, m.snapshot());
+                    config.set("tombstones." + m.minionId().toString() + ".deleted-revision", m.stateRevision());
+                    config.set("tombstones." + m.minionId().toString() + ".deleted-at", m.timestamp());
+                } else if (m.snapshot() != null && !tombstoneSet.contains(m.minionId())) {
+                    if (!payoutLocks.contains(m.minionId())) {
+                        populateConfigSectionFromSnapshot(config, m.snapshot());
+                    }
                 }
             }
 
-            writeYamlAtomically(config.saveToString());
+            if (config.get("schema-version") == null) {
+                config.set("schema-version", 2);
+            }
+
+            String yamlContent = config.saveToString();
+            return writeYamlAtomically(yamlContent);
         } catch (Exception e) {
-            logSevere("Failed to flush pending mutations to YAML file!", e);
+            logSevere("Failed to flush batch to YAML!", e);
+            return false;
+        }
+    }
+
+    public synchronized void verifyAndRecoverYamlFiles() {
+        File parent = dataFile.getParentFile();
+        if (parent == null || !parent.exists()) return;
+
+        File bakFile = new File(parent, dataFile.getName() + ".bak");
+        boolean targetValid = false;
+
+        if (dataFile.exists() && dataFile.length() > 0) {
+            try {
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
+                if (!config.getKeys(false).isEmpty()) {
+                    targetValid = true;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (!targetValid) {
+            if (bakFile.exists() && bakFile.length() > 0) {
+                try {
+                    YamlConfiguration bakConfig = YamlConfiguration.loadConfiguration(bakFile);
+                    if (!bakConfig.getKeys(false).isEmpty()) {
+                        Files.copy(bakFile.toPath(), dataFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                        logSevere("CRITICAL ALERT: Corrupted or missing " + dataFile.getName() + " detected! Successfully restored from backup " + bakFile.getName(), null);
+                        targetValid = true;
+                    }
+                } catch (Exception e) {
+                    logSevere("Backup file also corrupted! Cannot restore.", e);
+                }
+            }
+        }
+
+        if (!targetValid && dataFile.exists() && dataFile.length() > 0) {
+            logSevere("CRITICAL WARNING: " + dataFile.getName() + " is corrupted and no valid backup exists. Preserving file for admin recovery; not initializing blank state.", null);
+        }
+    }
+
+    public synchronized void loadTombstonesFromYaml() {
+        if (!dataFile.exists() || dataFile.length() == 0) return;
+        try {
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
+            ConfigurationSection tsSec = config.getConfigurationSection("tombstones");
+            if (tsSec != null) {
+                for (String idStr : tsSec.getKeys(false)) {
+                    try {
+                        UUID id = UUID.fromString(idStr);
+                        tombstoneSet.add(id);
+                    } catch (IllegalArgumentException ignored) {}
+                }
+                logInfo("Loaded " + tombstoneSet.size() + " tombstones from YAML tombstone fence.");
+            }
+        } catch (Exception e) {
+            logSevere("Failed to load tombstones from YAML!", e);
         }
     }
 
@@ -208,10 +376,6 @@ public class MinionStorage {
         logInfo("Saved " + manager.getAllMinions().size() + " minions to persistence storage.");
     }
 
-    /**
-     * Snapshots minion state on the main thread and queues sequential persistence flush
-     * with atomic file replacement to eliminate tick drops and prevent crash corruptions.
-     */
     public void saveAllAsync(MinionManager manager) {
         if (manager == null) return;
         int count = 0;
@@ -228,19 +392,53 @@ public class MinionStorage {
         });
     }
 
-    private void writeYamlAtomically(String yamlContent) throws IOException {
-        writeYamlAtomically(yamlContent, dataFile);
+    private synchronized boolean writeYamlAtomically(String yamlContent) throws IOException {
+        return writeYamlAtomically(yamlContent, dataFile);
     }
 
-    private void writeYamlAtomically(String yamlContent, File targetFile) throws IOException {
+    private synchronized boolean writeYamlAtomically(String yamlContent, File targetFile) throws IOException {
         File parent = targetFile.getParentFile();
         if (parent != null && !parent.exists()) {
             parent.mkdirs();
         }
-        File tempFile = new File(parent, targetFile.getName() + ".tmp");
-        try (BufferedWriter writer = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8)) {
-            writer.write(yamlContent);
+
+        File tempFile = new File(parent, targetFile.getName() + ".tmp." + UUID.randomUUID());
+        File bakFile = new File(parent, targetFile.getName() + ".bak");
+
+        // 1. Write to temp file and sync OS buffers
+        try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+            byte[] bytes = yamlContent.getBytes(StandardCharsets.UTF_8);
+            fos.write(bytes);
+            fos.getFD().sync();
         }
+
+        // 2. Semantic validation of temp file
+        if (tempFile.length() == 0) {
+            tempFile.delete();
+            throw new IOException("Temp YAML file is 0 bytes after write!");
+        }
+        try {
+            YamlConfiguration check = YamlConfiguration.loadConfiguration(tempFile);
+            if (check.getKeys(false).isEmpty()) {
+                tempFile.delete();
+                throw new IOException("Temp YAML file failed semantic check: root has no keys!");
+            }
+        } catch (Exception e) {
+            tempFile.delete();
+            throw new IOException("Temp YAML file failed validation parse!", e);
+        }
+
+        // 3. Backup existing target file if valid
+        if (targetFile.exists() && targetFile.length() > 0) {
+            try {
+                YamlConfiguration targetCheck = YamlConfiguration.loadConfiguration(targetFile);
+                if (!targetCheck.getKeys(false).isEmpty()) {
+                    Files.copy(targetFile.toPath(), bakFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // 4. Atomic move with fallback
         try {
             Files.move(tempFile.toPath(), targetFile.toPath(),
                     StandardCopyOption.ATOMIC_MOVE,
@@ -249,6 +447,26 @@ public class MinionStorage {
             Files.move(tempFile.toPath(), targetFile.toPath(),
                     StandardCopyOption.REPLACE_EXISTING);
         }
+
+        // 5. Post-move semantic validation of target file
+        try {
+            YamlConfiguration destCheck = YamlConfiguration.loadConfiguration(targetFile);
+            if (destCheck.getKeys(false).isEmpty() && targetFile.length() == 0) {
+                if (bakFile.exists() && bakFile.length() > 0) {
+                    Files.copy(bakFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    logSevere("Target YAML file became empty after move! Restored from backup.", null);
+                }
+                return false;
+            }
+        } catch (Exception e) {
+            if (bakFile.exists() && bakFile.length() > 0) {
+                Files.copy(bakFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                logSevere("Target YAML file corrupted after move! Restored from backup.", e);
+            }
+            return false;
+        }
+
+        return true;
     }
 
     private void populateConfigSectionFromSnapshot(YamlConfiguration config, DatabaseStorage.MinionSnapshot s) {
@@ -280,6 +498,11 @@ public class MinionStorage {
 
         config.set(path + ".xp", s.storedXp());
         config.set(path + ".custom_id", s.customDefinitionId());
+        config.set(path + ".state-revision", s.stateRevision());
+        config.set(path + ".fractional-progress", s.fractionalProgressMicros());
+        if (s.dropRemainders() != null && !s.dropRemainders().isBlank()) {
+            config.set(path + ".drop-remainders", s.dropRemainders());
+        }
 
         List<ItemStack> invCopy = new ArrayList<>();
         for (String raw : s.serializedInventoryItems()) {
@@ -315,6 +538,7 @@ public class MinionStorage {
     public void loadAll(MinionManager manager) {
         if (databaseStorage != null) {
             databaseStorage.loadAll(manager);
+            reconcilePendingOperations(manager);
             return;
         }
 
@@ -342,6 +566,9 @@ public class MinionStorage {
         for (String idStr : section.getKeys(false)) {
             try {
                 UUID id = UUID.fromString(idStr);
+                if (tombstoneSet.contains(id)) {
+                    continue; // Skip loading tombstoned minion
+                }
                 if (quarantinedMinionIds.contains(id)) {
                     continue; // Skip loading quarantined minion
                 }
@@ -411,6 +638,27 @@ public class MinionStorage {
                     minion.setCustomDefinitionId(customId);
                 }
 
+                long stateRev = section.getLong(idStr + ".state-revision", 0L);
+                long fracProgress = section.getLong(idStr + ".fractional-progress", 0L);
+                minion.setFractionalProgressMicros(fracProgress);
+                if (section.isConfigurationSection(idStr + ".drop-remainders")) {
+                    ConfigurationSection remSec = section.getConfigurationSection(idStr + ".drop-remainders");
+                    if (remSec != null) {
+                        for (String key : remSec.getKeys(false)) {
+                            minion.setChannelRemainder(key, remSec.getLong(key));
+                        }
+                    }
+                } else {
+                    String remStr = section.getString(idStr + ".drop-remainders");
+                    if (remStr != null && !remStr.isBlank()) {
+                        Map<String, Long> remMap = DatabaseStorage.deserializeRemainders(remStr);
+                        for (Map.Entry<String, Long> entry : remMap.entrySet()) {
+                            minion.setChannelRemainder(entry.getKey(), entry.getValue());
+                        }
+                    }
+                }
+                minion.setStateRevision(stateRev);
+
                 List<?> rawItems = section.getList(idStr + ".items");
                 if (rawItems != null) {
                     for (Object obj : rawItems) {
@@ -458,9 +706,85 @@ public class MinionStorage {
         }
 
         logInfo("Successfully loaded " + loadedCount + " minions.");
+        reconcilePendingOperations(manager);
     }
 
-    // --- Durable Operations Journal & Finalization ---
+    public synchronized void reconcilePendingOperations(MinionManager manager) {
+        List<PendingOperation> pending = getPendingOperations();
+        if (!pending.isEmpty()) {
+            for (PendingOperation op : pending) {
+                String state = op.state();
+                if ("PREPARED".equalsIgnoreCase(state)) {
+                    boolean minionExists = (manager != null && manager.getMinionById(op.minionId()) != null) || (!tombstoneSet.contains(op.minionId()) && minionExistsInStorage(op.minionId()));
+                    if (minionExists) {
+                        try {
+                            removePendingOperation(op.operationId());
+                            logInfo("Startup reconciliation: Cancelled interrupted PREPARED pickup " + op.operationId() + " for active minion " + op.minionId());
+                        } catch (Exception ignored) {}
+                    } else {
+                        try {
+                            updatePendingOperationState(op.operationId(), "MINION_REMOVED", op.payload());
+                            logWarning("Startup reconciliation: Transitioned PREPARED pickup " + op.operationId() + " to MINION_REMOVED (minion was deleted). Ready for claim.");
+                        } catch (Exception ignored) {}
+                    }
+                } else if ("DELIVERY_ATTEMPTED".equalsIgnoreCase(state)) {
+                    try {
+                        updatePendingOperationState(op.operationId(), "UNKNOWN", op.payload());
+                        logWarning("Startup reconciliation: Operation " + op.operationId() + " was DELIVERY_ATTEMPTED before shutdown. Quarantined as UNKNOWN for admin audit.");
+                    } catch (Exception ignored) {}
+                } else if ("ATTEMPTED".equalsIgnoreCase(state)) {
+                    // In-flight payout when shutdown/crash occurred:
+                    boolean minionExists = (manager != null && manager.getMinionById(op.minionId()) != null) || (!tombstoneSet.contains(op.minionId()) && minionExistsInStorage(op.minionId()));
+                    if (minionExists) {
+                        double amt = 0.0;
+                        try {
+                            amt = Double.parseDouble(op.payload());
+                        } catch (Exception ignored) {}
+                        if (amt > 0.0) {
+                            rollbackPayoutAtomic(op.operationId(), op.minionId(), amt);
+                            if (manager != null) {
+                                Minion m = manager.getMinionById(op.minionId());
+                                if (m != null) {
+                                    m.addShippingCoins(amt);
+                                }
+                            }
+                            logWarning("Startup reconciliation: Rolled back interrupted ATTEMPTED payout " + op.operationId() + " (" + amt + " coins) for minion " + op.minionId());
+                        }
+                    } else {
+                        ambiguousPayoutAtomic(op.operationId());
+                        logWarning("Startup reconciliation: Minion " + op.minionId() + " absent for ATTEMPTED payout " + op.operationId() + ". Marked PAYOUT_AMBIGUOUS.");
+                    }
+                }
+            }
+        }
+
+        // Detect inconsistent state: active minion in manager or storage that is also tombstoned
+        for (UUID tombId : tombstoneSet) {
+            if (manager != null && manager.getMinionById(tombId) != null) {
+                quarantineMinion(tombId);
+                manager.unregister(manager.getMinionById(tombId));
+                logSevere("CRITICAL INCONSISTENCY: Minion " + tombId + " was active in manager but also tombstoned! Quarantined from runtime.", null);
+            } else if (rawMinionRecordExists(tombId)) {
+                quarantineMinion(tombId);
+                logSevere("CRITICAL INCONSISTENCY: Minion " + tombId + " exists in storage but is also tombstoned! Quarantined from runtime.", null);
+            }
+        }
+    }
+
+    public boolean rawMinionRecordExists(UUID minionId) {
+        if (minionId == null) return false;
+        if (databaseStorage != null) {
+            return databaseStorage.minionExists(minionId);
+        }
+        if (!dataFile.exists()) return false;
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
+        return config.contains("minions." + minionId);
+    }
+
+    public boolean minionExistsInStorage(UUID minionId) {
+        if (minionId == null || tombstoneSet.contains(minionId)) return false;
+        return rawMinionRecordExists(minionId);
+    }
 
     public synchronized void recordPendingOperation(PendingOperation op) throws Exception {
         if (databaseStorage != null) {
@@ -475,6 +799,25 @@ public class MinionStorage {
         config.set(path + ".player_uuid", op.playerUuid().toString());
         config.set(path + ".state", op.state());
         config.set(path + ".created_at", op.createdAt());
+        if (op.payload() != null) {
+            config.set(path + ".payload", op.payload());
+        }
+        writeYamlAtomically(config.saveToString(), pendingOpsFile);
+    }
+
+    public synchronized void updatePendingOperationState(String operationId, String newState, String payload) throws Exception {
+        if (databaseStorage != null) {
+            databaseStorage.updatePendingOperationState(operationId, newState, payload);
+            return;
+        }
+
+        if (!pendingOpsFile.exists()) return;
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(pendingOpsFile);
+        String path = "operations." + operationId;
+        config.set(path + ".state", newState);
+        if (payload != null) {
+            config.set(path + ".payload", payload);
+        }
         writeYamlAtomically(config.saveToString(), pendingOpsFile);
     }
 
@@ -511,11 +854,124 @@ public class MinionStorage {
                     UUID playerUuid = UUID.fromString(sec.getString(opId + ".player_uuid"));
                     String state = sec.getString(opId + ".state", "PICKUP_PENDING");
                     long createdAt = sec.getLong(opId + ".created_at", System.currentTimeMillis());
-                    list.add(new PendingOperation(opId, minionId, playerUuid, state, createdAt));
+                    String payload = sec.getString(opId + ".payload");
+                    list.add(new PendingOperation(opId, minionId, playerUuid, state, createdAt, payload));
                 } catch (Exception ignored) {}
             }
         }
         return list;
+    }
+
+    /**
+     * Atomically deletes minion from persistence, records tombstone, and writes MINION_REMOVED with payload.
+     * Enforces precondition check and idempotent retry handling.
+     */
+    public synchronized DatabaseStorage.PickupRemovalResult executePickupRemoval(String operationId, UUID minionId, UUID playerUuid, long revision, String payload) {
+        if (databaseStorage != null) {
+            DatabaseStorage.PickupRemovalResult result = databaseStorage.executePickupRemoval(operationId, minionId, playerUuid, revision, payload);
+            if (result == DatabaseStorage.PickupRemovalResult.COMMITTED_NOW || result == DatabaseStorage.PickupRemovalResult.ALREADY_COMMITTED_MINION_REMOVED) {
+                recordTombstone(minionId, revision);
+            }
+            return result;
+        }
+
+        try {
+            if (!dataFile.exists()) return DatabaseStorage.PickupRemovalResult.PRECONDITION_FAILED;
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
+            YamlConfiguration opConfig = pendingOpsFile.exists() ? YamlConfiguration.loadConfiguration(pendingOpsFile) : new YamlConfiguration();
+            String opPath = "operations." + operationId;
+
+            // 1. Check if operationId already exists
+            if (opConfig.contains(opPath)) {
+                String storedMinion = opConfig.getString(opPath + ".minion_id");
+                String storedPlayer = opConfig.getString(opPath + ".player_uuid");
+                String storedPayload = opConfig.getString(opPath + ".payload");
+                String storedState = opConfig.getString(opPath + ".state");
+
+                if (!minionId.toString().equalsIgnoreCase(storedMinion) ||
+                    (playerUuid != null && !playerUuid.toString().equalsIgnoreCase(storedPlayer)) ||
+                    !Objects.equals(payload, storedPayload)) {
+                    return DatabaseStorage.PickupRemovalResult.CONFLICTING_PAYLOAD;
+                }
+
+                return switch (storedState != null ? storedState.toUpperCase() : "") {
+                    case "MINION_REMOVED" -> DatabaseStorage.PickupRemovalResult.ALREADY_COMMITTED_MINION_REMOVED;
+                    case "DELIVERY_ATTEMPTED", "UNKNOWN" -> DatabaseStorage.PickupRemovalResult.ALREADY_DELIVERY_ATTEMPTED;
+                    case "COMPLETED" -> DatabaseStorage.PickupRemovalResult.ALREADY_COMPLETED;
+                    default -> DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME;
+                };
+            }
+
+            // 2. Precondition check: Minion row exists
+            String minionPath = "minions." + minionId.toString();
+            if (!config.contains(minionPath)) {
+                return DatabaseStorage.PickupRemovalResult.PRECONDITION_FAILED;
+            }
+
+            // 3. Remove minion and record tombstone
+            config.set(minionPath, null);
+            config.set("tombstones." + minionId + ".operation-id", operationId);
+            config.set("tombstones." + minionId + ".deleted-revision", revision);
+            config.set("tombstones." + minionId + ".deleted-at", System.currentTimeMillis());
+            writeYamlAtomically(config.saveToString(), dataFile);
+
+            // 4. Record pending op
+            opConfig.set(opPath + ".minion_id", minionId.toString());
+            opConfig.set(opPath + ".player_uuid", playerUuid != null ? playerUuid.toString() : "");
+            opConfig.set(opPath + ".state", "MINION_REMOVED");
+            opConfig.set(opPath + ".created_at", System.currentTimeMillis());
+            if (payload != null) {
+                opConfig.set(opPath + ".payload", payload);
+            }
+            writeYamlAtomically(opConfig.saveToString(), pendingOpsFile);
+            recordTombstone(minionId, revision);
+            return DatabaseStorage.PickupRemovalResult.COMMITTED_NOW;
+        } catch (IOException e) {
+            logSevere("Failed to execute atomic YAML pickup removal for " + minionId, e);
+            return DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME;
+        }
+    }
+
+    public synchronized boolean claimDeliveryAttempt(String operationId) {
+        if (databaseStorage != null) {
+            return databaseStorage.claimDeliveryAttempt(operationId);
+        }
+        try {
+            if (!pendingOpsFile.exists()) return false;
+            YamlConfiguration opConfig = YamlConfiguration.loadConfiguration(pendingOpsFile);
+            String path = "operations." + operationId;
+            if (!opConfig.contains(path)) return false;
+            String state = opConfig.getString(path + ".state");
+            if (!"MINION_REMOVED".equalsIgnoreCase(state)) return false;
+
+            opConfig.set(path + ".state", "DELIVERY_ATTEMPTED");
+            writeYamlAtomically(opConfig.saveToString(), pendingOpsFile);
+            return true;
+        } catch (IOException e) {
+            logSevere("Failed to claim delivery attempt in YAML: " + operationId, e);
+            return false;
+        }
+    }
+
+    public synchronized boolean completeDelivery(String operationId) {
+        if (databaseStorage != null) {
+            return databaseStorage.completeDelivery(operationId);
+        }
+        try {
+            if (!pendingOpsFile.exists()) return false;
+            YamlConfiguration opConfig = YamlConfiguration.loadConfiguration(pendingOpsFile);
+            String path = "operations." + operationId;
+            if (!opConfig.contains(path)) return false;
+            String state = opConfig.getString(path + ".state");
+            if (!"DELIVERY_ATTEMPTED".equalsIgnoreCase(state)) return false;
+
+            opConfig.set(path + ".state", "COMPLETED");
+            writeYamlAtomically(opConfig.saveToString(), pendingOpsFile);
+            return true;
+        } catch (IOException e) {
+            logSevere("Failed to complete delivery in YAML: " + operationId, e);
+            return false;
+        }
     }
 
     public synchronized boolean finalizePickup(String operationId, UUID minionId) {
@@ -540,6 +996,145 @@ public class MinionStorage {
             logSevere("Failed to finalize YAML pickup for minion " + minionId, e);
             return false;
         }
+    }
+
+    public synchronized boolean reservePayoutAtomic(String operationId, UUID minionId, UUID playerUuid, double amount, long revision) {
+        if (operationId == null || minionId == null || !Double.isFinite(amount) || amount <= 0.0) return false;
+        double normalizedAmount = BigDecimal.valueOf(amount).setScale(4, RoundingMode.HALF_UP).doubleValue();
+
+        if (databaseStorage != null) {
+            return databaseStorage.reservePayoutAtomic(operationId, minionId, playerUuid, normalizedAmount, revision);
+        }
+
+        try {
+            if (!dataFile.exists()) return false;
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
+            String path = "minions." + minionId.toString();
+            if (!config.contains(path)) return false;
+
+            YamlConfiguration opConfig = pendingOpsFile.exists() ?
+                    YamlConfiguration.loadConfiguration(pendingOpsFile) : new YamlConfiguration();
+            String opPath = "operations." + operationId;
+            if (opConfig.contains(opPath)) return false; // Duplicate operation guard
+
+            double currentCoins = config.getDouble(path + ".shipping-coins", 0.0);
+            double normalizedCoins = BigDecimal.valueOf(currentCoins).setScale(4, RoundingMode.HALF_UP).doubleValue();
+            long currentRev = config.getLong(path + ".state-revision", 0L);
+            if (currentRev != revision) return false; // Optimistic revision guard
+            if (normalizedCoins < normalizedAmount) return false;
+
+            config.set(path + ".shipping-coins", BigDecimal.valueOf(normalizedCoins - normalizedAmount).setScale(4, RoundingMode.HALF_UP).doubleValue());
+            config.set(path + ".state-revision", revision + 1);
+            writeYamlAtomically(config.saveToString(), dataFile);
+
+            opConfig.set(opPath + ".minion_id", minionId.toString());
+            opConfig.set(opPath + ".player_uuid", playerUuid != null ? playerUuid.toString() : "");
+            opConfig.set(opPath + ".state", "ATTEMPTED");
+            opConfig.set(opPath + ".created_at", System.currentTimeMillis());
+            opConfig.set(opPath + ".payload", String.valueOf(normalizedAmount));
+            writeYamlAtomically(opConfig.saveToString(), pendingOpsFile);
+            return true;
+        } catch (IOException e) {
+            logSevere("Failed to reserve payout in YAML for " + minionId, e);
+            return false;
+        }
+    }
+
+    public synchronized boolean rollbackPayoutAtomic(String operationId, UUID minionId, double amount) {
+        if (operationId == null || minionId == null || amount <= 0.0) return false;
+        double normalizedAmount = BigDecimal.valueOf(amount).setScale(4, RoundingMode.HALF_UP).doubleValue();
+
+        if (databaseStorage != null) {
+            return databaseStorage.rollbackPayoutAtomic(operationId, minionId, normalizedAmount);
+        }
+
+        try {
+            if (!pendingOpsFile.exists()) return false;
+            YamlConfiguration opConfig = YamlConfiguration.loadConfiguration(pendingOpsFile);
+            String opPath = "operations." + operationId;
+            if (!opConfig.contains(opPath)) return false;
+
+            String state = opConfig.getString(opPath + ".state");
+            if (!"ATTEMPTED".equalsIgnoreCase(state)) {
+                // Precondition failed: Either already PAYOUT_FAILED or not in ATTEMPTED state
+                return false;
+            }
+
+            opConfig.set(opPath + ".state", "PAYOUT_FAILED");
+            writeYamlAtomically(opConfig.saveToString(), pendingOpsFile);
+
+            if (dataFile.exists()) {
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
+                String path = "minions." + minionId.toString();
+                if (config.contains(path)) {
+                    double currentCoins = config.getDouble(path + ".shipping-coins", 0.0);
+                    double restored = BigDecimal.valueOf(currentCoins).setScale(4, RoundingMode.HALF_UP).add(BigDecimal.valueOf(normalizedAmount)).doubleValue();
+                    config.set(path + ".shipping-coins", restored);
+                    long rev = config.getLong(path + ".state-revision", 0L);
+                    config.set(path + ".state-revision", rev + 1);
+                    writeYamlAtomically(config.saveToString(), dataFile);
+                }
+            }
+            return true;
+        } catch (IOException e) {
+            logSevere("Failed to rollback payout in YAML for " + minionId, e);
+            return false;
+        }
+    }
+
+    public synchronized boolean confirmPayoutAtomic(String operationId) {
+        return confirmPayoutAtomic(operationId, null);
+    }
+
+    public synchronized boolean confirmPayoutAtomic(String operationId, UUID minionId) {
+        if (databaseStorage != null) {
+            return databaseStorage.confirmPayoutAtomic(operationId, minionId);
+        }
+
+        try {
+            if (!pendingOpsFile.exists()) return false;
+            YamlConfiguration opConfig = YamlConfiguration.loadConfiguration(pendingOpsFile);
+            String opPath = "operations." + operationId;
+            if (!opConfig.contains(opPath)) return false;
+
+            opConfig.set(opPath + ".state", "CONFIRMED");
+            writeYamlAtomically(opConfig.saveToString(), pendingOpsFile);
+            return true;
+        } catch (IOException e) {
+            logSevere("Failed to confirm payout in YAML: " + operationId, e);
+            return false;
+        }
+    }
+
+    public synchronized boolean ambiguousPayoutAtomic(String operationId) {
+        if (databaseStorage != null) {
+            return databaseStorage.ambiguousPayoutAtomic(operationId);
+        }
+
+        try {
+            if (!pendingOpsFile.exists()) return false;
+            YamlConfiguration opConfig = YamlConfiguration.loadConfiguration(pendingOpsFile);
+            String opPath = "operations." + operationId;
+            if (!opConfig.contains(opPath)) return false;
+
+            opConfig.set(opPath + ".state", "PAYOUT_AMBIGUOUS");
+            writeYamlAtomically(opConfig.saveToString(), pendingOpsFile);
+            return true;
+        } catch (IOException e) {
+            logSevere("Failed to mark payout ambiguous in YAML: " + operationId, e);
+            return false;
+        }
+    }
+
+    public synchronized DatabaseStorage.TransactionOutcome probeCommitReconciliation(UUID minionId, String operationId) {
+        return probeCommitReconciliation(minionId, operationId, DatabaseStorage.TransactionType.PICKUP_REMOVAL);
+    }
+
+    public synchronized DatabaseStorage.TransactionOutcome probeCommitReconciliation(UUID minionId, String operationId, DatabaseStorage.TransactionType type) {
+        if (databaseStorage != null) {
+            return databaseStorage.probeCommitReconciliation(minionId, operationId, type);
+        }
+        return DatabaseStorage.TransactionOutcome.CONFIRMED_ROLLBACK;
     }
 
     private void logInfo(String msg) {

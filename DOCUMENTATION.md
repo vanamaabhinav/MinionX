@@ -1,6 +1,6 @@
 # MinionX Administrator Manual & Server Owner Documentation
 
-> **MinionX** — Enterprise-Grade Autonomous Minions Plugin for **Paper / Purpur / Pufferfish 1.20.4 – 1.21+**  
+> **MinionX** - Autonomous Minions Plugin for **Paper / Purpur / Pufferfish 1.20.4 – 1.21+**  
 > **Author:** AbhinavVanama  
 > **Plugin Version:** `v0.2.0` (Pre-Release)  
 > **Source Repository:** [https://github.com/vanamaabhinav/MinionX](https://github.com/vanamaabhinav/MinionX)
@@ -368,6 +368,8 @@ MinionX natively integrates with the Minecraft server ecosystem:
 | `/minion list` | `minionx.use` | Lists player's placed minions and locations |
 | `/minion killall` | `minionx.admin` | Purges all placed minions and holograms |
 | `/minionsx` | `minionx.admin` | Opens the interactive MinionX Operator Hub |
+| `/minion claim` | `minionx.use` | Safely recovers undelivered or quarantined escrow items if player inventory was previously full |
+| `/minion recover [list\|resolve]` | `minionx.admin` | Audits and resolves quarantined escrow operations with logged operator reason |
 | `/minion reload` | `minionx.admin` | Hot-reloads all YAML configurations and registries |
 
 ### Permissions Matrix:

@@ -11,5 +11,10 @@ public record PendingOperation(
         UUID minionId,
         UUID playerUuid,
         String state,
-        long createdAt
-) {}
+        long createdAt,
+        String payload
+) {
+    public PendingOperation(String operationId, UUID minionId, UUID playerUuid, String state, long createdAt) {
+        this(operationId, minionId, playerUuid, state, createdAt, null);
+    }
+}

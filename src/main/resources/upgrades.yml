@@ -1,14 +1,6 @@
 # ==============================================================================
 # MinionX - Custom Upgrades Configuration (upgrades.yml)
 # ==============================================================================
-# Upgrades grant passive automation, compression, smelting, speed boosts,
-# bonus generation, or automated item selling to Minions.
-#
-# Socket Locations:
-#   - Upgrade Slot 1: Slot 37 (Row 5, Col 2)
-#   - Upgrade Slot 2: Slot 46 (Row 6, Col 2)
-#   - Automated Shipping: Slot 28 (Row 4, Col 2) - Hoppers only
-#
 # Supported Upgrade Types:
 #   AUTO_SMELTER       - Instantly smelts raw ores into ingots and blocks into smooth
 #                        variants (e.g., Cobblestone -> Stone, Raw Iron -> Iron Ingot).
@@ -26,9 +18,6 @@
 #                        multiplied by `sell-ratio` (e.g. 0.50 = 50%, 0.90 = 90%).
 #                        Accumulated coins can be collected with a single click.
 #
-# In-Game Creator & Commands:
-#   - Give Upgrade: /minion give <player> upgrade <upgrade_id> [amount]
-#   - Live Studio: /minion create upgrade  (or /minionsx -> Upgrades Catalog Slot 22)
 # ==============================================================================
 
 upgrades:

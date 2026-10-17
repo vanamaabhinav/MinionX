@@ -50,6 +50,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 handleLimit(sender, args);
                 return true;
             }
+            if (args.length >= 1 && args[0].equalsIgnoreCase("claim")) {
+                handleClaim(sender);
+                return true;
+            }
             sender.sendMessage(ColorUtil.color("&cYou do not have permission to use this command."));
             return true;
         }
@@ -69,6 +73,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             case "list" -> handleList(sender);
             case "limit" -> handleLimit(sender, args);
             case "killall", "purge" -> handleKillAll(sender);
+            case "claim" -> handleClaim(sender);
+            case "recover" -> handleRecover(sender, args);
             case "reload" -> handleReload(sender);
             default -> sendHelp(sender);
         }
@@ -412,6 +418,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ColorUtil.color("&e/minion give <player> <type|fuel|upgrade|skin> [tier|skin_id] &7- Give a minion, item, or skin"));
         sender.sendMessage(ColorUtil.color("&e/minion limit <check|add|remove|set> <player> [amount] &7- Manage player limits"));
         sender.sendMessage(ColorUtil.color("&e/minion list &7- View your placed minions"));
+        sender.sendMessage(ColorUtil.color("&e/minion claim &7- Claim pending or quarantined escrow items"));
+        sender.sendMessage(ColorUtil.color("&e/minion recover [list|resolve] &7- Audit and resolve escrow operations"));
         sender.sendMessage(ColorUtil.color("&e/minion quarantine [on|off|status|toggle] &7- Manage anti-dupe quarantine mode"));
         sender.sendMessage(ColorUtil.color("&e/minion killall &7- Kill and purge all active minions and holograms"));
         sender.sendMessage(ColorUtil.color("&e/minion reload &7- Reload configuration"));
@@ -421,13 +429,13 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!hasAdminPermission(sender)) {
             if (args.length == 1) {
-                return filter(List.of("list"), args[0]);
+                return filter(List.of("list", "claim"), args[0]);
             }
             return Collections.emptyList();
         }
 
         if (args.length == 1) {
-            return filter(List.of("create", "tier", "give", "limit", "list", "quarantine", "killall", "purge", "reload"), args[0]);
+            return filter(List.of("create", "tier", "give", "limit", "list", "claim", "recover", "quarantine", "killall", "purge", "reload"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
@@ -492,6 +500,25 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             return filter(names, args[2]);
         }
 
+        if (args.length == 2 && args[0].equalsIgnoreCase("recover")) {
+            return filter(List.of("list", "resolve"), args[1]);
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("recover") && args[1].equalsIgnoreCase("resolve")) {
+            com.minionx.storage.MinionStorage storage = plugin != null ? plugin.getMinionStorage() : null;
+            if (storage != null) {
+                List<String> opIds = new ArrayList<>();
+                for (com.minionx.storage.PendingOperation op : storage.getPendingOperations()) {
+                    opIds.add(op.operationId());
+                }
+                return filter(opIds, args[2]);
+            }
+        }
+
+        if (args.length == 4 && args[0].equalsIgnoreCase("recover") && args[1].equalsIgnoreCase("resolve")) {
+            return filter(List.of("deliver", "complete"), args[3]);
+        }
+
         return Collections.emptyList();
     }
 
@@ -532,6 +559,194 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         } else {
             sender.sendMessage(ColorUtil.color("&cUsage: /minion quarantine [on|off|status|toggle]"));
         }
+    }
+
+    private void handleClaim(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ColorUtil.color("&cOnly players can claim pending escrow items."));
+            return;
+        }
+
+        com.minionx.storage.MinionStorage storage = plugin != null ? plugin.getMinionStorage() : null;
+        if (storage == null) {
+            player.sendMessage(ColorUtil.color("&cPersistence storage is not available."));
+            return;
+        }
+
+        List<com.minionx.storage.PendingOperation> pending = storage.getPendingOperations();
+        List<com.minionx.storage.PendingOperation> playerOps = new ArrayList<>();
+        for (com.minionx.storage.PendingOperation op : pending) {
+            if (player.getUniqueId().equals(op.playerUuid())) {
+                playerOps.add(op);
+            }
+        }
+
+        if (playerOps.isEmpty()) {
+            player.sendMessage(ColorUtil.color("&7You have no unclaimed escrow items or pending operations."));
+            return;
+        }
+
+        int claimedOps = 0;
+        int totalItemsRestored = 0;
+
+        for (com.minionx.storage.PendingOperation op : playerOps) {
+            String payload = op.payload();
+            if (payload == null || payload.isBlank()) continue;
+
+            String[] rawItems = payload.split(";;;ITEM;;;");
+            List<ItemStack> toDeliver = new ArrayList<>();
+            for (String raw : rawItems) {
+                if (raw == null || raw.isBlank()) continue;
+                try {
+                    org.bukkit.configuration.file.YamlConfiguration yc = new org.bukkit.configuration.file.YamlConfiguration();
+                    yc.loadFromString(raw);
+                    ItemStack stack = yc.getItemStack("item");
+                    if (stack != null) toDeliver.add(stack);
+                } catch (Exception ignored) {}
+            }
+
+            if (toDeliver.isEmpty()) {
+                try {
+                    storage.removePendingOperation(op.operationId());
+                } catch (Exception ignored) {}
+                continue;
+            }
+
+            List<ItemStack> leftovers = new ArrayList<>();
+            for (ItemStack item : toDeliver) {
+                java.util.HashMap<Integer, ItemStack> left = player.getInventory().addItem(item);
+                if (!left.isEmpty()) {
+                    leftovers.addAll(left.values());
+                }
+            }
+
+            int deliveredCount = toDeliver.size() - leftovers.size();
+            totalItemsRestored += deliveredCount;
+
+            if (leftovers.isEmpty()) {
+                try {
+                    storage.removePendingOperation(op.operationId());
+                    claimedOps++;
+                } catch (Exception ignored) {}
+            } else {
+                List<String> remSerialized = new ArrayList<>();
+                for (ItemStack rem : leftovers) {
+                    org.bukkit.configuration.file.YamlConfiguration yc = new org.bukkit.configuration.file.YamlConfiguration();
+                    yc.set("item", rem);
+                    remSerialized.add(yc.saveToString());
+                }
+                try {
+                    storage.updatePendingOperationState(op.operationId(), "QUARANTINED_LEFTOVERS", String.join(";;;ITEM;;;", remSerialized));
+                } catch (Exception ignored) {}
+                player.sendMessage(ColorUtil.color("&eYour inventory became full! Some items remain in your escrow claim. Make space and run /minion claim again."));
+                break;
+            }
+        }
+
+        if (totalItemsRestored > 0) {
+            player.sendMessage(ColorUtil.color("&aSuccessfully claimed &e" + totalItemsRestored + " &aescrow items!"));
+            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+        } else if (claimedOps > 0) {
+            player.sendMessage(ColorUtil.color("&aEscrow operations resolved."));
+        }
+    }
+
+    private void handleRecover(CommandSender sender, String[] args) {
+        if (!hasAdminPermission(sender)) {
+            sender.sendMessage(ColorUtil.color("&cYou do not have permission to access escrow recovery."));
+            return;
+        }
+
+        com.minionx.storage.MinionStorage storage = plugin != null ? plugin.getMinionStorage() : null;
+        if (storage == null) {
+            sender.sendMessage(ColorUtil.color("&cPersistence storage is not available."));
+            return;
+        }
+
+        if (args.length <= 1 || args[1].equalsIgnoreCase("list")) {
+            List<com.minionx.storage.PendingOperation> pending = storage.getPendingOperations();
+            if (pending.isEmpty()) {
+                sender.sendMessage(ColorUtil.color("&aNo pending or quarantined operations in escrow ledger."));
+                return;
+            }
+            sender.sendMessage(ColorUtil.color("&6=== Pending Escrow Operations (" + pending.size() + ") ==="));
+            for (com.minionx.storage.PendingOperation op : pending) {
+                sender.sendMessage(ColorUtil.color("&e• &f" + op.operationId() + " &7[" + op.state() + "] Minion: &b" + op.minionId() + " &7Player: &a" + op.playerUuid()));
+            }
+            sender.sendMessage(ColorUtil.color("&7Use &e/minion recover resolve <opId> <deliver|complete> [reason] &7to audit and resolve."));
+            return;
+        }
+
+        if (args[1].equalsIgnoreCase("resolve")) {
+            if (args.length < 4) {
+                sender.sendMessage(ColorUtil.color("&cUsage: /minion recover resolve <opId> <deliver|complete> [reason]"));
+                return;
+            }
+            String opId = args[2];
+            String action = args[3].toLowerCase();
+            String reason = args.length >= 5 ? String.join(" ", java.util.Arrays.copyOfRange(args, 4, args.length)) : "Operator audit resolution";
+
+            com.minionx.storage.PendingOperation targetOp = null;
+            for (com.minionx.storage.PendingOperation op : storage.getPendingOperations()) {
+                if (op.operationId().equalsIgnoreCase(opId)) {
+                    targetOp = op;
+                    break;
+                }
+            }
+
+            if (targetOp == null) {
+                sender.sendMessage(ColorUtil.color("&cOperation '" + opId + "' not found in escrow ledger."));
+                return;
+            }
+
+            String operatorId = (sender instanceof Player p) ? p.getUniqueId().toString() : "CONSOLE";
+            long now = System.currentTimeMillis();
+
+            if ("deliver".equals(action)) {
+                Player targetPlayer = Bukkit.getPlayer(targetOp.playerUuid());
+                String payload = targetOp.payload();
+                int itemsDelivered = 0;
+                if (payload != null && !payload.isBlank() && targetPlayer != null && targetPlayer.isOnline()) {
+                    String[] rawItems = payload.split(";;;ITEM;;;");
+                    for (String raw : rawItems) {
+                        try {
+                            org.bukkit.configuration.file.YamlConfiguration yc = new org.bukkit.configuration.file.YamlConfiguration();
+                            yc.loadFromString(raw);
+                            ItemStack stack = yc.getItemStack("item");
+                            if (stack != null) {
+                                java.util.HashMap<Integer, ItemStack> left = targetPlayer.getInventory().addItem(stack);
+                                for (ItemStack rem : left.values()) {
+                                    targetPlayer.getWorld().dropItemNaturally(targetPlayer.getLocation(), rem);
+                                }
+                                itemsDelivered++;
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    targetPlayer.sendMessage(ColorUtil.color("&aAn administrator resolved and delivered your quarantined minion items!"));
+                }
+
+                try {
+                    storage.removePendingOperation(targetOp.operationId());
+                } catch (Exception ignored) {}
+                if (plugin != null) {
+                    plugin.getLogger().info("[MinionX Escrow Audit] Operator " + operatorId + " at " + now + " resolved operation " + opId + " as DELIVER (" + itemsDelivered + " items). Reason: " + reason);
+                }
+                sender.sendMessage(ColorUtil.color("&aOperation &e" + opId + " &aresolved and delivered (" + itemsDelivered + " items). Audit logged."));
+            } else if ("complete".equals(action)) {
+                try {
+                    storage.removePendingOperation(targetOp.operationId());
+                } catch (Exception ignored) {}
+                if (plugin != null) {
+                    plugin.getLogger().info("[MinionX Escrow Audit] Operator " + operatorId + " at " + now + " resolved operation " + opId + " as COMPLETE (cleared). Reason: " + reason);
+                }
+                sender.sendMessage(ColorUtil.color("&aOperation &e" + opId + " &amarked as COMPLETE and removed from ledger. Audit logged."));
+            } else {
+                sender.sendMessage(ColorUtil.color("&cUnknown action '" + action + "'. Valid actions: deliver, complete"));
+            }
+            return;
+        }
+
+        sender.sendMessage(ColorUtil.color("&cUsage: /minion recover [list|resolve <opId> <deliver|complete> [reason]]"));
     }
 
 }

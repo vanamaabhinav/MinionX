@@ -11,19 +11,6 @@
 #                    Can be expanded further up to 27 slots with external Minion Storage chests!
 #   upgrade-cost   - Quantity of items required to upgrade to the NEXT tier.
 #
-# Inventory-Aware Upgrade Cost Scaling (UpgradeCostHelper):
-#   - Tiers 1-4: Require raw harvested items (e.g., 80, 160, 320, 512 cobblestone/wheat/etc.).
-#   - Tiers 5+: Automatically convert large raw costs into Enchanted items (using recipes.yml)
-#     so that costs never exceed a player's physical 36-slot inventory!
-#     (e.g., Tier 5 requires 8x Enchanted items, Tier 6 requires 16x, Tier 7 requires 32x).
-#   - Max Tier (Tier 12): Set to 0 because no further upgrade exists.
-#
-# Custom Tiers (Tier XIII+):
-#   Server owners can add arbitrary custom tiers (e.g., 13, 14, 15) by simply adding
-#   numbered entries below. Roman numerals are automatically generated for all tiers.
-#
-# In-Game Tier Studio:
-#   Edit tier delays, slots, and costs live in-game using `/minion tier` or `/minion tier <id>`.
 # ==============================================================================
 
 tiers:

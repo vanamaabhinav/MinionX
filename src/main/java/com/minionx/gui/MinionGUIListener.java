@@ -14,6 +14,7 @@ import com.minionx.util.ColorUtil;
 import com.minionx.util.UpgradeCostHelper;
 import com.minionx.visual.MinionHologram;
 import com.minionx.visual.MinionVisual;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -28,7 +29,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
+import org.bukkit.configuration.file.YamlConfiguration;
 import com.minionx.storage.PendingOperation;
+import com.minionx.storage.MinionStorage;
+import com.minionx.storage.DatabaseStorage;
 
 /**
  * Handles clicks and interactions inside the Minion GUI.
@@ -360,11 +364,7 @@ public class MinionGUIListener implements Listener {
 
             // 3. Collect coins from Automated Shipping hopper
             if (minion.getShippingCoins() > 0) {
-                double coins = minion.claimShippingCoins();
-                if (com.minionx.hook.EconomyHook.hasEconomy()) {
-                    com.minionx.hook.EconomyHook.deposit(player, coins);
-                }
-                player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &afrom Automated Shipping!"));
+                collectShippingCoinsSafely(player, minion);
             }
 
             minion.wakeUp();
@@ -416,11 +416,7 @@ public class MinionGUIListener implements Listener {
 
                 // Collect accumulated coins
                 if (minion.getShippingCoins() > 0) {
-                    double coins = minion.claimShippingCoins();
-                    if (com.minionx.hook.EconomyHook.hasEconomy()) {
-                        com.minionx.hook.EconomyHook.deposit(player, coins);
-                    }
-                    player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &afrom Automated Shipping!"));
+                    collectShippingCoinsSafely(player, minion);
                 }
 
                 if (hopper != null) {
@@ -433,13 +429,7 @@ public class MinionGUIListener implements Listener {
             } else {
                 // Regular click: collect coins
                 if (minion.getShippingCoins() > 0) {
-                    double coins = minion.claimShippingCoins();
-                    if (com.minionx.hook.EconomyHook.hasEconomy()) {
-                        com.minionx.hook.EconomyHook.deposit(player, coins);
-                        player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &afrom Automated Shipping!"));
-                    } else {
-                        player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", coins) + " coins &7(Vault not installed)."));
-                    }
+                    collectShippingCoinsSafely(player, minion);
                     player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
                     MinionGUI.open(player, minion);
                     return;
@@ -525,6 +515,15 @@ public class MinionGUIListener implements Listener {
 
         // 1. Anti-dupe check: verify minion is still registered
         if (MinionX.getInstance().getMinionManager().getMinionById(minion.getMinionId()) == null) {
+            minion.releaseTransaction();
+            return;
+        }
+
+        // Check if minion is undergoing automated shipping payout
+        MinionStorage storage = MinionX.getInstance() != null ? MinionX.getInstance().getMinionStorage() : null;
+        if (storage != null && storage.isPayoutActive(minion.getMinionId())) {
+            player.sendMessage(ColorUtil.color("&cCannot pick up minion while automated shipping payout is in progress."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             minion.releaseTransaction();
             return;
         }
@@ -621,63 +620,38 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
-        // 4. Record durable intent (PICKUP_PENDING) before mutating player inventory
+        // 4. Validate and serialize escrow payload
+        List<String> serializedPayload = new ArrayList<>();
+        for (ItemStack stack : itemsToTransfer) {
+            YamlConfiguration yc = new YamlConfiguration();
+            yc.set("item", stack);
+            serializedPayload.add(yc.saveToString());
+        }
+        String payloadStr = String.join(";;;ITEM;;;", serializedPayload);
+
+        // 5. Phase 1: Atomic Minion Removal & Escrow Commit (MINION_REMOVED)
         String operationId = UUID.randomUUID().toString();
-        PendingOperation op = new PendingOperation(
+        DatabaseStorage.PickupRemovalResult removalResult = MinionX.getInstance().getMinionStorage().executePickupRemoval(
                 operationId,
                 minion.getMinionId(),
                 player.getUniqueId(),
-                "PICKUP_PENDING",
-                System.currentTimeMillis()
+                minion.getStateRevision(),
+                payloadStr
         );
-        try {
-            MinionX.getInstance().getMinionStorage().recordPendingOperation(op);
-        } catch (Exception e) {
-            MinionX.getInstance().getLogger().log(Level.SEVERE, "Failed to record durable pickup intent: " + operationId, e);
-            player.sendMessage(ColorUtil.color("&cFailed to initiate minion pickup. Please try again."));
+        if (removalResult != DatabaseStorage.PickupRemovalResult.COMMITTED_NOW &&
+            removalResult != DatabaseStorage.PickupRemovalResult.ALREADY_COMMITTED_MINION_REMOVED) {
+            if (removalResult == DatabaseStorage.PickupRemovalResult.ALREADY_DELIVERY_ATTEMPTED) {
+                player.sendMessage(ColorUtil.color("&cPickup delivery is already in progress or attempted."));
+            } else if (removalResult == DatabaseStorage.PickupRemovalResult.ALREADY_COMPLETED) {
+                player.sendMessage(ColorUtil.color("&eThis minion pickup has already been completed."));
+            } else {
+                player.sendMessage(ColorUtil.color("&cFailed to initiate secure pickup transaction. Please try again."));
+            }
             minion.releaseTransaction();
             return;
         }
 
-        // 5. Snapshot player inventory for atomic rollback
-        ItemStack[] preContents = player.getInventory().getContents();
-        ItemStack[] invSnapshot = new ItemStack[preContents.length];
-        for (int i = 0; i < preContents.length; i++) {
-            invSnapshot[i] = preContents[i] != null ? preContents[i].clone() : null;
-        }
-
-        // 6. Synchronous player inventory transfer
-        try {
-            for (ItemStack item : itemsToTransfer) {
-                HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
-                if (!leftover.isEmpty()) {
-                    throw new IllegalStateException("Capacity invariant breached: item transfer failed to fit completely");
-                }
-            }
-        } catch (Throwable t) {
-            MinionX.getInstance().getLogger().log(Level.SEVERE, "Error during player inventory pickup mutation! Rolling back.", t);
-            player.getInventory().setContents(invSnapshot);
-
-            // Acknowledge compensating deletion BEFORE restoring ACTIVE or releasing guard
-            try {
-                MinionX.getInstance().getMinionStorage().removePendingOperation(operationId);
-            } catch (Exception ex) {
-                MinionX.getInstance().getLogger().log(Level.SEVERE, "CRITICAL: Failed to remove pending operation during rollback: " + operationId, ex);
-            }
-
-            player.sendMessage(ColorUtil.color("&cAn error occurred during pickup. Pickup cancelled and inventory restored."));
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-            minion.releaseTransaction();
-            return;
-        }
-
-        // 7. Atomic persistence finalization (WHERE operation_id = ?)
-        boolean finalized = MinionX.getInstance().getMinionStorage().finalizePickup(operationId, minion.getMinionId());
-        if (!finalized) {
-            MinionX.getInstance().getLogger().warning("Pickup finalization returned false for operation " + operationId);
-        }
-
-        // 8. Clean up runtime state
+        // Clean up runtime visual and manager entities immediately upon confirmed removal
         MinionX.getInstance().getMinionManager().unregister(minion);
         MinionVisual.remove(minion);
         MinionHologram.remove(minion);
@@ -685,21 +659,170 @@ public class MinionGUIListener implements Listener {
             MinionStorageListener.removeStorageOnMinionRemoval(minion, false);
         }
 
-        // Claim XP and coins
+        // 6. Phase 2: Claim Delivery Attempt (MINION_REMOVED -> DELIVERY_ATTEMPTED)
+        boolean claimed = MinionX.getInstance().getMinionStorage().claimDeliveryAttempt(operationId);
+        if (!claimed) {
+            player.sendMessage(ColorUtil.color("&cPickup delivery attempt claim failed."));
+            minion.releaseTransaction();
+            return;
+        }
+
+        List<ItemStack> leftoverItems = new ArrayList<>();
+        for (ItemStack item : itemsToTransfer) {
+            HashMap<Integer, ItemStack> left = player.getInventory().addItem(item);
+            if (!left.isEmpty()) {
+                leftoverItems.addAll(left.values());
+            }
+        }
+
+        // 7. Phase 3: Explicit Delivery Confirmation / Leftover Quarantine
+        if (leftoverItems.isEmpty()) {
+            // Full delivery confirmed! Mark COMPLETED and remove pending operation
+            MinionX.getInstance().getMinionStorage().completeDelivery(operationId);
+            try {
+                MinionX.getInstance().getMinionStorage().removePendingOperation(operationId);
+            } catch (Exception ignored) {}
+            player.sendMessage(ColorUtil.color("&eYou picked up your " + minion.getDisplayName() + " Minion!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
+        } else {
+            // Partial delivery: DO NOT mark COMPLETED! Operation remains quarantined in escrow ledger.
+            List<String> remPayload = new ArrayList<>();
+            for (ItemStack rem : leftoverItems) {
+                YamlConfiguration yc = new YamlConfiguration();
+                yc.set("item", rem);
+                remPayload.add(yc.saveToString());
+                if (player.isOnline()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), rem);
+                }
+            }
+            try {
+                MinionX.getInstance().getMinionStorage().updatePendingOperationState(
+                        operationId, "QUARANTINED_LEFTOVERS", String.join(";;;ITEM;;;", remPayload));
+            } catch (Exception ignored) {}
+            player.sendMessage(ColorUtil.color("&eMinion picked up! Some items did not fit in your inventory and were placed at your feet."));
+            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
+        }
+
+        // Claim XP and coins safely
         int xp = minion.claimStoredXp();
         if (xp > 0) {
             player.giveExp(xp);
         }
-        if (minion.getShippingCoins() > 0) {
-            double coins = minion.claimShippingCoins();
-            if (com.minionx.hook.EconomyHook.hasEconomy()) {
-                com.minionx.hook.EconomyHook.deposit(player, coins);
-            }
+        collectShippingCoinsSafely(player, minion);
+        minion.releaseTransaction();
+    }
+
+    private void collectShippingCoinsSafely(Player player, Minion minion) {
+        double coins = minion.getClaimableShippingCoins();
+        if (coins <= 0.0) return;
+        double normalizedCoins = java.math.BigDecimal.valueOf(coins).setScale(4, java.math.RoundingMode.HALF_UP).doubleValue();
+        if (normalizedCoins <= 0.0) return;
+
+        MinionStorage storage = MinionX.getInstance() != null ? MinionX.getInstance().getMinionStorage() : null;
+        if (storage == null) return;
+
+        // 1. Acquire main-thread payout lock
+        if (!storage.acquirePayoutLock(minion.getMinionId())) {
+            player.sendMessage(ColorUtil.color("&cAutomated shipping payout is already in progress for this minion."));
+            return;
         }
 
-        player.sendMessage(ColorUtil.color("&eYou picked up your " + minion.getDisplayName() + " Minion!"));
-        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
-        minion.releaseTransaction();
+        // 2. Main-Thread State Ownership: capture DB revision and reserve coins in dual-balance model
+        long dbRev = minion.getStateRevision();
+        if (!minion.reserveClaimableCoins(normalizedCoins)) {
+            storage.releasePayoutLock(minion.getMinionId());
+            return;
+        }
+
+        String opId = "payout-" + UUID.randomUUID();
+        UUID minionId = minion.getMinionId();
+        UUID playerUuid = player.getUniqueId();
+
+        // 3. Dispatch atomic reservation to persistence
+        storage.getPersistenceExecutor().submit(() -> {
+            boolean reserved = storage.reservePayoutAtomic(opId, minionId, playerUuid, normalizedCoins, dbRev);
+            if (!reserved) {
+                // If minion is quarantined due to ambiguous commit, keep payout lock and do not cancel reserved balance
+                if (storage.isQuarantined(minionId)) {
+                    Runnable quarantineNotify = () -> {
+                        if (player.isOnline()) {
+                            player.sendMessage(ColorUtil.color("&cPayout ledger outcome is uncertain. Minion has been quarantined pending reconciliation."));
+                        }
+                    };
+                    if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
+                        Bukkit.getScheduler().runTask(MinionX.getInstance(), quarantineNotify);
+                    } else {
+                        quarantineNotify.run();
+                    }
+                    return;
+                }
+
+                // Reservation failed cleanly: restore live balance on main thread
+                Runnable restoreTask = () -> {
+                    minion.cancelReservedCoins();
+                    storage.releasePayoutLock(minionId);
+                    if (player.isOnline()) {
+                        player.sendMessage(ColorUtil.color("&cFailed to secure payout ledger. Payout aborted."));
+                    }
+                };
+                if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
+                    Bukkit.getScheduler().runTask(MinionX.getInstance(), restoreTask);
+                } else {
+                    restoreTask.run();
+                }
+                return;
+            }
+
+            // 4. Main-Thread: Invoke Vault API
+            Runnable vaultTask = () -> {
+                com.minionx.hook.EconomyHook.PayoutResult result = com.minionx.hook.EconomyHook.depositWithResult(player, normalizedCoins);
+
+                if (result.isSuccess()) {
+                    minion.commitReservedCoins();
+                    storage.getPersistenceExecutor().submit(() -> {
+                        storage.confirmPayoutAtomic(opId, minionId);
+                    });
+                    storage.releasePayoutLock(minionId);
+                    if (player.isOnline()) {
+                        player.sendMessage(ColorUtil.color("&aCollected &6" + String.format("%,.1f", normalizedCoins) + " coins &afrom Automated Shipping!"));
+                    }
+                } else if (result.isDefinitiveFailure()) {
+                    storage.getPersistenceExecutor().submit(() -> {
+                        boolean rolledBack = storage.rollbackPayoutAtomic(opId, minionId, normalizedCoins);
+                        Runnable mainRestore = () -> {
+                            if (rolledBack) {
+                                minion.cancelReservedCoins();
+                            }
+                            storage.releasePayoutLock(minionId);
+                            if (player.isOnline()) {
+                                player.sendMessage(ColorUtil.color("&cEconomy deposit failed (" + result.errorMessage() + "). Coins restored to minion."));
+                            }
+                        };
+                        if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
+                            Bukkit.getScheduler().runTask(MinionX.getInstance(), mainRestore);
+                        } else {
+                            mainRestore.run();
+                        }
+                    });
+                } else {
+                    // Ambiguous error or timeout: commit reserved coins (permanently deducted) and mark PAYOUT_AMBIGUOUS
+                    minion.commitReservedCoins();
+                    storage.getPersistenceExecutor().submit(() -> {
+                        storage.ambiguousPayoutAtomic(opId);
+                    });
+                    storage.releasePayoutLock(minionId);
+                    if (player.isOnline()) {
+                        player.sendMessage(ColorUtil.color("&cEconomy transaction was ambiguous. Payout locked for administrator audit."));
+                    }
+                }
+            };
+
+            if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
+                Bukkit.getScheduler().runTask(MinionX.getInstance(), vaultTask);
+            } else {
+                vaultTask.run();
+            }
+        });
     }
 
     public static boolean canHoldAll(org.bukkit.inventory.PlayerInventory inv, List<ItemStack> items) {

@@ -20,21 +20,41 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Global repeating task executing the autonomous action cycle for all active minions.
  * Supports MINER, COMBAT, FORAGING (trees & chopping), and FARMING (crops, stems, canes, cacti, mushrooms).
+ * Utilizes a bounded generational priority-queue scheduler with wall-clock due-times and incremental compaction.
  */
 public class MinionTickTask extends BukkitRunnable {
 
     public static final int MAX_ACTIONS_PER_TICK = 50;
-    public static final long MAX_TICK_BUDGET_NANOS = 2_000_000L; // 2.0ms inter-action check
+    public static final long MAX_TICK_BUDGET_NANOS = 2_000_000L; // 2.0ms dispatch budget
     public static final long OVERLOAD_LAG_CLAMP_MILLIS = 3_000L;  // 60 ticks latency shedding clamp
+    public static final int MAX_QUEUE_POLLS_PER_TICK = 200;
+    public static final int COMPACTION_INTERVAL_TICKS = 1_200;
+    public static final int MAX_COMPACTION_ENTRIES_PER_TICK = 100;
+    public static final long MAX_COMPACTION_BUDGET_NANOS = 1_000_000L; // 1.0ms
+
+    public record ScheduledMinion(UUID minionId, long dueTimeMillis, long generation) implements Comparable<ScheduledMinion> {
+        @Override
+        public int compareTo(ScheduledMinion o) {
+            int cmp = Long.compare(this.dueTimeMillis, o.dueTimeMillis);
+            if (cmp != 0) return cmp;
+            return this.minionId.compareTo(o.minionId);
+        }
+    }
 
     private final MinionManager minionManager;
+    private final PriorityQueue<ScheduledMinion> actionQueue = new PriorityQueue<>();
+    private final Set<UUID> queuedMinionIds = ConcurrentHashMap.newKeySet();
     private final SchedulerTelemetry telemetry = new SchedulerTelemetry();
     private long tickCounter = 0;
 
@@ -46,15 +66,68 @@ public class MinionTickTask extends BukkitRunnable {
         return telemetry;
     }
 
+    public PriorityQueue<ScheduledMinion> getActionQueue() {
+        return actionQueue;
+    }
+
+    public int getQueueSize() {
+        return actionQueue.size();
+    }
+
+    public long getTickCounter() {
+        return tickCounter;
+    }
+
+    public void setTickCounter(long tickCounter) {
+        this.tickCounter = tickCounter;
+    }
+
+    public void scheduleMinion(Minion minion) {
+        if (minion == null) return;
+        long delayMillis = (long) (minion.getEffectiveActionDelay() * 1000L);
+        long dueTime = minion.getLastActionTime() + delayMillis;
+        actionQueue.offer(new ScheduledMinion(minion.getMinionId(), dueTime, minion.getSchedulingGeneration()));
+        queuedMinionIds.add(minion.getMinionId());
+    }
+
+    public void unscheduleMinion(UUID minionId) {
+        if (minionId != null) {
+            queuedMinionIds.remove(minionId);
+        }
+    }
+
+    public void performCompaction() {
+        int loaded = minionManager != null ? minionManager.getActiveLoadedMinions().size() : 0;
+        if (actionQueue.size() <= loaded * 2) {
+            return;
+        }
+
+        long compStart = System.nanoTime();
+        int inspected = 0;
+        Iterator<ScheduledMinion> it = actionQueue.iterator();
+        while (it.hasNext() && inspected < MAX_COMPACTION_ENTRIES_PER_TICK) {
+            if (System.nanoTime() - compStart >= MAX_COMPACTION_BUDGET_NANOS) {
+                break;
+            }
+            inspected++;
+            ScheduledMinion sm = it.next();
+            Minion m = minionManager != null ? minionManager.getMinionById(sm.minionId()) : null;
+            if (m == null || m.getSchedulingGeneration() != sm.generation() || (m.getState() == MinionState.FULL && m.isFullSleeping())) {
+                it.remove();
+            }
+        }
+    }
+
     @Override
     public void run() {
         tickCounter++;
         long startNanos = System.nanoTime();
         int actionsExecuted = 0;
         int shedActions = 0;
+        int totalQueuePolls = 0;
 
-        java.util.Collection<Minion> active = minionManager.getActiveLoadedMinions();
-        if (active.isEmpty() && !minionManager.getAllMinions().isEmpty()) {
+        Collection<Minion> active = minionManager != null ? minionManager.getActiveLoadedMinions() : List.of();
+        if (active.isEmpty() && minionManager != null && !minionManager.getAllMinions().isEmpty()) {
             // Fallback for test harness or environment before chunk events fire
             for (Minion minion : minionManager.getAllMinions()) {
                 if (minion.getLocation() != null && minion.getLocation().getWorld() != null && minion.getLocation().isChunkLoaded()) {
@@ -65,12 +138,69 @@ public class MinionTickTask extends BukkitRunnable {
         }
 
         for (Minion minion : active) {
+            if (!queuedMinionIds.contains(minion.getMinionId()) && !minion.isFullSleeping()) {
+                scheduleMinion(minion);
+            }
+        }
+
+        if (tickCounter % COMPACTION_INTERVAL_TICKS == 0) {
+            performCompaction();
+        }
+
+        long now = System.currentTimeMillis();
+
+        while (!actionQueue.isEmpty()) {
+            // Budget guards checked before every poll
             if (actionsExecuted >= MAX_ACTIONS_PER_TICK) {
                 shedActions++;
-                continue;
+                break;
             }
             if (System.nanoTime() - startNanos >= MAX_TICK_BUDGET_NANOS) {
                 shedActions++;
+                break;
+            }
+            if (totalQueuePolls >= MAX_QUEUE_POLLS_PER_TICK) {
+                shedActions++;
+                break;
+            }
+
+            ScheduledMinion peeked = actionQueue.peek();
+            if (peeked == null) break;
+
+            if (peeked.dueTimeMillis() > now) {
+                // Head is in the future; nothing else is due this tick
+                break;
+            }
+
+            ScheduledMinion entry = actionQueue.poll();
+            totalQueuePolls++;
+
+            Minion minion = minionManager != null ? minionManager.getMinionById(entry.minionId()) : null;
+            if (minion == null) {
+                queuedMinionIds.remove(entry.minionId());
+                continue;
+            }
+
+            // Generation token invalidation: chunk unloads, pickups, sleeping/FULL transitions
+            if (minion.getSchedulingGeneration() != entry.generation()) {
+                queuedMinionIds.remove(minion.getMinionId());
+                if (active.contains(minion) && !minion.isFullSleeping()) {
+                    scheduleMinion(minion);
+                }
+                continue;
+            }
+
+            // If minion is full and sleeping, short-circuit and remove
+            if (minion.getState() == MinionState.FULL && minion.isFullSleeping()) {
+                queuedMinionIds.remove(minion.getMinionId());
+                continue;
+            }
+
+            // Wall-Clock Durability: calculate runtime due time from persisted wall-clock timestamp
+            long delayMillis = (long) (minion.getEffectiveActionDelay() * 1000L);
+            long actualDueTime = minion.getLastActionTime() + delayMillis;
+            if (actualDueTime > now) {
+                actionQueue.offer(new ScheduledMinion(minion.getMinionId(), actualDueTime, minion.getSchedulingGeneration()));
                 continue;
             }
 
@@ -80,6 +210,14 @@ public class MinionTickTask extends BukkitRunnable {
                 actionsExecuted++;
                 long aDur = System.nanoTime() - aStart;
                 telemetry.recordActionDuration(aDur);
+            }
+
+            // Re-schedule minion for next cycle if still active and not sleeping
+            if (active.contains(minion) && !minion.isFullSleeping()) {
+                long nextDueTime = minion.getLastActionTime() + (long) (minion.getEffectiveActionDelay() * 1000L);
+                actionQueue.offer(new ScheduledMinion(minion.getMinionId(), nextDueTime, minion.getSchedulingGeneration()));
+            } else {
+                queuedMinionIds.remove(minion.getMinionId());
             }
         }
 

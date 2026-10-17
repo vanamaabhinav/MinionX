@@ -1,483 +1,362 @@
-# MinionX — Complete Server Owner's Manual & Showcase Guide
+# MinionX — Complete Guide & Documentation
 
-> **MinionX** — The Premier Autonomous Minion Engine for **Paper / Purpur / Pufferfish 1.20.4 – 1.21+**  
+> **MinionX** is an autonomous minion plugin designed for **Paper, Purpur, and Pufferfish (1.20.4 – 1.21+)**.  
 > **Author:** AbhinavVanama  
-> **Version:** `v0.2.0` (Production Release)
+> **Version:** `v0.2.0`  
 
 ---
 
 ## Table of Contents
-1. [Introduction & Vision](#1-introduction--vision)
-2. [The Player Experience & Interactive Minion Dashboard](#2-the-player-experience--interactive-minion-dashboard)
+1. [Overview](#1-overview)
+2. [Interactive Minion Dashboard](#2-interactive-minion-dashboard)
 3. [Automated Shipping & Economy System](#3-automated-shipping--economy-system)
 4. [External Minion Storage Chests](#4-external-minion-storage-chests)
 5. [Upgrades, Compression & Accessories](#5-upgrades-compression--accessories)
-6. [Fuel System (Temporary vs. Permanent)](#6-fuel-system-temporary-vs-permanent)
+6. [Fuel System (Temporary & Permanent)](#6-fuel-system-temporary--permanent)
 7. [Cosmetic Minion Skins & Armor Sets](#7-cosmetic-minion-skins--armor-sets)
-8. [The 6 In-Game Visual Studios (Zero YAML Editing)](#8-the-6-in-game-visual-studios-zero-yaml-editing)
-9. [The Operator Command Center (`/minionsx`)](#9-the-operator-command-center-minionsx)
-10. [Configuration Files Master Guide (Plain English)](#10-configuration-files-master-guide-plain-english)
-    * [`config.yml` (Main Configuration)](#configyml-main-configuration)
-    * [`prices.yml` (Economy & Custom Item Prices)](#pricesyml-economy--custom-item-prices)
-    * [`tiers.yml` (Global Speeds, Slots & Costs)](#tiersyml-global-speeds-slots--costs)
-    * [`upgrades.yml` (Custom Upgrades & Hoppers)](#upgradesyml-custom-upgrades--hoppers)
-    * [`fuels.yml` (Fuels & Speed Boosts)](#fuelsyml-fuels--speed-boosts)
-    * [`skins.yml` (Cosmetic Skins & Armor Sets)](#skinsyml-cosmetic-skins--armor-sets)
-    * [`storages.yml` (Storage Expansion Capacities)](#storagesyml-storage-expansion-capacities)
-    * [`minions.yml` (Minion Types & Drops)](#minionsyml-minion-types--drops)
-    * [`recipes.yml` (Super Compactor Recipes)](#recipesyml-super-compactor-recipes)
-11. [Supported Land Claim Integrations](#11-supported-land-claim-integrations)
-12. [Anti-Dupe Security & Emergency Quarantine Mode](#12-anti-dupe-security--emergency-quarantine-mode)
-13. [Commands & Permissions Reference](#13-commands--permissions-reference)
-14. [Frequently Asked Questions (FAQ)](#14-frequently-asked-questions-faq)
+8. [Per-Minion Tier Customization](#8-per-minion-tier-customization)
+9. [Multi-Drop Engine & Custom Items](#9-multi-drop-engine--custom-items)
+10. [Offline Production & Catch-Up](#10-offline-production--catch-up)
+11. [RPG Skill Rewards & Collections](#11-rpg-skill-rewards--collections)
+12. [Dialogue & Visual Displays](#12-dialogue--visual-displays)
+13. [In-Game Creator Studios](#13-in-game-creator-studios)
+14. [Operator Control Center (`/minionsx`)](#14-the-operator-control-center-minionsx)
+15. [Configuration Files Guide](#15-configuration-files-guide)
+16. [Land Claim & Protection Integrations](#16-land-claim--protection-integrations)
+17. [Security & Emergency Quarantine](#17-security--emergency-quarantine)
+18. [Commands & Permissions Reference](#18-commands--permissions-reference)
+19. [Frequently Asked Questions (FAQ)](#19-frequently-asked-questions-faq)
 
 ---
 
-## 1. Introduction & Vision
+## 1. Overview
 
-Welcome to **MinionX**! Inspired by the classic minion automation of Hypixel SkyBlock, MinionX provides a turnkey, commercial-grade minion engine engineered for survival networks, skyblock realms, prison servers, and custom RPG gamemodes.
+MinionX brings automated resource gathering to your server, inspired by classic skyblock minion mechanics while offering modern visual entities, full in-game creator menus, and extensible configurations.
 
-### The Best of Both Worlds
-* **Turnkey Out-of-the-Box Setup**: Ships pre-loaded with over 30 familiar minions (Cobblestone, Iron, Diamond, Pumpkin, Melon, Oak, Zombie, etc.), iconic accessories (Super Compactor 3000, Auto-Smelter, Diamond Spreading), shipping hoppers (Budget & Enchanted Hoppers), fuels (Enchanted Charcoal, Enchanted Lava Bucket), and cosmetic skins for immediate commercial deployment.
-* **Limitless Customization Engine**: Server owners are never locked in. Effortlessly create custom minions, unique drops, MythicMobs combat encounters, custom working speeds, tailor-made fuels, and custom accessories both live in-game and through clean configuration files.
-* **Rock-Solid Performance (20.0 TPS)**: Armor stands have ticking disabled (`setCanTick(false)`), floating holograms use modern display entities, and chunk loading uses O(1) mathematical catch-up instead of lagging chunk loads.
+### Key Capabilities:
+* **Included Minion Types**: Comes with over 30 pre-configured minions across mining, farming, foraging, and combat categories (such as Cobblestone, Iron, Diamond, Wheat, Oak, Zombie, and Blaze).
+* **Flexible Customization**: Server administrators can add brand-new minions, multi-drop loot tables, custom working delays, and unique item requirements either through configuration files or directly in-game.
+* **Optimized Architecture**: Uses modern text display entities for floating nametags, non-ticking armor stands for minion models, and mathematical catch-up calculations for unloaded chunks to keep server tick times smooth.
+* **Extensive Compatibility**: Natively supports major land claim systems, economy providers, skill plugins, and custom item frameworks.
 
 ---
 
-## 2. The Player Experience & Interactive Minion Dashboard
+## 2. Interactive Minion Dashboard
 
-When a player places a minion, it wakes up with tools in hand, dresses in matching armor, spawns floating status text, and begins working within its 5×5 area.
+When a player places a minion, it appears in the world with appropriate tools, armor, and floating status information, and begins working within its designated area.
 
-Right-clicking the minion opens its **54-slot interactive control dashboard**:
+Right-clicking the minion opens its **54-slot interactive control menu**:
 
 ```
 +----+----+----+----+----+----+----+----+----+
-| -- | -- | -- |TORC|HEAD|GOLD| -- | -- | -- |  Row 1: Requirements & Information
+| -- | -- | -- |TORC|HEAD|GOLD| -- | -- | -- |  Row 1: Information & Tier Status
 +----+----+----+----+----+----+----+----+----+
-| -- |SKIN| -- | -- | -- | -- | -- | -- | -- |  Row 2: Skin Slot
+| -- |SKIN| -- | -- | -- | -- | -- | -- | -- |  Row 2: Cosmetic Skin Slot
 +----+----+----+----+----+----+----+----+----+
-| -- |FUEL| -- | [1]  [2]  [3]  [4]  [5] | -- |  Row 3: Fuel + Storage Grid
+| -- |FUEL| -- | [1]  [2]  [3]  [4]  [5] | -- |  Row 3: Fuel Socket + Storage Grid
 +----+----+----+----+----+----+----+----+----+
-| -- |HOPR| -- | [6]  [7]  [8]  [9] [10] | -- |  Row 4: Shipping Hopper + Storage Grid
+| -- |HOPR| -- | [6]  [7]  [8]  [9] [10] | -- |  Row 4: Automated Shipping + Storage Grid
 +----+----+----+----+----+----+----+----+----+
-| -- |UPG1| -- |[11] [12] [13] [14] [15] | -- |  Row 5: Upgrade 1 + Storage Grid
+| -- |UPG1| -- |[11] [12] [13] [14] [15] | -- |  Row 5: Upgrade Slot 1 + Storage Grid
 +----+----+----+----+----+----+----+----+----+
-| -- |UPG2| -- |COLT| -- |QUCK| -- | -- |BEDR|  Row 6: Upgrade 2 + Actions (Pickup)
+| -- |UPG2| -- |COLT| -- |QUCK| -- | -- |BEDR|  Row 6: Upgrade Slot 2 + Quick Actions
 +----+----+----+----+----+----+----+----+----+
 ```
 
 ### Dashboard Slot Guide:
-* **Top Row (Requirements & Information)**:
-  * **Slot 3 (Redstone Torch) — Ideal Layout**: Displays the exact block setup and environment required around the minion for it to spawn items or mobs efficiently.
-  * **Slot 4 (Minion Head) — Minion Status**: Shows current tier, action speed cooldown, internal storage limit, and total items harvested.
-  * **Slot 5 (Gold Ingot) — Next Tier**: Displays the exact crafting recipe and ingredients needed to craft the minion's next level.
+* **Top Row (Information & Layout)**:
+  * **Slot 3 (Redstone Torch) — Ideal Layout**: Provides a visual guide showing the required working area around the minion. Base minions work in a 5×5 area (radius 2), which expands to 7×7 with 1 Minion Expander, or 9×9 with 2 Minion Expanders.
+  * **Slot 4 (Minion Head) — Minion Status**: Displays current tier, action cooldown, storage capacity, and total items harvested.
+  * **Slot 5 (Gold Ingot) — Next Tier Info**: Displays the required crafting materials needed to upgrade the minion to its next tier.
 * **Left Column (Modifiers & Automation)**:
-  * **Slot 10 (Lime Stained Glass) — Minion Skin**: Equip cosmetic skins to transform the minion's visual appearance and armor.
-  * **Slot 19 (Orange Stained Glass) — Fuel**: Place temporary fuels (Coal, Enchanted Charcoal) or permanent fuels (Enchanted Lava Bucket) to boost working speed.
-  * **Slot 28 (Yellow Stained Glass) — Automated Shipping**: Equip Budget or Enchanted Hoppers to auto-sell overflow resources and collect accumulated coins.
-  * **Slot 37 (Blue Stained Glass) — Minion Upgrade 1**: Socket functional upgrades like the Super Compactor 3000 or Auto-Smelter.
-  * **Slot 46 (Blue Stained Glass) — Minion Upgrade 2**: Socket a secondary upgrade like Diamond Spreading or Minion Expander.
+  * **Slot 10 — Minion Skin**: Allows players to apply cosmetic skins that change head textures, armor materials, and dye colors.
+  * **Slot 19 — Fuel**: Accepts temporary fuels (such as Coal or Enchanted Charcoal) or permanent fuels (like the Enchanted Lava Bucket) to reduce action delays.
+  * **Slot 28 — Automated Shipping**: Accepts Budget or Enchanted Hoppers to automatically sell excess items when storage is full.
+  * **Slot 37 — Upgrade Slot 1**: Holds functional upgrades such as the Super Compactor 3000 or Auto-Smelter.
+  * **Slot 46 — Upgrade Slot 2**: Holds a secondary upgrade, such as Diamond Spreading, Minion Expander, or Flycatcher.
 * **Center Grid (Internal Storage — 15 Slots)**:
-  * Slots `21-25`, `30-34`, and `39-43`.
-  * Unlocked slots hold harvested items.
-  * Locked slots are indicated by Red Stained Glass titled `&cLocked Slot &7(Tier X)` showing the exact tier required to unlock that slot.
+  * Slots `21–25`, `30–34`, and `39–43` represent the minion's internal inventory.
+  * Unlocked slots hold harvested resources.
+  * Higher slots unlock progressively as the minion is leveled up. Locked slots show the required tier needed to unlock them.
 * **Bottom Row (Quick Actions)**:
-  * **Slot 48 (Chest) — Collect All**: Instantly transfers all harvested items from internal storage AND linked storage chests into the player's inventory, and claims any shipping coins.
-  * **Slot 50 (Diamond) — Quick-Upgrade**: Instantly levels up the minion if the player has the required upgrade materials in their inventory.
-  * **Slot 53 (Bedrock) — Pickup Minion**: Safely dismantles the minion and returns the minion item, upgrades, fuel, and storage contents to the player.
+  * **Slot 48 (Chest) — Collect All**: Moves all stored items from both internal storage and linked external chests into the player's inventory, and claims any accumulated shipping coins.
+  * **Slot 50 (Diamond) — Quick-Upgrade**: Instantly upgrades the minion to the next tier if the player has the required resources in their inventory.
+  * **Slot 53 (Bedrock) — Pickup Minion**: Safely picks up the minion, returning the minion item, upgrades, active fuel, skins, and stored resources to the player.
 
 ---
 
 ## 3. Automated Shipping & Economy System
 
-When minions run for days, their storage can eventually fill up. Automated Shipping ensures production never halts by selling excess items directly to the server economy.
+To prevent minions from halting when their storage fills up, Automated Shipping hoppers can be equipped to sell overflow items directly to the server economy.
 
-### How Automated Shipping Works:
-1. Place a shipping hopper (such as a **Budget Hopper** or **Enchanted Hopper**) into **Slot 28**.
-2. As the minion works, items fill its internal inventory first.
-3. If internal inventory is full, items automatically overflow into any **linked storage chest**.
-4. When both internal inventory and the storage chest are completely full, the hopper automatically liquidates further overflow into server coins.
-5. Coins accumulate inside the hopper slot. Left-clicking **Slot 28** claims the coins directly to your Vault economy balance!
-6. Clicking **Collect All (Slot 48)** also automatically sweeps all shipping coins into your account.
+### How It Operates:
+1. Place a shipping hopper into **Slot 28**.
+2. Items fill the minion's internal inventory first.
+3. Once the internal inventory is full, items overflow into any adjacent **linked minion storage chest**.
+4. When both internal storage and linked chests are full, the equipped hopper converts further overflow items into coins based on prices defined in `prices.yml`.
+5. Earned coins accumulate safely in the hopper slot. Left-clicking **Slot 28** deposits the coins directly into the player's economy account (via Vault or compatible economy providers).
+6. Clicking **Collect All (Slot 48)** also claims accumulated coins automatically.
 
-### Pre-Configured Shipping Hoppers:
-| Hopper | Sell Rate | Description |
+### Included Hoppers:
+| Hopper | Sell Rate | Function |
 |---|---|---|
-| **Budget Hopper** | **50% NPC Price** | Sells items for 50% of their base server value when storage is full. |
-| **Enchanted Hopper** | **90% NPC Price** | Premium high-efficiency hopper selling items for 90% of their base value. |
+| **Budget Hopper** | **50% of NPC Price** | Sells overflow items at half of their base server value. |
+| **Enchanted Hopper** | **90% of NPC Price** | Higher-tier hopper selling overflow items at 90% value. |
 
-Server owners can also design completely custom hoppers (e.g. Plasma Hopper @ 95%) with custom sell percentages using the in-game studio or `upgrades.yml`.
+*Note: Unpriced items (items with a value of 0 in `prices.yml`) will not be sold or discarded; the minion will safely pause until storage space is freed.*
 
 ---
 
 ## 4. External Minion Storage Chests
 
-Players can expand their minion's holding capacity by placing an external Minion Storage chest directly adjacent to the minion.
+Players can expand a minion's holding capacity by placing a dedicated Minion Storage chest directly adjacent to the minion.
 
 ```
-       [CHEST]  <-- Placed next to minion
+       [CHEST]  <-- Placed adjacent to minion
          [M]    <-- Minion automatically links!
 ```
 
-### Storage Sizes:
-* **Small Storage**: Expands capacity by **3 slots** (1 row of 3).
-* **Medium Storage**: Expands capacity by **9 slots** (3×3 centered grid).
-* **Large Storage**: Expands capacity by **15 slots** (3×5 centered grid).
-* **Max Storage**: Expands capacity by **27 slots** (full chest).
+### Storage Chest Tiers:
+* **Small Storage**: Adds **3 extra slots** (1 row of 3).
+* **Medium Storage**: Adds **9 extra slots** (3×3 centered grid).
+* **Large Storage**: Adds **15 extra slots** (3×5 centered grid).
+* **Max Storage**: Adds **27 extra slots** (full standard chest capacity).
 
-### Storage Security & Protections:
-* **Owner Verification**: Only the minion's owner (or administrators with `minionx.admin`) can open or break a minion storage chest. Other players receive an access denied message.
-* **Withdrawal-Only Safety**: Minion storages are strictly withdrawal-only. Players cannot deposit personal items, shift-click junk in, or drag items into the storage chest.
-* **Anti-Hopper Protection (Both Ways)**: Vanilla hoppers, droppers, and hopper minecarts are completely blocked from pulling items OUT of minion storages OR dropping/pushing items INTO minion storages.
-* **Automatic Pickup**: Breaking the minion storage drops all held items and the storage item safely onto the ground.
+### Security & Protection Features:
+* **Owner Protection**: Only the minion owner or server operators can open or remove a linked storage chest.
+* **Withdrawal-Only Mode**: Minion chests are designed for withdrawal only; players cannot accidentally insert unwanted items or drag external items into them.
+* **Hopper Siphoning Prevention**: Vanilla hoppers, droppers, and hopper minecarts are prevented from pulling items out of or pushing items into minion chests.
+* **Break Safety**: Breaking the chest safely drops all stored contents and the storage chest item on the ground.
 
 ---
 
 ## 5. Upgrades, Compression & Accessories
 
-Minions can be customized with functional upgrades socketed into **Slots 37 & 46**:
+Minions can be equipped with up to two functional upgrades in **Slots 37 & 46**:
 
 ### Built-in Upgrades:
 * **Super Compactor 3000**:
-  * Automatically compresses 160 base items into their enchanted forms (e.g., 160 Cobblestone → 1 Enchanted Cobblestone, 160 Diamonds → 1 Enchanted Diamond).
-  * Drastically multiplies effective storage capacity by 160x.
+  * Automatically compresses 160 base items into their enchanted equivalents (for example, 160 Cobblestone → 1 Enchanted Cobblestone, 160 Diamonds → 1 Enchanted Diamond).
+  * Significantly increases effective storage capacity by compressing items as they are harvested.
+* **Compactor**:
+  * Automatically compacts 9 raw items into their basic 3×3 block forms (such as 9 Iron Ingots → 1 Iron Block).
 * **Auto-Smelter**:
-  * Automatically smelts harvested ores and materials (Cobblestone → Stone, Iron Ore → Iron Ingot, Gold Ore → Gold Ingot, Sand → Glass).
+  * Smelts harvested ores and materials automatically (Cobblestone → Stone, Raw Iron → Iron Ingot, Sand → Glass).
 * **Diamond Spreading**:
-  * Gives a 10% chance to generate an extra Diamond alongside the minion's standard harvest.
+  * Provides a 10% chance to generate a bonus diamond alongside standard harvest actions.
 * **Minion Expander**:
-  * Increases the minion's effective working radius by 1 block in every direction.
+  * Expands the minion's working area by +1 block in all directions (+1 adds a 7×7 area; equipping two expands to 9×9) and grants a small +5% speed bonus.
+* **Flycatcher**:
+  * Grants a passive +20% action speed increase.
 
-Administrators can create unlimited custom upgrades with custom speed boosts, bonus drops, or custom behaviors in-game or via `upgrades.yml`.
+Server owners can also create custom upgrades with unique speed buffs, area increases, or custom behaviors using the in-game studio or `upgrades.yml`.
 
 ---
 
-## 6. Fuel System (Temporary vs. Permanent)
+## 6. Fuel System (Temporary & Permanent)
 
-Fuel items boost minion action speed when placed into **Slot 19**.
+Fuels can be placed into **Slot 19** of the Minion GUI to reduce action delays and accelerate harvest rates.
 
-### Fuel Categories:
-* **Temporary Fuels**: Burn over a duration and disappear once exhausted.
+### Fuel Types:
+* **Temporary Fuels**: Provide a speed increase for a limited duration and are consumed over time.
   * **Coal**: +5% speed for 30 minutes.
   * **Enchanted Bread**: +5% speed for 2 hours.
   * **Enchanted Charcoal**: +20% speed for 36 hours.
-* **Permanent Fuels**: Provide an infinite speed boost that never runs out.
-  * **Enchanted Lava Bucket**: Permanent +25% speed boost.
-  * **Magma Bucket**: Permanent +30% speed boost.
-  * **Plasma Bucket**: Permanent +35% speed boost.
+  * *Stacking*: Adding more of the same temporary fuel extends the existing burn duration.
+* **Permanent Fuels**: Provide a continuous speed buff that does not expire.
+  * **Enchanted Lava Bucket**: +25% speed bonus permanently.
+  * **Magma Bucket**: +30% speed bonus permanently.
+  * **Plasma Bucket**: +35% speed bonus permanently.
+
+*Configurable setting: `settings.destroy-temporary-fuel-on-removal` controls whether actively burning temporary fuel is consumed or returned when manually taken out of the socket.*
 
 ---
 
 ## 7. Cosmetic Minion Skins & Armor Sets
 
-Minion skins transform both the head texture and the armor color/material of minions on your server.
+Cosmetic skins allow players to customize the appearance of their minions without altering their harvest mechanics.
 
-* **Custom Skull Textures**: Authentic offline-bundled heads give each minion a distinctive personality.
-* **Full-Body Armor Sets & Color Tinting**: Equipping a skin styles the ArmorStand with a complete armor set (Chestplate, Leggings, and Boots). When an armor color is specified (e.g. `#D32F2F` or named colors), matching leather armor is dyed with that exact hex/RGB color.
-* **Metallic Armor Materials**: Skins can also equip full metal armor sets (`DIAMOND`, `GOLD`, `IRON`, `NETHERITE`, or `CHAINMAIL`).
-* **Custom Held Items**: Skins can equip weapons, tools, or special items in the minion's main hand (e.g. Swords, Sugar Cane, Emeralds).
-* **Configurable in `skins.yml`**: Define custom server skins directly in `plugins/MinionX/skins.yml` or create them in-game via the Skin Creator Studio. Hot-reload with `/minion reload`.
-* **Skin Socketing**: Equipped through **Slot 10** in the Minion GUI. Left-click with a skin on cursor to apply, or click empty-handed on an active skin to retrieve it safely.
-
----
-
-## 8. The 6 In-Game Visual Studios (Zero YAML Editing)
-
-MinionX provides six graphical studios allowing server staff to create, balance, and modify content directly in-game without touching configuration files or reloading the server:
-
-### 1. Minion Creator Studio (`/minion create`)
-* Configure custom minion archetypes in seconds.
-* Set minion name, held tool, target block/crop/mob, primary and secondary drops, and drop chances.
-* Configure per-minion maximum tier caps (e.g. Tier V, X, or XII).
-
-### 2. Upgrade & Hopper Creator Studio (`/minion create upgrade` or `/minionsx` Slot 50)
-* Create custom automated shipping hoppers, speed catalysts, and accessories live.
-* Select item icon and customize display name.
-* Cycle functions: `AUTO_SELLER` (hoppers), `AUTO_SMELTER`, `COMPACTOR`, `SUPER_COMPACTOR`, `DIAMOND_SPREADING`, or `SPEED_BUFF`.
-* Tune sell ratios (+5% / -5%) and speed percentages with interactive click controls.
-* Test your new upgrade immediately with a sample item and save directly to `upgrades.yml`.
-
-### 3. Fuel Creator Studio (`/minion create fuel`)
-* Configure fuels with custom speed boosts, temporary burn durations, or permanent mode.
-* Toggle enchantment glint and save directly to `fuels.yml`.
-
-### 4. Skin Creator Studio (`/minion create skin`)
-* Create cosmetic minion skins with custom head textures and RGB leather armor colors.
-* Assign custom held weapons and tools.
-
-### 5. Storage Creator Studio (`/minion create storage`)
-* Create custom chest storage expansions with capacities from 1 to 27 slots.
-* Customize display name, lore, and icon.
-
-### 6. Tier Studio (`/minion tier` or `/minion tier <minion_id>`)
-* Interactive tier editor for action delays, storage capacities, and upgrade material costs.
-* Add brand new custom tiers (Tier XIII+) with automatic Roman numeral generation.
+* **Custom Skull Textures**: Supports custom head textures via Base64 textures or standard player usernames.
+* **Complete Armor Sets**: Equipping a skin dresses the minion in matching armor (chestplate, leggings, and boots).
+* **Leather Armor Dyeing**: Supports custom Hex color codes (`#RRGGBB`), RGB values, or standard color names to give leather armor distinct color palettes.
+* **Metallic Armor Styles**: Supports metallic armor sets including Chainmail, Iron, Gold, Diamond, and Netherite.
+* **Handheld Items**: Allows the minion to hold custom tools or items in its main hand (swords, pickaxes, axes, or novelty items).
+* **Equipping**: Placed in **Slot 10** of the Minion GUI. Clicking an active skin with an empty cursor returns it safely to the player's inventory.
 
 ---
 
-## 9. The Operator Command Center (`/minionsx`)
+## 8. Per-Minion Tier Customization
 
-The Operator Command Center (`/minionsx` or `/mxop`) is an administrative management hub:
+Different minion types can be configured with distinct maximum tiers, action delays, storage capacities, and upgrade costs.
 
-* **Minions Catalog (Slot 20)**: Browse all registered minions. Left-click to inspect, right-click to receive Tier I, or Shift-click to receive max Tier XII.
-* **Upgrades Catalog (Slot 22)**: Browse all functional upgrades and shipping hoppers. Click Slot 50 to launch the Upgrade Creator Studio.
-* **Fuels Vault (Slot 24)**: Browse all temporary and permanent fuels. Click Slot 50 to launch the Fuel Creator Studio.
-* **Skins Catalog (Slot 28)**: Browse all cosmetic skins. Click Slot 50 to launch the Skin Creator Studio.
-* **Storages Catalog (Slot 34)**: Browse all storage chest expansion models.
-* **Emergency Quarantine Switch (Slot 51)**: Toggle network-wide anti-dupe lockdown with one click.
+* **Global Defaults**: Defined in `tiers.yml` for Tiers 1 through 12+.
+* **Individual Overrides**: Minions can have custom `max-tier` caps (such as capping a specialized minion at Tier 5 or Tier 10) and custom tier progression tables in `minions.yml`.
+* **GUI Integration**: When a minion reaches its individual maximum tier, the upgrade button in its menu displays a maximum tier indicator.
 
 ---
 
-## 10. Configuration Files Master Guide (Plain English)
+## 9. Multi-Drop Engine & Custom Items
 
-All configuration files are located in `plugins/MinionX/`. Changes can be made directly in text editors or automatically via the In-Game Studios.
+MinionX supports multi-drop tables and custom item frameworks for both harvest yields and compression recipes.
 
-### `config.yml` (Main Configuration)
-Controls core plugin behavior:
-```yaml
-# How often minions perform their work cycle (in server ticks: 20 ticks = 1 second)
-tick-interval: 20
-
-# Maximum number of minions a single player can place by default
-default-player-limit: 5
-
-# Storage database type: YAML, SQLITE, or MYSQL
-storage:
-  type: YAML
-
-# Protection hooks automatically detected and respected
-protection:
-  worldguard: true
-  griefprevention: true
-  towny: true
-  lands: true
-  bentobox: true
-```
-
-### `prices.yml` (Economy & Custom Item Prices)
-Defines base NPC sell prices used by Automated Shipping hoppers when storage is full. Supports vanilla materials, compressed enchanted items, and full custom items:
-```yaml
-default-price: 1.0
-
-# Base NPC prices per single item
-prices:
-  COBBLESTONE: 1.0
-  COAL: 2.0
-  IRON_INGOT: 3.0
-  GOLD_INGOT: 4.0
-  DIAMOND: 8.0
-  EMERALD: 6.0
-  OBSIDIAN: 12.0
-  PUMPKIN: 4.0
-  MELON: 1.0
-  OAK_LOG: 2.0
-  ROTTEN_FLESH: 1.0
-  
-  # Compressed / Enchanted item prices (Super Compactor 3000)
-  ENCHANTED_COBBLESTONE: 160.0
-  ENCHANTED_DIAMOND: 1280.0
-  ENCHANTED_IRON: 480.0
-
-# Custom items pricing table (supports ItemsAdder, MMOItems, custom display names, CMD, and PDC)
-custom-prices:
-  ruby_gem:
-    item: "itemsadder:ruby"
-    price: 50.0
-  mythic_crystal:
-    material: EMERALD
-    custom-model-data: 1001
-    price: 250.0
-  custom_named_drop:
-    display-name: "&aEnchanted Cobblestone"
-    price: 160.0
-```
-
-### `tiers.yml` (Global Speeds, Slots & Costs)
-Defines the speed cooldown, storage slots, and upgrade costs for Tiers 1 through 12+:
-```yaml
-tiers:
-  1:
-    speed: 14.0       # Delay in seconds between actions
-    storage-slots: 1  # Inventory slots unlocked
-    upgrade-cost: 0
-  5:
-    speed: 11.0
-    storage-slots: 6
-    upgrade-cost: 512
-  11:
-    speed: 6.5
-    storage-slots: 15
-    upgrade-cost: 256
-```
-
-### `upgrades.yml` (Custom Upgrades & Hoppers)
-Defines functional accessories and automated shipping hoppers:
-```yaml
-upgrades:
-  budget_hopper:
-    display-name: "&fBudget Hopper"
-    material: HOPPER
-    type: AUTO_SELLER
-    sell-ratio: 0.50   # Sells for 50% of NPC price
-    glow: false
-  enchanted_hopper:
-    display-name: "&aEnchanted Hopper"
-    material: HOPPER
-    type: AUTO_SELLER
-    sell-ratio: 0.90   # Sells for 90% of NPC price
-    glow: true
-  auto_smelter:
-    display-name: "&aAuto-Smelter"
-    material: FURNACE
-    type: AUTO_SMELTER
-  super_compactor_3000:
-    display-name: "&dSuper Compactor 3000"
-    material: DROPPER
-    type: SUPER_COMPACTOR
-```
-
-### `fuels.yml` (Fuels & Speed Boosts)
-Defines temporary and permanent fuels:
-```yaml
-fuels:
-  enchanted_charcoal:
-    display-name: "&aEnchanted Charcoal"
-    material: CHARCOAL
-    speed-buff: 0.20   # +20% faster
-    duration: 36h      # Burns for 36 hours
-    glow: true
-  enchanted_lava_bucket:
-    display-name: "&aEnchanted Lava Bucket"
-    material: LAVA_BUCKET
-    speed-buff: 0.25   # +25% faster
-    duration: -1       # -1 means permanent (infinite)
-    glow: true
-```
-
-### `skins.yml` (Cosmetic Skins & Armor Sets)
-Defines cosmetic skins with custom skull textures, armor colors, materials, and held tools:
-```yaml
-skins:
-  santa:
-    display-name: "&cSanta Minion Skin"
-    skull-texture: "<base64_texture>"
-    armor-color: "#D32F2F"          # Hex (#RRGGBB), RGB (255,85,85), or Name (RED, BLUE)
-    armor-material: LEATHER         # Sets armor material (LEATHER for full dyed armor)
-    hand-item: SUGAR_CANE           # Optional held weapon/tool
-    description:
-      - "&7Ho ho ho! A festive Christmas"
-      - "&7skin for your hardworking minion."
-
-  golden_king:
-    display-name: "&6Golden King Skin"
-    skull-texture: "<base64_texture>"
-    armor-material: GOLD            # Metallic armor (GOLD, IRON, DIAMOND, NETHERITE)
-    hand-item: GOLDEN_SWORD
-    description:
-      - "&7A royal skin adorned with"
-      - "&7gleaming gold and majesty."
-```
-
-### `storages.yml` (Storage Expansion Capacities)
-Defines external storage expansion chest models:
-```yaml
-storages:
-  small_storage:
-    display-name: "&aSmall Minion Storage"
-    capacity: 3
-    material: CHEST
-  large_storage:
-    display-name: "&5Large Minion Storage"
-    capacity: 15
-    material: CHEST
-```
-
-### `minions.yml` (Minion Types & Drops)
-Defines each minion type, target block/mob, and drops:
-```yaml
-minions:
-  cobblestone:
-    display-name: "&aCobblestone"
-    archetype: MINER
-    target-block: COBBLESTONE
-    max-tier: 12
-    primary-drop:
-      material: COBBLESTONE
-      amount: 1
-```
-
-### `recipes.yml` (Super Compactor Recipes)
-Defines compression rules for the Super Compactor 3000:
-```yaml
-compression-recipes:
-  enchanted_cobblestone:
-    input: COBBLESTONE
-    input-amount: 160
-    output:
-      material: COBBLESTONE
-      display-name: "&aEnchanted Cobblestone"
-      glow: true
-```
+### Drop Capabilities:
+* **Multiple Drops per Harvest**: A minion can produce primary and secondary items simultaneously (such as a Blaze minion yielding Blaze Rods at 100% and Magma Cream at 50%).
+* **Drop Probabilities**: Each drop supports a decimal percentage chance (`1.0` = 100%, `0.33` = 33%).
+* **Custom Item Attributes**: Supports custom display names, lore lines, CustomModelData numbers, enchantment glints, and PersistentDataContainer (PDC) keys.
+* **Plugin Integrations**: Directly references items from plugins such as ItemsAdder (`itemsadder:ruby`), MMOItems (`mmoitems:TYPE_ID`), or Oraxen.
+* **Metadata Protection**: The compression engine strictly respects custom item metadata, preventing vanilla recipes from accidentally consuming items that have custom names or models.
 
 ---
 
-## 11. Supported Land Claim Integrations
+## 10. Offline Production & Catch-Up
 
-MinionX natively hooks into all major protection and claim plugins:
-* **WorldGuard**: Requires `build: allow` and `block-place: allow` flags.
-* **GriefPrevention**: Requires claim trust permission.
-* **Towny**: Requires resident building permission in the plot.
-* **Lands**: Requires placement and container access flags.
-* **BentoBox**: Respects island member permissions.
+When chunks unload or the server restarts, minions calculate their production using an offline catch-up calculation upon reload:
 
----
-
-## 12. Anti-Dupe Security & Emergency Quarantine Mode
-
-MinionX includes enterprise security safeguards:
-* **Atomic Persistence**: Minion inventory updates and transactions are atomic.
-* **Anti-Glitch Hopper Movement**: Storage chests cannot be accessed or siphoned by hoppers.
-* **Emergency Quarantine Switch**:
-  * Run `/minion quarantine on` (or click Slot 51 in `/minionsx`).
-  * Instantly freezes all minion interactions, harvesting, item withdrawals, and placements across the entire server.
-  * Run `/minion quarantine off` to restore normal operation once maintenance is complete.
+* **Time-Segmented Calculation**: The engine evaluates elapsed time since the minion's last action, accounting for fuel expiration boundaries during the offline window.
+* **Capacity Saturation**: Completed production cycles are simulated sequentially. If storage reaches capacity, all completed cycles that fit are credited, the minion transitions to the `FULL` state, and the remaining offline duration does not accumulate unearned backlogs.
+* **Overflow Handling**: If an Automated Shipping hopper is equipped, overflow items from filled storage convert into coins at the configured sell ratio.
+* **Offline Limit**: The maximum simulated offline period can be capped in `config.yml` (default: 720 hours / 30 days).
 
 ---
 
-## 13. Commands & Permissions Reference
+## 11. RPG Skill Rewards & Collections
+
+Collecting resources from minions can reward players with skill experience and advance server-wide collections.
+
+### Skill Integrations:
+* **Supported Plugins**: Hooks into **AuraSkills**, **EcoSkills**, and **mcMMO**.
+* **Experience Rewards**: When players claim items using "Collect All" or by clicking storage slots, skill experience is granted based on the minion type (such as Mining XP for ore minions, Foraging XP for wood minions, or Farming XP for crop minions).
+* **Configuration**: Experience values and associated skill names are customizable in `config.yml` under `skill-rewards`.
+
+### Collection Integrations:
+* **EcoCollections & SuperiorSkyblock2**: Automatically updates player and island collection statistics upon resource collection.
+* **Custom Command Rewards**: Configurable commands can be triggered when players harvest resources (defined in `config.yml` under `collection-rewards`).
+
+---
+
+## 12. Dialogue & Visual Displays
+
+Minions feature dynamic visual cues and floating status displays to provide feedback to players.
+
+### Hologram Nametags:
+* Rendered using lightweight modern display entities.
+* Displays minion tier (in Roman numerals), name, and current status (`Idle`, `Generating`, `Full`, etc.).
+* **Display Modes** (`config.yml`):
+  * `ALWAYS`: Nametag remains visible at all times.
+  * `TARGETED`: Nametag displays when a player looks toward the minion within interaction range.
+  * `DISABLED`: Hides floating nametags.
+
+### Speech Dialogues:
+* Minions can occasionally display dialogue messages in a speech bubble above their head when working or interacting with their owner.
+* Configurable dialogue text, appearance chances, and display durations are managed under `dialogues` in `config.yml`.
+
+---
+
+## 13. In-Game Creator Studios
+
+MinionX provides interactive in-game menus allowing administrators to configure content without manual file editing:
+
+* **Minion Creator (`/minion create`)**: Configure new minion types, target blocks or mobs, held items, primary/secondary drops, and tier limits.
+* **Upgrade Creator (`/minion create upgrade`)**: Create custom automated shipping hoppers, compactors, speed catalysts, and accessories with adjustable sell ratios and speed boosts.
+* **Fuel Creator (`/minion create fuel`)**: Create fuels with custom durations, speed multipliers, and glint effects.
+* **Skin Creator (`/minion create skin`)**: Design cosmetic skins with custom skull textures, leather dye colors, and held equipment.
+* **Storage Creator (`/minion create storage`)**: Create custom minion storage chests from 1 to 27 slots.
+* **Tier Editor (`/minion tier` or `/minion tier <id>`)**: Adjust action delays, storage slot counts, and upgrade costs live. Supports creating custom tiers beyond Tier XII.
+
+---
+
+## 14. The Operator Command Center (`/minionsx`)
+
+The Operator Command Center (`/minionsx` or `/mxop`) provides an administrative dashboard:
+
+* **Minions Catalog (Slot 20)**: Inspect registered minions and claim test copies.
+* **Upgrades Catalog (Slot 22)**: Browse all upgrades and launch the Upgrade Creator Studio.
+* **Fuels Vault (Slot 24)**: Browse temporary and permanent fuels and launch the Fuel Creator Studio.
+* **Skins Catalog (Slot 28)**: Browse available skins with direct item delivery.
+* **Storages Catalog (Slot 34)**: Browse external storage chest models.
+* **Emergency Quarantine (Slot 51)**: Quickly toggle quarantine mode across the server.
+
+---
+
+## 15. Configuration Files Guide
+
+All settings are neatly separated across dedicated files in `plugins/MinionX/`:
+
+| File | Purpose |
+|---|---|
+| `config.yml` | General server settings, limits, storage backends, display options, and skill hooks. |
+| `tiers.yml` | Default action delays, storage slot counts, and upgrade costs per tier. |
+| `minions.yml` | Minion types, target blocks/mobs, drop tables, and per-minion tier overrides. |
+| `fuels.yml` | Temporary and permanent fuel definitions and speed multipliers. |
+| `upgrades.yml` | Functional accessories, compactors, auto-smelters, and shipping hoppers. |
+| `skins.yml` | Cosmetic skin definitions, armor colors, and held items. |
+| `storages.yml` | Minion storage chest models and capacities. |
+| `prices.yml` | Base NPC prices used by shipping hoppers to calculate sell earnings. |
+| `recipes.yml` | Compression recipes used by the Super Compactor 3000. |
+| `messages.yml` | Configurable chat messages, prefixes, and minion dialogue lines. |
+
+---
+
+## 16. Land Claim & Protection Integrations
+
+MinionX checks placement and interaction permissions against major protection plugins:
+
+* **WorldGuard**: Checks build and block placement permissions.
+* **GriefPrevention**: Respects claim trust permissions.
+* **Towny**: Verifies resident plot build permissions.
+* **Lands**: Respects container and placement flags.
+* **BentoBox & SuperiorSkyblock2**: Respects island member and visitor permissions.
+
+---
+
+## 17. Security & Emergency Quarantine
+
+MinionX includes safety controls designed to protect player data and prevent unauthorized item movement:
+
+* **Thread-Safe Data Handling**: Persistence flushes occur on a dedicated worker while snapshotting occurs on the primary server thread.
+* **Container Isolation**: Storage chests cannot be accessed by vanilla hoppers, droppers, or minecarts.
+* **Emergency Quarantine Mode (`/minion quarantine on`)**:
+  * Temporarily freezes minion item collection, placement, and pickup across the server.
+  * Allows administrators to perform maintenance or investigations safely.
+  * Run `/minion quarantine off` to return minions to normal operation.
+
+---
+
+## 18. Commands & Permissions Reference
 
 ### Commands:
 | Command | Permission | Description |
 |---|---|---|
 | `/minionsx` or `/mxop` | `minionx.admin` | Opens the Operator Command Center. |
-| `/minion create` | `minionx.admin` | Opens the Minion Creator Studio. |
-| `/minion create upgrade` | `minionx.admin` | Opens the Upgrade & Hopper Creator Studio. |
-| `/minion create fuel` | `minionx.admin` | Opens the Fuel Creator Studio. |
-| `/minion create skin` | `minionx.admin` | Opens the Skin Creator Studio. |
-| `/minion create storage` | `minionx.admin` | Opens the Storage Creator Studio. |
-| `/minion tier` | `minionx.admin` | Opens the Global Tier Studio. |
-| `/minion tier <id>` | `minionx.admin` | Opens the Per-Minion Tier Studio. |
-| `/minion give <player> <item> [tier]` | `minionx.admin` | Gives a minion, fuel, upgrade, or storage item. |
-| `/minion quarantine [on\|off\|status]` | `minionx.admin` | Toggles emergency quarantine lockdown. |
+| `/minion create [type]` | `minionx.admin` | Opens the in-game creator studio (`minion`, `fuel`, `skin`, `upgrade`, `storage`). |
+| `/minion tier [id]` | `minionx.admin` | Opens the Global or Per-Minion Tier Studio. |
+| `/minion give <player> <item> [tier]` | `minionx.admin` | Gives a minion head, fuel, upgrade, skin, or storage item. |
 | `/minion limit <check\|set\|add> <player>` | `minionx.admin` | Manages player placement limits. |
-| `/minion reload` | `minionx.admin` | Reloads all configuration files and registries. |
+| `/minion quarantine [on\|off\|status]` | `minionx.admin` | Toggles emergency quarantine mode. |
+| `/minion list` | `minionx.use` | Lists a player's placed minions and locations. |
+| `/minion claim` | `minionx.use` | Recovers any escrow items held if the player's inventory was full during a previous pickup. |
+| `/minion recover [list\|resolve]` | `minionx.admin` | Audits and resolves quarantined escrow operations with an explicit audit reason. |
+| `/minion killall` | `minionx.admin` | Removes all active minion entities across the world. |
+| `/minion reload` | `minionx.admin` | Reloads all configuration files and item registries. |
 
 ### Permissions:
-* `minionx.use`: Allows players to place and manage their own minions (Default: `true`).
-* `minionx.admin`: Complete administrative access to all studios, `/minionsx`, and commands (Default: `op`).
+* `minionx.use`: Allows players to place, interact with, and view their minions (Default: `true`).
+* `minionx.admin`: Access to administrative commands, studios, and `/minionsx` (Default: `op`).
+* `minionx.bypass.limit`: Bypasses the placed minion limit.
+* `minionx.limit.<number>`: Sets a custom placed minion limit for a player or permission group.
 
 ---
 
-## 14. Frequently Asked Questions (FAQ)
+## 19. Frequently Asked Questions (FAQ)
 
-**Q: Do minions cause server lag with large player bases?**  
-A: No. Minion armor stands do not tick (`setCanTick(false)`), holograms use display entities, and unloaded minions use mathematical catch-up upon chunk reload.
+**Q: How does Automated Shipping sell items when storage fills up?**  
+A: When both the minion's internal inventory and any linked storage chest are full, equipped hoppers automatically sell further harvested items using prices in `prices.yml`. Earned coins accumulate in the hopper slot and can be collected at any time.
 
-**Q: How does Automated Shipping sell items when the storage is full?**  
-A: Equipped Budget (50%) or Enchanted (90%) hoppers calculate sell earnings from `prices.yml` and accumulate coins directly in the hopper slot. Players click the hopper or "Collect All" to claim coins.
+**Q: Can players take items from another player's minion chest?**  
+A: No. Storage chests are protected by owner verification. Only the minion's owner or an operator can open the chest, and items can only be withdrawn.
 
-**Q: Can other players steal items from my minion storage chest?**  
-A: No. Minion storage chests are protected by owner verification and are strictly withdrawal-only. Vanilla hoppers cannot siphon items from them.
+**Q: How does offline catch-up work?**  
+A: When an unloaded chunk reloads or the server restarts, MinionX calculates production for the elapsed time in constant time, accounting for active fuels, applying compaction recipes, and stopping gracefully if storage reaches capacity.
 
-**Q: Can I create custom minions with custom speeds and unique drops?**  
-A: Yes! Use the in-game studio (`/minion create`) or edit `minions.yml` to define any minion with any custom drops, tools, and tier caps.
+**Q: Can custom minions have different maximum tiers?**  
+A: Yes. You can set `max-tier` in `minions.yml` or through `/minion create` to limit specific minions to any tier you prefer.

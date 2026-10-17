@@ -30,12 +30,24 @@ public class MockSqlHelper {
         public final List<String> transactionEvents = new ArrayList<>();
         public boolean autoCommit = true;
         public boolean throwOnExecute = false;
+        public String databaseProductName = "SQLite";
+
+        public final Set<String> minions = new HashSet<>();
+        public final Map<String, String> pendingOperationStates = new HashMap<>();
+        public final Map<String, String> pendingOperationMinions = new HashMap<>();
+        public final Map<String, String> pendingOperationPlayers = new HashMap<>();
+        public final Map<String, String> pendingOperationPayloads = new HashMap<>();
+        public final Map<String, Double> minionCoins = new HashMap<>();
+        public final Map<String, String> tombstoneOperations = new HashMap<>();
+        public Integer defaultUpdateCount = null;
+        public boolean trackMinionPresence = false;
 
         public int currentSchemaVersion = 0;
         public boolean minionItemsTableExists = true;
         public boolean containerTypeColumnExists = false;
         public final Set<String> existingMinionsColumns = new HashSet<>();
         public final List<PendingOperation> pendingOperations = new ArrayList<>();
+        public final Map<String, Long> tombstones = new HashMap<>();
 
         public State() {
             // Default legacy columns in minions table (v1)
@@ -132,6 +144,9 @@ public class MockSqlHelper {
                         if (sql.toUpperCase().contains("SELECT OPERATION_ID")) {
                             return createPendingOperationsResultSet(state.pendingOperations);
                         }
+                        if (sql.toUpperCase().contains("MINION_TOMBSTONES")) {
+                            return createTombstonesResultSet(state.tombstones);
+                        }
                         return createEmptyResultSet();
                     }
                     if ("close".equals(name)) {
@@ -160,12 +175,140 @@ public class MockSqlHelper {
                         if (state.throwOnExecute) {
                             throw new SQLException("Simulated database error for rollback test");
                         }
-                        return 1;
+                        String upper = sql.toUpperCase();
+                        if (upper.startsWith("DELETE FROM MINIONS WHERE ID = ?")) {
+                            if (state.defaultUpdateCount != null) {
+                                return state.defaultUpdateCount;
+                            }
+                            if (state.trackMinionPresence) {
+                                String id = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                                if (id != null && state.minions.contains(id)) {
+                                    state.minions.remove(id);
+                                    return 1;
+                                }
+                                return 0;
+                            }
+                            return 1;
+                        }
+                        if (upper.contains("MINION_PENDING_OPERATIONS SET STATE = 'PAYOUT_FAILED'")) {
+                            String opId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            String curState = state.pendingOperationStates.get(opId);
+                            if ("ATTEMPTED".equals(curState)) {
+                                state.pendingOperationStates.put(opId, "PAYOUT_FAILED");
+                                return 1;
+                            }
+                            return 0;
+                        }
+                        if (upper.contains("MINION_PENDING_OPERATIONS SET STATE = 'CONFIRMED'")) {
+                            String opId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            String curState = state.pendingOperationStates.get(opId);
+                            if ("ATTEMPTED".equals(curState)) {
+                                state.pendingOperationStates.put(opId, "CONFIRMED");
+                                return 1;
+                            }
+                            return 0;
+                        }
+                        if (upper.contains("SET STATE = 'DELIVERY_ATTEMPTED'")) {
+                            String opId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            String curState = state.pendingOperationStates.get(opId);
+                            if ("MINION_REMOVED".equalsIgnoreCase(curState)) {
+                                state.pendingOperationStates.put(opId, "DELIVERY_ATTEMPTED");
+                                return 1;
+                            }
+                            return 0;
+                        }
+                        if (upper.contains("SET STATE = 'COMPLETED'")) {
+                            String opId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            String curState = state.pendingOperationStates.get(opId);
+                            if ("DELIVERY_ATTEMPTED".equalsIgnoreCase(curState)) {
+                                state.pendingOperationStates.put(opId, "COMPLETED");
+                                return 1;
+                            }
+                            return 0;
+                        }
+                        if (upper.contains("INSERT INTO MINION_TOMBSTONES")) {
+                            String mId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            String opId = call.parameters.get(2) != null ? call.parameters.get(2).toString() : null;
+                            if (mId != null) {
+                                if (opId != null) state.tombstoneOperations.put(mId, opId);
+                                state.tombstones.put(mId, 1L);
+                            }
+                            return 1;
+                        }
+                        if (upper.contains("INSERT INTO MINION_PENDING_OPERATIONS")) {
+                            String opId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            String mId = call.parameters.get(2) != null ? call.parameters.get(2).toString() : null;
+                            String pId = call.parameters.get(3) != null ? call.parameters.get(3).toString() : null;
+                            String st = "ATTEMPTED";
+                            if (call.parameters.get(4) != null) {
+                                String p4 = call.parameters.get(4).toString();
+                                if (!p4.matches("\\d+")) {
+                                    st = p4;
+                                }
+                            }
+                            String payload = call.parameters.get(6) != null ? call.parameters.get(6).toString() : (call.parameters.get(5) != null ? call.parameters.get(5).toString() : null);
+                            if (opId != null) {
+                                state.pendingOperationStates.put(opId, st);
+                                if (mId != null) state.pendingOperationMinions.put(opId, mId);
+                                if (pId != null) state.pendingOperationPlayers.put(opId, pId);
+                                if (payload != null) state.pendingOperationPayloads.put(opId, payload);
+                            }
+                            return 1;
+                        }
+                        if (upper.contains("UPDATE MINIONS SET SHIPPING_COINS = ROUND(SHIPPING_COINS - ?") || upper.contains("UPDATE MINIONS SET SHIPPING_COINS = SHIPPING_COINS - ?")) {
+                            String mId = call.parameters.get(2) != null ? call.parameters.get(2).toString() : (call.parameters.get(3) != null ? call.parameters.get(3).toString() : null);
+                            double amt = call.parameters.get(1) instanceof Number n ? n.doubleValue() : 0.0;
+                            if (mId != null) {
+                                double cur = state.minionCoins.getOrDefault(mId, 0.0);
+                                state.minionCoins.put(mId, Math.max(0.0, cur - amt));
+                            }
+                            return 1;
+                        }
+                        if (upper.contains("UPDATE MINIONS SET SHIPPING_COINS = ROUND(SHIPPING_COINS + ?") || upper.contains("UPDATE MINIONS SET SHIPPING_COINS = SHIPPING_COINS + ?")) {
+                            String mId = call.parameters.get(2) != null ? call.parameters.get(2).toString() : null;
+                            double amt = call.parameters.get(1) instanceof Number n ? n.doubleValue() : 0.0;
+                            if (mId != null) {
+                                double cur = state.minionCoins.getOrDefault(mId, 0.0);
+                                state.minionCoins.put(mId, cur + amt);
+                            }
+                            return 1;
+                        }
+                        return state.defaultUpdateCount != null ? state.defaultUpdateCount : 1;
                     }
                     if ("executeQuery".equals(name)) {
                         state.executedStatements.add(sql);
-                        if (sql.toUpperCase().contains("MINION_SCHEMA_VERSION")) {
+                        String upper = sql.toUpperCase();
+                        if (upper.contains("MINION_SCHEMA_VERSION")) {
                             return createSchemaVersionResultSet(state.currentSchemaVersion);
+                        }
+                        if (upper.contains("MINION_TOMBSTONES WHERE MINION_ID = ? AND OPERATION_ID = ?")) {
+                            String mId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            String opId = call.parameters.get(2) != null ? call.parameters.get(2).toString() : null;
+                            if (mId != null && opId != null && opId.equals(state.tombstoneOperations.get(mId))) {
+                                return createSingleRowResultSet();
+                            }
+                            return createEmptyResultSet();
+                        }
+                        if (upper.contains("SELECT 1 FROM MINIONS WHERE ID = ?")) {
+                            String mId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            if (mId != null && state.minions.contains(mId)) {
+                                return createSingleRowResultSet();
+                            }
+                            return createEmptyResultSet();
+                        }
+                        if (upper.contains("FROM MINION_PENDING_OPERATIONS WHERE OPERATION_ID = ?")) {
+                            String opId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            if (opId != null && state.pendingOperationStates.containsKey(opId)) {
+                                String opState = state.pendingOperationStates.get(opId);
+                                String mId = state.pendingOperationMinions.getOrDefault(opId, "");
+                                String pId = state.pendingOperationPlayers.getOrDefault(opId, "");
+                                String payload = state.pendingOperationPayloads.getOrDefault(opId, "");
+                                return createSinglePendingOpResultSet(opId, mId, pId, opState, payload);
+                            }
+                            return createEmptyResultSet();
+                        }
+                        if (upper.contains("MINION_TOMBSTONES")) {
+                            return createTombstonesResultSet(state.tombstones);
                         }
                         return createEmptyResultSet();
                     }
@@ -173,6 +316,7 @@ public class MockSqlHelper {
                         return null;
                     }
                     if ("executeBatch".equals(name)) {
+                        state.executedStatements.add(sql);
                         return new int[]{1};
                     }
                     if ("close".equals(name)) {
@@ -190,7 +334,7 @@ public class MockSqlHelper {
                 (proxy, method, args) -> {
                     String name = method.getName();
                     if ("getDatabaseProductName".equals(name)) {
-                        return "SQLite";
+                        return state.databaseProductName;
                     }
                     if ("getTables".equals(name)) {
                         String tableName = args != null && args.length >= 3 && args[2] != null ? args[2].toString() : "";
@@ -327,9 +471,89 @@ public class MockSqlHelper {
                         if ("minion_id".equalsIgnoreCase(col)) return cur[0].minionId().toString();
                         if ("player_uuid".equalsIgnoreCase(col)) return cur[0].playerUuid().toString();
                         if ("state".equalsIgnoreCase(col)) return cur[0].state();
+                        if ("payload".equalsIgnoreCase(col)) return cur[0].payload();
                     }
                     if ("getLong".equals(name)) {
                         return cur[0].createdAt();
+                    }
+                    if ("close".equals(name)) return null;
+                    return defaultValue(method.getReturnType());
+                }
+        );
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static ResultSet createTombstonesResultSet(Map<String, Long> tombstones) {
+        Iterator<Map.Entry<String, Long>> it = tombstones.entrySet().iterator();
+        final Map.Entry<String, Long>[] cur = new Map.Entry[1];
+        return (ResultSet) Proxy.newProxyInstance(
+                ResultSet.class.getClassLoader(),
+                new Class<?>[]{ResultSet.class},
+                (proxy, method, args) -> {
+                    String name = method.getName();
+                    if ("next".equals(name)) {
+                        if (it.hasNext()) {
+                            cur[0] = it.next();
+                            return true;
+                        }
+                        return false;
+                    }
+                    if ("getString".equals(name)) {
+                        return cur[0].getKey();
+                    }
+                    if ("getLong".equals(name)) {
+                        return cur[0].getValue();
+                    }
+                    if ("close".equals(name)) return null;
+                    return defaultValue(method.getReturnType());
+                }
+        );
+    }
+
+    private static ResultSet createSingleRowResultSet() {
+        final boolean[] read = {false};
+        return (ResultSet) Proxy.newProxyInstance(
+                ResultSet.class.getClassLoader(),
+                new Class<?>[]{ResultSet.class},
+                (proxy, method, args) -> {
+                    String name = method.getName();
+                    if ("next".equals(name)) {
+                        if (!read[0]) {
+                            read[0] = true;
+                            return true;
+                        }
+                        return false;
+                    }
+                    if ("close".equals(name)) return null;
+                    return defaultValue(method.getReturnType());
+                }
+        );
+    }
+
+    private static ResultSet createSinglePendingOpResultSet(String opId, String minionId, String playerUuid, String opState, String payload) {
+        final boolean[] read = {false};
+        return (ResultSet) Proxy.newProxyInstance(
+                ResultSet.class.getClassLoader(),
+                new Class<?>[]{ResultSet.class},
+                (proxy, method, args) -> {
+                    String name = method.getName();
+                    if ("next".equals(name)) {
+                        if (!read[0]) {
+                            read[0] = true;
+                            return true;
+                        }
+                        return false;
+                    }
+                    if ("getString".equals(name)) {
+                        String col = (String) args[0];
+                        if ("operation_id".equalsIgnoreCase(col)) return opId;
+                        if ("minion_id".equalsIgnoreCase(col)) return minionId;
+                        if ("player_uuid".equalsIgnoreCase(col)) return playerUuid;
+                        if ("state".equalsIgnoreCase(col)) return opState;
+                        if ("payload".equalsIgnoreCase(col)) return payload;
+                    }
+                    if ("getLong".equals(name)) {
+                        return System.currentTimeMillis();
                     }
                     if ("close".equals(name)) return null;
                     return defaultValue(method.getReturnType());

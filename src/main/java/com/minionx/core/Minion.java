@@ -363,8 +363,51 @@ public class Minion {
         return u != null && u.isAutoSeller();
     }
 
+    private double reservedShippingCoins = 0.0;
+
     public double getShippingCoins() {
         return shippingCoinsMicros > 0 ? shippingCoinsMicros / 1_000_000.0 : shippingCoins;
+    }
+
+    public double getClaimableShippingCoins() {
+        return getShippingCoins();
+    }
+
+    public double getReservedShippingCoins() {
+        return reservedShippingCoins;
+    }
+
+    public void setReservedShippingCoins(double reserved) {
+        this.reservedShippingCoins = Math.max(0.0, reserved);
+    }
+
+    public double getTotalShippingCoins() {
+        return getShippingCoins() + reservedShippingCoins;
+    }
+
+    public synchronized boolean reserveClaimableCoins(double amount) {
+        double claimable = getShippingCoins();
+        if (amount <= 0.0 || claimable < amount - 0.00001) {
+            return false;
+        }
+        double remaining = Math.max(0.0, claimable - amount);
+        this.shippingCoins = remaining;
+        this.shippingCoinsMicros = Math.round(remaining * 1_000_000.0);
+        this.reservedShippingCoins += amount;
+        return true;
+    }
+
+    public synchronized void cancelReservedCoins() {
+        if (this.reservedShippingCoins > 0.0) {
+            double restore = this.reservedShippingCoins;
+            this.reservedShippingCoins = 0.0;
+            addShippingCoins(restore);
+        }
+    }
+
+    public synchronized void commitReservedCoins() {
+        this.reservedShippingCoins = 0.0;
+        advanceStateRevision();
     }
 
     public void setShippingCoins(double coins) {
@@ -553,9 +596,13 @@ public class Minion {
 
         // 4. Automated Shipping: auto-sell remaining items when full
         if (hasAutoSeller() && toAdd.getAmount() > 0) {
+            double unitPrice = com.minionx.api.PriceRegistry.getPrice(toAdd);
+            if (unitPrice <= 0.0) {
+                // Decision 6: Unpriced items cannot be sold for 0 coins or destroyed for free
+                return false;
+            }
             CustomUpgrade hopper = getShippingUpgrade();
             double ratio = (hopper != null && hopper.getSellRatio() > 0) ? hopper.getSellRatio() : 0.50;
-            double unitPrice = com.minionx.api.PriceRegistry.getPrice(toAdd);
             double earned = unitPrice * toAdd.getAmount() * ratio;
             addShippingCoins(earned);
             toAdd.setAmount(0);
@@ -923,6 +970,10 @@ public class Minion {
         return stateRevision.get();
     }
 
+    public void setStateRevision(long revision) {
+        this.stateRevision.set(revision);
+    }
+
     public long advanceStateRevision() {
         return stateRevision.incrementAndGet();
     }
@@ -941,11 +992,13 @@ public class Minion {
 
     public void sleepFull() {
         this.isFullSleeping.set(true);
+        advanceSchedulingGeneration();
     }
 
     public void wakeUp() {
         if (this.isFullSleeping.compareAndSet(true, false)) {
             advanceStateRevision();
+            advanceSchedulingGeneration();
         }
     }
 

@@ -1,10 +1,7 @@
 # ==============================================================================
 # MinionX - Custom Minions Configuration (minions.yml)
 # ==============================================================================
-# In addition to the 35+ built-in Hypixel minions included by default (Cobblestone,
-# Diamond, Wheat, Oak, Zombie, etc.), server owners can define unlimited brand-new,
-# custom data-driven minions here.
-#
+# You Can Define new minions from here 
 # Supported Archetypes & How They Operate:
 #   MINING   - Places its target ore/block on valid ground within its 5x5 area,
 #              then mines and harvests it into its inventory.
@@ -17,7 +14,7 @@
 #              Supports vanilla entities (ZOMBIE, SKELETON, BLAZE, SPIDER, etc.)
 #              AND MythicMobs (e.g. `target-mob: "MYTHIC_SKELETON_KING"`).
 #
-# Unified Drop Schema:
+# Unified Drop Structure:
 #   drops:
 #     - material: <MATERIAL|HOOK>  # Vanilla Material or Hook (e.g., itemsadder:ruby)
 #       amount: 1                  # Quantity per drop

@@ -2,15 +2,15 @@
 # MinionX - Autonomous Minions Configuration
 # ==============================================================================
 # Welcome to MinionX!
-# To keep this configuration file clean and easy to navigate, modular settings
+# To keep this configuration file clean and easy to navigate, settings
 # have been organized into dedicated files:
 #
-#   - tiers.yml     : Minion tiers (1-12+), action speeds, storage, and costs
-#   - minions.yml   : Custom minions with multi-drop chances & equipment
-#   - fuels.yml     : Custom fuels, speed buffs, durations & glowing effects
-#   - upgrades.yml  : Custom upgrades, accessories, hoppers & expanders
-#   - recipes.yml   : Super Compactor 3000 compression recipes
-#   - messages.yml  : Chat messages, broadcasts, alerts & minion dialogues
+#   - tiers.yml     : for Minion tiers, action speeds, storage, and costs
+#   - minions.yml   : for Custom minions with multi-drop chances & equipment
+#   - fuels.yml     : for Custom fuels, speed buffs, durations & glowing effects
+#   - upgrades.yml  : for Custom upgrades, accessories, hoppers & expanders
+#   - recipes.yml   : for COmpactor/Super Compactor 3000 compression recipes
+#   - messages.yml  : for Chat messages, broadcasts, alerts & minion dialogues
 # ==============================================================================
 
 settings:
@@ -114,7 +114,7 @@ nametags:
   format: "&e[Lv.%tier_roman%] &a%minion_name% Minion &7(%status%&7)"
 
 # ==============================================================================
-# RPG SKILL REWARDS (AuraSkills, EcoSkills, & mcMMO)
+# SKILL integration (AuraSkills, EcoSkills, & mcMMO)
 # ==============================================================================
 # Grants skill experience points to players when collecting resources from minions.
 # Automatically detects and hooks into:
@@ -213,9 +213,9 @@ skill-rewards:
 # ==============================================================================
 # COLLECTION SYSTEM & COMMAND REWARDS
 # ==============================================================================
-# MinionX features native, plug-and-play integrations for top collection plugins:
-#   * EcoCollections: Automatically detected and credited via direct API.
-#   * SuperiorSkyblock2: Automatically forwards progress to Island Collections.
+# Supports:
+#    EcoCollections: Automatically detected and credited via direct API.
+#    SuperiorSkyblock2: Automatically forwards progress to Island Collections.
 #
 # NOTE: If you are using EcoCollections or SuperiorSkyblock2, NO commands are
 # needed below; collections will update automatically out of the box!

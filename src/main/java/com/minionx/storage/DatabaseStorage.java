@@ -14,6 +14,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 
 import java.io.File;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.*;
 import java.util.*;
 import java.util.logging.Level;
@@ -24,13 +26,37 @@ import java.util.logging.Level;
  */
 public class DatabaseStorage {
 
-    public static final int CURRENT_SCHEMA_VERSION = 2;
+    public static final int CURRENT_SCHEMA_VERSION = 3;
 
     private final MinionX plugin;
     private Connection connection;
+    private final Set<UUID> quarantinedMinions = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public DatabaseStorage(MinionX plugin) {
         this.plugin = plugin;
+    }
+
+    public void quarantineMinion(UUID minionId) {
+        if (minionId != null) {
+            quarantinedMinions.add(minionId);
+            if (plugin != null && plugin.getMinionStorage() != null) {
+                plugin.getMinionStorage().quarantineMinion(minionId);
+            }
+        }
+    }
+
+    public boolean isQuarantined(UUID minionId) {
+        return minionId != null && (quarantinedMinions.contains(minionId) ||
+                (plugin != null && plugin.getMinionStorage() != null && plugin.getMinionStorage().isQuarantined(minionId)));
+    }
+
+    public void unquarantineMinion(UUID minionId) {
+        if (minionId != null) {
+            quarantinedMinions.remove(minionId);
+            if (plugin != null && plugin.getMinionStorage() != null) {
+                plugin.getMinionStorage().unquarantineMinion(minionId);
+            }
+        }
     }
 
     public synchronized Connection getConnection() {
@@ -43,11 +69,14 @@ public class DatabaseStorage {
 
     public synchronized void ensureConnection() throws SQLException {
         if (connection == null || connection.isClosed() || !connection.isValid(2)) {
-            init();
+            if (plugin != null) {
+                init();
+            }
         }
     }
 
     public boolean init() {
+        if (plugin == null) return false;
         FileConfiguration config = plugin.getConfig();
         String type = config.getString("storage.type", "SQLITE").toUpperCase();
 
@@ -85,11 +114,20 @@ public class DatabaseStorage {
 
             // Pending operations table for durable intent journaling
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS minion_pending_operations (" +
-                    "operation_id VARCHAR(36) PRIMARY KEY, " +
+                    "operation_id VARCHAR(64) PRIMARY KEY, " +
                     "minion_id VARCHAR(36) NOT NULL, " +
                     "player_uuid VARCHAR(36) NOT NULL, " +
                     "state VARCHAR(32) NOT NULL, " +
-                    "created_at BIGINT NOT NULL" +
+                    "created_at BIGINT NOT NULL, " +
+                    "payload TEXT" +
+                    ")");
+
+            // Permanent tombstone resurrection fence table
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS minion_tombstones (" +
+                    "minion_id VARCHAR(36) PRIMARY KEY, " +
+                    "operation_id VARCHAR(64), " +
+                    "deleted_revision BIGINT NOT NULL, " +
+                    "deleted_at BIGINT NOT NULL" +
                     ")");
 
             // Check current schema version
@@ -128,7 +166,10 @@ public class DatabaseStorage {
                     "last_was_place INT, " +
                     "harvested INT, " +
                     "xp INT, " +
-                    "custom_id VARCHAR(64)" +
+                    "custom_id VARCHAR(64), " +
+                    "state_revision BIGINT DEFAULT 0, " +
+                    "fractional_progress BIGINT DEFAULT 0, " +
+                    "drop_remainders TEXT" +
                     ")");
 
             // Check if minion_items table exists
@@ -162,6 +203,27 @@ public class DatabaseStorage {
         addColumnIfNotExists(connection, "minions", "storage_x", "INT");
         addColumnIfNotExists(connection, "minions", "storage_y", "INT");
         addColumnIfNotExists(connection, "minions", "storage_z", "INT");
+        addColumnIfNotExists(connection, "minions", "state_revision", "BIGINT DEFAULT 0");
+        addColumnIfNotExists(connection, "minions", "fractional_progress", "BIGINT DEFAULT 0");
+        addColumnIfNotExists(connection, "minions", "drop_remainders", "TEXT");
+
+        // Ensure tombstone table exists
+        try (Statement s = connection.createStatement()) {
+            s.executeUpdate("CREATE TABLE IF NOT EXISTS minion_tombstones (" +
+                    "minion_id VARCHAR(36) PRIMARY KEY, " +
+                    "operation_id VARCHAR(64), " +
+                    "deleted_revision BIGINT NOT NULL, " +
+                    "deleted_at BIGINT NOT NULL" +
+                    ")");
+        }
+        addColumnIfNotExists(connection, "minion_tombstones", "operation_id", "VARCHAR(64)");
+
+        // Ensure payload column exists in minion_pending_operations
+        if (!columnExists(connection, "minion_pending_operations", "payload")) {
+            try (Statement s = connection.createStatement()) {
+                s.executeUpdate("ALTER TABLE minion_pending_operations ADD COLUMN payload TEXT");
+            }
+        }
 
         // 2. Ensure container_type exists in minion_items with composite primary key
         if (!columnExists(connection, "minion_items", "container_type")) {
@@ -198,9 +260,11 @@ public class DatabaseStorage {
             }
         }
 
-        // 3. Update version table
-        try (PreparedStatement ps = connection.prepareStatement("INSERT INTO minion_schema_version (version, applied_at) VALUES (?,?) " +
-                (isMySQL(connection) ? "ON DUPLICATE KEY UPDATE applied_at = VALUES(applied_at)" : "ON CONFLICT(version) DO UPDATE SET applied_at = excluded.applied_at"))) {
+        // 3. Update version table using backend-specific modern UPSERT
+        String upsertVersion = isMySQL(connection) ?
+                "INSERT INTO minion_schema_version (version, applied_at) VALUES (?,?) AS new_ver ON DUPLICATE KEY UPDATE applied_at = new_ver.applied_at" :
+                "INSERT INTO minion_schema_version (version, applied_at) VALUES (?,?) ON CONFLICT(version) DO UPDATE SET applied_at = excluded.applied_at";
+        try (PreparedStatement ps = connection.prepareStatement(upsertVersion)) {
             ps.setInt(1, CURRENT_SCHEMA_VERSION);
             ps.setLong(2, System.currentTimeMillis());
             ps.executeUpdate();
@@ -268,6 +332,60 @@ public class DatabaseStorage {
         }
     }
 
+    public static String serializeRemainders(Map<String, Long> remainders) {
+        if (remainders == null || remainders.isEmpty()) return "{}";
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (Map.Entry<String, Long> e : remainders.entrySet()) {
+            if (!first) sb.append(",");
+            sb.append("\"").append(e.getKey()).append("\":").append(e.getValue());
+            first = false;
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+    public static Map<String, Long> deserializeRemainders(String str) {
+        Map<String, Long> map = new HashMap<>();
+        if (str == null || str.isBlank() || "{}".equals(str.trim())) return map;
+        String clean = str.trim().replace("{", "").replace("}", "").replace("\"", "");
+        for (String pair : clean.split(",")) {
+            String[] kv = pair.split(":");
+            if (kv.length == 2) {
+                try {
+                    map.put(kv[0].trim(), Long.parseLong(kv[1].trim()));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return map;
+    }
+
+    public record TombstoneRecord(UUID minionId, String operationId, long deletedRevision, long deletedAt) {}
+
+    public enum TransactionOutcome {
+        CONFIRMED_COMMIT,
+        CONFIRMED_ROLLBACK,
+        UNKNOWN_COMMIT_OUTCOME
+    }
+
+    public enum TransactionType {
+        PICKUP_REMOVAL,
+        PAYOUT_RESERVATION,
+        PAYOUT_ROLLBACK,
+        PAYOUT_CONFIRM,
+        ORDINARY_DELETION
+    }
+
+    public enum PickupRemovalResult {
+        COMMITTED_NOW,
+        ALREADY_COMMITTED_MINION_REMOVED,
+        ALREADY_DELIVERY_ATTEMPTED,
+        ALREADY_COMPLETED,
+        PRECONDITION_FAILED,
+        CONFLICTING_PAYLOAD,
+        UNKNOWN_OUTCOME
+    }
+
     public record MinionSnapshot(
             UUID id,
             UUID ownerId,
@@ -294,8 +412,28 @@ public class DatabaseStorage {
             int storedXp,
             String customDefinitionId,
             List<String> serializedInventoryItems,
-            List<String> serializedStorageItems
+            List<String> serializedStorageItems,
+            long stateRevision,
+            long fractionalProgressMicros,
+            String dropRemainders
     ) {
+        public MinionSnapshot(
+                UUID id, UUID ownerId, String type, int tier, String world,
+                double x, double y, double z, float yaw, float pitch,
+                String fuelId, long fuelEndTime, String upgrade1Id, String upgrade2Id,
+                String skinId, String shippingId, double shippingCoins,
+                String storageId, String storageWorld, Integer storageX, Integer storageY, Integer storageZ,
+                long lastActionTime, boolean lastActionWasPlace, int totalHarvested, int storedXp,
+                String customDefinitionId, List<String> serializedInventoryItems, List<String> serializedStorageItems
+        ) {
+            this(id, ownerId, type, tier, world, x, y, z, yaw, pitch,
+                    fuelId, fuelEndTime, upgrade1Id, upgrade2Id, skinId, shippingId, shippingCoins,
+                    storageId, storageWorld, storageX, storageY, storageZ,
+                    lastActionTime, lastActionWasPlace, totalHarvested, storedXp,
+                    customDefinitionId, serializedInventoryItems, serializedStorageItems,
+                    0L, 0L, "{}");
+        }
+
         public List<String> serializedItems() {
             return serializedInventoryItems;
         }
@@ -359,6 +497,8 @@ public class DatabaseStorage {
                 stZ = sl.getBlockZ();
             }
 
+            String dropRemaindersStr = serializeRemainders(m.getDropRemaindersMicros());
+
             return new MinionSnapshot(
                     m.getMinionId(),
                     m.getOwnerId(),
@@ -373,7 +513,7 @@ public class DatabaseStorage {
                     m.getUpgrade2Id(),
                     m.getSkinId(),
                     m.getShippingId(),
-                    m.getShippingCoins(),
+                    m.getTotalShippingCoins(),
                     stId,
                     stWorld,
                     stX, stY, stZ,
@@ -383,9 +523,137 @@ public class DatabaseStorage {
                     m.getStoredXp(),
                     m.getCustomDefinitionId(),
                     invItems,
-                    storageItems
+                    storageItems,
+                    m.getStateRevision(),
+                    m.getFractionalProgressMicros(),
+                    dropRemaindersStr
             );
         }
+    }
+
+    public synchronized Set<String> queryTombstones(Collection<String> ids) {
+        Set<String> result = new HashSet<>();
+        if (ids == null || ids.isEmpty()) return result;
+        try {
+            ensureConnection();
+            if (connection == null) return result;
+            StringBuilder sb = new StringBuilder("SELECT minion_id FROM minion_tombstones WHERE minion_id IN (");
+            for (int i = 0; i < ids.size(); i++) {
+                if (i > 0) sb.append(",");
+                sb.append("?");
+            }
+            sb.append(")");
+            try (PreparedStatement ps = connection.prepareStatement(sb.toString())) {
+                int idx = 1;
+                for (String id : ids) {
+                    ps.setString(idx++, id);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        result.add(rs.getString("minion_id"));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logSevere("Failed to query tombstones!", e);
+        }
+        return result;
+    }
+
+    public synchronized Map<UUID, TombstoneRecord> loadAllTombstoneRecords() {
+        Map<UUID, TombstoneRecord> tombstones = new HashMap<>();
+        try {
+            ensureConnection();
+            if (connection == null) return tombstones;
+            try (Statement s = connection.createStatement();
+                 ResultSet rs = s.executeQuery("SELECT minion_id, operation_id, deleted_revision, deleted_at FROM minion_tombstones")) {
+                while (rs.next()) {
+                    String idStr = rs.getString("minion_id");
+                    String opId = rs.getString("operation_id");
+                    long rev = rs.getLong("deleted_revision");
+                    long at = rs.getLong("deleted_at");
+                    if (idStr != null) {
+                        try {
+                            UUID id = UUID.fromString(idStr);
+                            tombstones.put(id, new TombstoneRecord(id, opId, rev, at));
+                        } catch (IllegalArgumentException ignored) {}
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logSevere("Failed to load tombstone records from database!", e);
+        }
+        return tombstones;
+    }
+
+    public synchronized TombstoneRecord getTombstone(UUID minionId) {
+        if (minionId == null) return null;
+        try {
+            ensureConnection();
+            if (connection == null) return null;
+            try (PreparedStatement ps = connection.prepareStatement("SELECT operation_id, deleted_revision, deleted_at FROM minion_tombstones WHERE minion_id = ?")) {
+                ps.setString(1, minionId.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return new TombstoneRecord(minionId, rs.getString("operation_id"), rs.getLong("deleted_revision"), rs.getLong("deleted_at"));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logSevere("Failed to query tombstone for " + minionId, e);
+        }
+        return null;
+    }
+
+    public synchronized Set<UUID> loadAllTombstones() {
+        return loadAllTombstoneRecords().keySet();
+    }
+
+    public synchronized boolean deleteMinion(UUID minionId, long revision, long deletedAt, String operationId) {
+        if (minionId == null) return false;
+        try {
+            ensureConnection();
+            if (connection == null) return false;
+            connection.setAutoCommit(false);
+            try {
+                boolean isMySQL = isMySQL(connection);
+                String insertTombstone = isMySQL ?
+                        "INSERT INTO minion_tombstones (minion_id, operation_id, deleted_revision, deleted_at) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE operation_id = VALUES(operation_id), deleted_revision = VALUES(deleted_revision), deleted_at = VALUES(deleted_at)" :
+                        "INSERT INTO minion_tombstones (minion_id, operation_id, deleted_revision, deleted_at) VALUES (?,?,?,?) ON CONFLICT(minion_id) DO UPDATE SET operation_id = excluded.operation_id, deleted_revision = excluded.deleted_revision, deleted_at = excluded.deleted_at";
+                try (PreparedStatement psT = connection.prepareStatement(insertTombstone);
+                     PreparedStatement psI = connection.prepareStatement("DELETE FROM minion_items WHERE minion_id = ?");
+                     PreparedStatement psM = connection.prepareStatement("DELETE FROM minions WHERE id = ?")) {
+
+                    psT.setString(1, minionId.toString());
+                    psT.setString(2, operationId != null ? operationId : "MANUAL_DELETION");
+                    psT.setLong(3, revision);
+                    psT.setLong(4, deletedAt);
+                    psT.executeUpdate();
+
+                    psI.setString(1, minionId.toString());
+                    psI.executeUpdate();
+
+                    psM.setString(1, minionId.toString());
+                    psM.executeUpdate();
+
+                    connection.commit();
+                    connection.setAutoCommit(true);
+                    return true;
+                }
+            } catch (SQLException e) {
+                connection.rollback();
+                connection.setAutoCommit(true);
+                logSevere("Failed to execute deleteMinion transaction for " + minionId, e);
+                return false;
+            }
+        } catch (SQLException e) {
+            logSevere("Database error during deleteMinion: " + minionId, e);
+            return false;
+        }
+    }
+
+    public synchronized boolean deleteMinion(UUID minionId, long revision, long deletedAt) {
+        return deleteMinion(minionId, revision, deletedAt, "MANUAL_DELETION");
     }
 
     public synchronized void saveAll(MinionManager manager) {
@@ -397,30 +665,81 @@ public class DatabaseStorage {
         saveSnapshots(snapshots);
     }
 
-    public synchronized void saveSnapshots(List<MinionSnapshot> snapshots) {
-        if (snapshots == null) return;
+    public synchronized boolean saveSnapshots(List<MinionSnapshot> snapshots) {
+        if (snapshots == null || snapshots.isEmpty()) return true;
         try {
             ensureConnection();
-            if (connection == null) return;
-            connection.setAutoCommit(false);
+            if (connection == null) return false;
 
+            // 1. Pre-filter snapshots against minion_tombstones table
+            List<String> ids = new ArrayList<>();
+            for (MinionSnapshot s : snapshots) {
+                ids.add(s.id().toString());
+            }
+            Set<String> tombstoned = queryTombstones(ids);
+
+            List<MinionSnapshot> toSave = new ArrayList<>();
+            for (MinionSnapshot s : snapshots) {
+                if (!tombstoned.contains(s.id().toString())) {
+                    toSave.add(s);
+                }
+            }
+            if (toSave.isEmpty()) return true;
+
+            connection.setAutoCommit(false);
             boolean isMySQL = isMySQL(connection);
 
             String upsertMinion;
             if (isMySQL) {
-                upsertMinion = "INSERT INTO minions (id, owner, type, tier, world, x, y, z, yaw, pitch, fuel, fuel_end, upgrade1, upgrade2, skin, shipping_id, shipping_coins, storage_id, storage_world, storage_x, storage_y, storage_z, last_action, last_was_place, harvested, xp, custom_id) " +
-                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) " +
+                upsertMinion = "INSERT INTO minions (id, owner, type, tier, world, x, y, z, yaw, pitch, " +
+                        "fuel, fuel_end, upgrade1, upgrade2, skin, shipping_id, shipping_coins, " +
+                        "storage_id, storage_world, storage_x, storage_y, storage_z, " +
+                        "last_action, last_was_place, harvested, xp, custom_id, " +
+                        "state_revision, fractional_progress, drop_remainders) " +
+                        "SELECT * FROM (SELECT ? AS id, ? AS owner, ? AS type, ? AS tier, ? AS world, ? AS x, ? AS y, ? AS z, ? AS yaw, ? AS pitch, " +
+                        "? AS fuel, ? AS fuel_end, ? AS upgrade1, ? AS upgrade2, ? AS skin, ? AS shipping_id, ? AS shipping_coins, " +
+                        "? AS storage_id, ? AS storage_world, ? AS storage_x, ? AS storage_y, ? AS storage_z, " +
+                        "? AS last_action, ? AS last_was_place, ? AS harvested, ? AS xp, ? AS custom_id, " +
+                        "? AS state_revision, ? AS fractional_progress, ? AS drop_remainders) AS src " +
+                        "WHERE NOT EXISTS (SELECT 1 FROM minion_tombstones WHERE minion_id = src.id) " +
                         "ON DUPLICATE KEY UPDATE " +
-                        "owner=VALUES(owner), type=VALUES(type), tier=VALUES(tier), world=VALUES(world), " +
-                        "x=VALUES(x), y=VALUES(y), z=VALUES(z), yaw=VALUES(yaw), pitch=VALUES(pitch), " +
-                        "fuel=VALUES(fuel), fuel_end=VALUES(fuel_end), upgrade1=VALUES(upgrade1), upgrade2=VALUES(upgrade2), " +
-                        "skin=VALUES(skin), shipping_id=VALUES(shipping_id), shipping_coins=VALUES(shipping_coins), " +
-                        "storage_id=VALUES(storage_id), storage_world=VALUES(storage_world), storage_x=VALUES(storage_x), storage_y=VALUES(storage_y), storage_z=VALUES(storage_z), " +
-                        "last_action=VALUES(last_action), last_was_place=VALUES(last_was_place), harvested=VALUES(harvested), " +
-                        "xp=VALUES(xp), custom_id=VALUES(custom_id)";
+                        "owner=IF(src.state_revision > minions.state_revision, src.owner, minions.owner), " +
+                        "type=IF(src.state_revision > minions.state_revision, src.type, minions.type), " +
+                        "tier=IF(src.state_revision > minions.state_revision, src.tier, minions.tier), " +
+                        "world=IF(src.state_revision > minions.state_revision, src.world, minions.world), " +
+                        "x=IF(src.state_revision > minions.state_revision, src.x, minions.x), " +
+                        "y=IF(src.state_revision > minions.state_revision, src.y, minions.y), " +
+                        "z=IF(src.state_revision > minions.state_revision, src.z, minions.z), " +
+                        "yaw=IF(src.state_revision > minions.state_revision, src.yaw, minions.yaw), " +
+                        "pitch=IF(src.state_revision > minions.state_revision, src.pitch, minions.pitch), " +
+                        "fuel=IF(src.state_revision > minions.state_revision, src.fuel, minions.fuel), " +
+                        "fuel_end=IF(src.state_revision > minions.state_revision, src.fuel_end, minions.fuel_end), " +
+                        "upgrade1=IF(src.state_revision > minions.state_revision, src.upgrade1, minions.upgrade1), " +
+                        "upgrade2=IF(src.state_revision > minions.state_revision, src.upgrade2, minions.upgrade2), " +
+                        "skin=IF(src.state_revision > minions.state_revision, src.skin, minions.skin), " +
+                        "shipping_id=IF(src.state_revision > minions.state_revision, src.shipping_id, minions.shipping_id), " +
+                        "shipping_coins=IF(src.state_revision > minions.state_revision, src.shipping_coins, minions.shipping_coins), " +
+                        "storage_id=IF(src.state_revision > minions.state_revision, src.storage_id, minions.storage_id), " +
+                        "storage_world=IF(src.state_revision > minions.state_revision, src.storage_world, minions.storage_world), " +
+                        "storage_x=IF(src.state_revision > minions.state_revision, src.storage_x, minions.storage_x), " +
+                        "storage_y=IF(src.state_revision > minions.state_revision, src.storage_y, minions.storage_y), " +
+                        "storage_z=IF(src.state_revision > minions.state_revision, src.storage_z, minions.storage_z), " +
+                        "last_action=IF(src.state_revision > minions.state_revision, src.last_action, minions.last_action), " +
+                        "last_was_place=IF(src.state_revision > minions.state_revision, src.last_was_place, minions.last_was_place), " +
+                        "harvested=IF(src.state_revision > minions.state_revision, src.harvested, minions.harvested), " +
+                        "xp=IF(src.state_revision > minions.state_revision, src.xp, minions.xp), " +
+                        "custom_id=IF(src.state_revision > minions.state_revision, src.custom_id, minions.custom_id), " +
+                        "fractional_progress=IF(src.state_revision > minions.state_revision, src.fractional_progress, minions.fractional_progress), " +
+                        "drop_remainders=IF(src.state_revision > minions.state_revision, src.drop_remainders, minions.drop_remainders), " +
+                        "state_revision=GREATEST(minions.state_revision, src.state_revision)";
             } else {
-                upsertMinion = "INSERT INTO minions (id, owner, type, tier, world, x, y, z, yaw, pitch, fuel, fuel_end, upgrade1, upgrade2, skin, shipping_id, shipping_coins, storage_id, storage_world, storage_x, storage_y, storage_z, last_action, last_was_place, harvested, xp, custom_id) " +
-                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) " +
+                upsertMinion = "INSERT INTO minions (id, owner, type, tier, world, x, y, z, yaw, pitch, " +
+                        "fuel, fuel_end, upgrade1, upgrade2, skin, shipping_id, shipping_coins, " +
+                        "storage_id, storage_world, storage_x, storage_y, storage_z, " +
+                        "last_action, last_was_place, harvested, xp, custom_id, " +
+                        "state_revision, fractional_progress, drop_remainders) " +
+                        "SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? " +
+                        "WHERE NOT EXISTS (SELECT 1 FROM minion_tombstones WHERE minion_id = ?) " +
                         "ON CONFLICT(id) DO UPDATE SET " +
                         "owner=excluded.owner, type=excluded.type, tier=excluded.tier, world=excluded.world, " +
                         "x=excluded.x, y=excluded.y, z=excluded.z, yaw=excluded.yaw, pitch=excluded.pitch, " +
@@ -428,40 +747,13 @@ public class DatabaseStorage {
                         "skin=excluded.skin, shipping_id=excluded.shipping_id, shipping_coins=excluded.shipping_coins, " +
                         "storage_id=excluded.storage_id, storage_world=excluded.storage_world, storage_x=excluded.storage_x, storage_y=excluded.storage_y, storage_z=excluded.storage_z, " +
                         "last_action=excluded.last_action, last_was_place=excluded.last_was_place, harvested=excluded.harvested, " +
-                        "xp=excluded.xp, custom_id=excluded.custom_id";
+                        "xp=excluded.xp, custom_id=excluded.custom_id, " +
+                        "state_revision=excluded.state_revision, " +
+                        "fractional_progress=excluded.fractional_progress, " +
+                        "drop_remainders=excluded.drop_remainders " +
+                        "WHERE excluded.state_revision > minions.state_revision";
             }
 
-            // 1. Remove deleted minions that are no longer in active snapshots
-            Set<String> activeIds = new HashSet<>();
-            for (MinionSnapshot s : snapshots) {
-                activeIds.add(s.id().toString());
-            }
-
-            try (Statement checkStmt = connection.createStatement();
-                 ResultSet rs = checkStmt.executeQuery("SELECT id FROM minions")) {
-                List<String> toDelete = new ArrayList<>();
-                while (rs.next()) {
-                    String existingId = rs.getString("id");
-                    if (!activeIds.contains(existingId)) {
-                        toDelete.add(existingId);
-                    }
-                }
-                if (!toDelete.isEmpty()) {
-                    try (PreparedStatement delMinion = connection.prepareStatement("DELETE FROM minions WHERE id = ?");
-                         PreparedStatement delItems = connection.prepareStatement("DELETE FROM minion_items WHERE minion_id = ?")) {
-                        for (String delId : toDelete) {
-                            delMinion.setString(1, delId);
-                            delMinion.addBatch();
-                            delItems.setString(1, delId);
-                            delItems.addBatch();
-                        }
-                        delMinion.executeBatch();
-                        delItems.executeBatch();
-                    }
-                }
-            }
-
-            // 2. Batch UPSERT active minions and update multi-container items atomically
             String deleteItemsForMinion = "DELETE FROM minion_items WHERE minion_id = ?";
             String insertItem = "INSERT INTO minion_items (minion_id, container_type, slot_index, item_data) VALUES (?,?,?,?)";
 
@@ -469,7 +761,7 @@ public class DatabaseStorage {
                  PreparedStatement psDelI = connection.prepareStatement(deleteItemsForMinion);
                  PreparedStatement psInsI = connection.prepareStatement(insertItem)) {
 
-                for (MinionSnapshot s : snapshots) {
+                for (MinionSnapshot s : toSave) {
                     psM.setString(1, s.id().toString());
                     psM.setString(2, s.ownerId() != null ? s.ownerId().toString() : null);
                     psM.setString(3, s.type());
@@ -497,6 +789,12 @@ public class DatabaseStorage {
                     psM.setInt(25, s.totalHarvested());
                     psM.setInt(26, s.storedXp());
                     psM.setString(27, s.customDefinitionId());
+                    psM.setLong(28, s.stateRevision());
+                    psM.setLong(29, s.fractionalProgressMicros());
+                    psM.setString(30, s.dropRemainders() != null ? s.dropRemainders() : "{}");
+                    if (!isMySQL) {
+                        psM.setString(31, s.id().toString());
+                    }
                     psM.addBatch();
 
                     psDelI.setString(1, s.id().toString());
@@ -528,7 +826,8 @@ public class DatabaseStorage {
 
             connection.commit();
             connection.setAutoCommit(true);
-            logInfo("Saved " + snapshots.size() + " minions to SQL database.");
+            logInfo("Saved " + toSave.size() + " minions to SQL database.");
+            return true;
         } catch (SQLException e) {
             logSevere("Failed to save minions to database! Rolling back transaction.", e);
             try {
@@ -539,6 +838,7 @@ public class DatabaseStorage {
             } catch (SQLException rollbackEx) {
                 logSevere("Failed to rollback database transaction!", rollbackEx);
             }
+            return false;
         }
     }
 
@@ -561,12 +861,19 @@ public class DatabaseStorage {
             logSevere("Failed to query pending operations during startup!", e);
         }
 
+        // 2. Pre-load tombstones to fence deleted minions permanently
+        Set<UUID> tombstones = loadAllTombstones();
+
         int loadedCount = 0;
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT * FROM minions")) {
 
             while (rs.next()) {
                 UUID id = UUID.fromString(rs.getString("id"));
+                if (tombstones.contains(id)) {
+                    // Tombstone fence: never load deleted minion
+                    continue;
+                }
                 if (quarantinedMinionIds.contains(id)) {
                     // Do not load quarantined minion into active runtime
                     continue;
@@ -618,6 +925,18 @@ public class DatabaseStorage {
                 minion.setStoredXp(rs.getInt("xp"));
                 minion.setCustomDefinitionId(rs.getString("custom_id"));
 
+                long rev = rs.getLong("state_revision");
+                minion.setStateRevision(rev);
+                minion.setFractionalProgressMicros(rs.getLong("fractional_progress"));
+                String remStr = rs.getString("drop_remainders");
+                if (remStr != null && !remStr.isBlank()) {
+                    Map<String, Long> remMap = deserializeRemainders(remStr);
+                    for (Map.Entry<String, Long> entry : remMap.entrySet()) {
+                        minion.setChannelRemainder(entry.getKey(), entry.getValue());
+                    }
+                }
+                minion.setStateRevision(rev);
+
                 // Load items across both INVENTORY and STORAGE containers
                 try (PreparedStatement psI = connection.prepareStatement("SELECT container_type, item_data FROM minion_items WHERE minion_id = ? ORDER BY slot_index ASC")) {
                     psI.setString(1, id.toString());
@@ -625,16 +944,18 @@ public class DatabaseStorage {
                         while (rsI.next()) {
                             String cType = rsI.getString("container_type");
                             String yamlStr = rsI.getString("item_data");
-                            YamlConfiguration yc = new YamlConfiguration();
-                            yc.loadFromString(yamlStr);
-                            ItemStack item = yc.getItemStack("item");
-                            if (item != null) {
-                                if ("STORAGE".equalsIgnoreCase(cType)) {
-                                    minion.getStorageContents().add(item);
-                                } else {
-                                    minion.getInventory().add(item);
+                            try {
+                                YamlConfiguration yc = new YamlConfiguration();
+                                yc.loadFromString(yamlStr);
+                                ItemStack item = yc.getItemStack("item");
+                                if (item != null) {
+                                    if ("STORAGE".equalsIgnoreCase(cType)) {
+                                        minion.getStorageContents().add(item);
+                                    } else {
+                                        minion.getInventory().add(item);
+                                    }
                                 }
-                            }
+                            } catch (Exception ignored) {}
                         }
                     }
                 }
@@ -648,8 +969,24 @@ public class DatabaseStorage {
             }
 
             plugin.getLogger().info("Successfully loaded " + loadedCount + " minions from SQL database.");
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to load minions from database: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            logSevere("Failed to load minions from database!", e);
+        }
+    }
+
+    public synchronized boolean minionExists(UUID minionId) {
+        if (minionId == null) return false;
+        try {
+            ensureConnection();
+            if (connection == null) return false;
+            try (PreparedStatement ps = connection.prepareStatement("SELECT 1 FROM minions WHERE id = ?")) {
+                ps.setString(1, minionId.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next();
+                }
+            }
+        } catch (SQLException e) {
+            return false;
         }
     }
 
@@ -658,8 +995,8 @@ public class DatabaseStorage {
     public synchronized void recordPendingOperation(PendingOperation op) throws SQLException {
         ensureConnection();
         String sql = isMySQL(connection) ?
-                "INSERT INTO minion_pending_operations (operation_id, minion_id, player_uuid, state, created_at) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE state=VALUES(state)" :
-                "INSERT INTO minion_pending_operations (operation_id, minion_id, player_uuid, state, created_at) VALUES (?,?,?,?,?) ON CONFLICT(operation_id) DO UPDATE SET state=excluded.state";
+                "INSERT INTO minion_pending_operations (operation_id, minion_id, player_uuid, state, created_at, payload) VALUES (?,?,?,?,?,?) AS new_op ON DUPLICATE KEY UPDATE state = new_op.state, payload = new_op.payload" :
+                "INSERT INTO minion_pending_operations (operation_id, minion_id, player_uuid, state, created_at, payload) VALUES (?,?,?,?,?,?) ON CONFLICT(operation_id) DO UPDATE SET state = excluded.state, payload = excluded.payload";
 
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, op.operationId());
@@ -667,6 +1004,18 @@ public class DatabaseStorage {
             ps.setString(3, op.playerUuid().toString());
             ps.setString(4, op.state());
             ps.setLong(5, op.createdAt());
+            ps.setString(6, op.payload());
+            ps.executeUpdate();
+        }
+    }
+
+    public synchronized void updatePendingOperationState(String operationId, String newState, String payload) throws SQLException {
+        ensureConnection();
+        String sql = "UPDATE minion_pending_operations SET state = ?, payload = ? WHERE operation_id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, newState);
+            ps.setString(2, payload);
+            ps.setString(3, operationId);
             ps.executeUpdate();
         }
     }
@@ -683,14 +1032,15 @@ public class DatabaseStorage {
         ensureConnection();
         List<PendingOperation> list = new ArrayList<>();
         try (Statement s = connection.createStatement();
-             ResultSet rs = s.executeQuery("SELECT operation_id, minion_id, player_uuid, state, created_at FROM minion_pending_operations")) {
+             ResultSet rs = s.executeQuery("SELECT operation_id, minion_id, player_uuid, state, created_at, payload FROM minion_pending_operations")) {
             while (rs.next()) {
                 list.add(new PendingOperation(
                         rs.getString("operation_id"),
                         UUID.fromString(rs.getString("minion_id")),
                         UUID.fromString(rs.getString("player_uuid")),
                         rs.getString("state"),
-                        rs.getLong("created_at")
+                        rs.getLong("created_at"),
+                        rs.getString("payload")
                 ));
             }
         }
@@ -698,12 +1048,532 @@ public class DatabaseStorage {
     }
 
     /**
-     * Atomically deletes the specific pending operation, minion record, and all its items
-     * in a single ACID database transaction.
+     * Atomically records MINION_REMOVED with escrow payload, inserts tombstone,
+     * and deletes minion from active tables in a single ACID transaction.
+     */
+    /**
+     * Atomically records MINION_REMOVED with escrow payload, inserts tombstone,
+     * and deletes minion from active tables in a single ACID transaction.
+     */
+    public synchronized PickupRemovalResult executePickupRemoval(String operationId, UUID minionId, UUID playerUuid, long revision, String payload) {
+        if (operationId == null || minionId == null) return PickupRemovalResult.PRECONDITION_FAILED;
+        try {
+            ensureConnection();
+            if (connection == null) return PickupRemovalResult.UNKNOWN_OUTCOME;
+            connection.setAutoCommit(false);
+            boolean commitAttempted = false;
+            try {
+                // 1. Check if operationId already exists in minion_pending_operations BEFORE deleting anything!
+                try (PreparedStatement psCheck = connection.prepareStatement(
+                        "SELECT minion_id, player_uuid, state, payload FROM minion_pending_operations WHERE operation_id = ?")) {
+                    psCheck.setString(1, operationId);
+                    try (ResultSet rs = psCheck.executeQuery()) {
+                        if (rs.next()) {
+                            String storedMinion = rs.getString("minion_id");
+                            String storedPlayer = rs.getString("player_uuid");
+                            String storedState = rs.getString("state");
+                            String storedPayload = rs.getString("payload");
+
+                            if (!minionId.toString().equalsIgnoreCase(storedMinion) ||
+                                (playerUuid != null && !playerUuid.toString().equalsIgnoreCase(storedPlayer)) ||
+                                !Objects.equals(payload, storedPayload)) {
+                                connection.rollback();
+                                connection.setAutoCommit(true);
+                                return PickupRemovalResult.CONFLICTING_PAYLOAD;
+                            }
+
+                            connection.rollback();
+                            connection.setAutoCommit(true);
+                            return switch (storedState != null ? storedState.toUpperCase() : "") {
+                                case "MINION_REMOVED" -> PickupRemovalResult.ALREADY_COMMITTED_MINION_REMOVED;
+                                case "DELIVERY_ATTEMPTED", "UNKNOWN" -> PickupRemovalResult.ALREADY_DELIVERY_ATTEMPTED;
+                                case "COMPLETED" -> PickupRemovalResult.ALREADY_COMPLETED;
+                                default -> PickupRemovalResult.UNKNOWN_OUTCOME;
+                            };
+                        }
+                    }
+                }
+
+                // 2. Precondition check: Delete active minion row
+                int deletedMinions;
+                try (PreparedStatement psM = connection.prepareStatement("DELETE FROM minions WHERE id = ?")) {
+                    psM.setString(1, minionId.toString());
+                    deletedMinions = psM.executeUpdate();
+                }
+
+                if (deletedMinions == 0) {
+                    // Minion was absent and operationId did not exist: Precondition failed!
+                    connection.rollback();
+                    connection.setAutoCommit(true);
+                    return PickupRemovalResult.PRECONDITION_FAILED;
+                }
+
+                // 3. Delete child items
+                try (PreparedStatement psI = connection.prepareStatement("DELETE FROM minion_items WHERE minion_id = ?")) {
+                    psI.setString(1, minionId.toString());
+                    psI.executeUpdate();
+                }
+
+                // 4. Insert tombstone with operation_id linkage
+                boolean isMySQL = isMySQL(connection);
+                String insertTombstone = isMySQL ?
+                        "INSERT INTO minion_tombstones (minion_id, operation_id, deleted_revision, deleted_at) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE operation_id = VALUES(operation_id), deleted_revision = VALUES(deleted_revision), deleted_at = VALUES(deleted_at)" :
+                        "INSERT INTO minion_tombstones (minion_id, operation_id, deleted_revision, deleted_at) VALUES (?,?,?,?) ON CONFLICT(minion_id) DO UPDATE SET operation_id = excluded.operation_id, deleted_revision = excluded.deleted_revision, deleted_at = excluded.deleted_at";
+                try (PreparedStatement psT = connection.prepareStatement(insertTombstone)) {
+                    psT.setString(1, minionId.toString());
+                    psT.setString(2, operationId);
+                    psT.setLong(3, revision);
+                    psT.setLong(4, System.currentTimeMillis());
+                    psT.executeUpdate();
+                }
+
+                // 5. Plain INSERT into minion_pending_operations with state MINION_REMOVED
+                try (PreparedStatement psOp = connection.prepareStatement(
+                        "INSERT INTO minion_pending_operations (operation_id, minion_id, player_uuid, state, created_at, payload) VALUES (?,?,?,?,?,?)")) {
+                    psOp.setString(1, operationId);
+                    psOp.setString(2, minionId.toString());
+                    psOp.setString(3, playerUuid != null ? playerUuid.toString() : "");
+                    psOp.setString(4, "MINION_REMOVED");
+                    psOp.setLong(5, System.currentTimeMillis());
+                    psOp.setString(6, payload);
+                    psOp.executeUpdate();
+                }
+
+                commitAttempted = true;
+                connection.commit();
+                connection.setAutoCommit(true);
+                return PickupRemovalResult.COMMITTED_NOW;
+            } catch (SQLException e) {
+                if (commitAttempted) {
+                    logSevere("Commit exception in executePickupRemoval for " + minionId + ", probing reconciliation...", e);
+                    TransactionOutcome outcome = probeCommitReconciliation(minionId, operationId, TransactionType.PICKUP_REMOVAL);
+                    if (outcome == TransactionOutcome.CONFIRMED_COMMIT) {
+                        return PickupRemovalResult.COMMITTED_NOW;
+                    } else if (outcome == TransactionOutcome.CONFIRMED_ROLLBACK) {
+                        return PickupRemovalResult.PRECONDITION_FAILED;
+                    } else {
+                        quarantineMinion(minionId);
+                        return PickupRemovalResult.UNKNOWN_OUTCOME;
+                    }
+                } else {
+                    try {
+                        connection.rollback();
+                        connection.setAutoCommit(true);
+                    } catch (SQLException ignored) {}
+                    logSevere("Failed to execute atomic pickup removal for " + minionId, e);
+                    return PickupRemovalResult.UNKNOWN_OUTCOME;
+                }
+            }
+        } catch (SQLException e) {
+            logSevere("Database error during executePickupRemoval: " + operationId, e);
+            quarantineMinion(minionId);
+            return PickupRemovalResult.UNKNOWN_OUTCOME;
+        }
+    }
+
+    public synchronized boolean claimDeliveryAttempt(String operationId) {
+        if (operationId == null) return false;
+        try {
+            ensureConnection();
+            if (connection == null) return false;
+            connection.setAutoCommit(false);
+            try {
+                int updated;
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "UPDATE minion_pending_operations SET state = 'DELIVERY_ATTEMPTED' WHERE operation_id = ? AND state = 'MINION_REMOVED'")) {
+                    ps.setString(1, operationId);
+                    updated = ps.executeUpdate();
+                }
+                if (updated == 1) {
+                    connection.commit();
+                    connection.setAutoCommit(true);
+                    return true;
+                } else {
+                    connection.rollback();
+                    connection.setAutoCommit(true);
+                    return false;
+                }
+            } catch (SQLException e) {
+                connection.rollback();
+                connection.setAutoCommit(true);
+                logSevere("Failed to claim delivery attempt: " + operationId, e);
+                return false;
+            }
+        } catch (SQLException e) {
+            logSevere("Database error during claimDeliveryAttempt: " + operationId, e);
+            return false;
+        }
+    }
+
+    public synchronized boolean completeDelivery(String operationId) {
+        if (operationId == null) return false;
+        try {
+            ensureConnection();
+            if (connection == null) return false;
+            connection.setAutoCommit(false);
+            try {
+                int updated;
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "UPDATE minion_pending_operations SET state = 'COMPLETED' WHERE operation_id = ? AND state = 'DELIVERY_ATTEMPTED'")) {
+                    ps.setString(1, operationId);
+                    updated = ps.executeUpdate();
+                }
+                if (updated == 1) {
+                    connection.commit();
+                    connection.setAutoCommit(true);
+                    return true;
+                } else {
+                    connection.rollback();
+                    connection.setAutoCommit(true);
+                    return false;
+                }
+            } catch (SQLException e) {
+                connection.rollback();
+                connection.setAutoCommit(true);
+                logSevere("Failed to complete delivery: " + operationId, e);
+                return false;
+            }
+        } catch (SQLException e) {
+            logSevere("Database error during completeDelivery: " + operationId, e);
+            return false;
+        }
+    }
+
+    public synchronized boolean reservePayoutAtomic(String operationId, UUID minionId, UUID playerUuid, double amount, long revision) {
+        if (operationId == null || minionId == null || !Double.isFinite(amount) || amount <= 0.0) return false;
+        double normalizedAmount = BigDecimal.valueOf(amount).setScale(4, RoundingMode.HALF_UP).doubleValue();
+
+        try {
+            ensureConnection();
+            if (connection == null) {
+                quarantineMinion(minionId);
+                return false;
+            }
+            connection.setAutoCommit(false);
+            boolean commitAttempted = false;
+            try {
+                // Check if operationId already exists (do not reset state!)
+                try (PreparedStatement psCheck = connection.prepareStatement("SELECT state FROM minion_pending_operations WHERE operation_id = ?")) {
+                    psCheck.setString(1, operationId);
+                    try (ResultSet rs = psCheck.executeQuery()) {
+                        if (rs.next()) {
+                            connection.rollback();
+                            connection.setAutoCommit(true);
+                            return false;
+                        }
+                    }
+                }
+
+                // Deduct exact shipping coins with optimistic revision check
+                int updated;
+                try (PreparedStatement psU = connection.prepareStatement(
+                        "UPDATE minions SET shipping_coins = ROUND(shipping_coins - ?, 4), state_revision = state_revision + 1 WHERE id = ? AND shipping_coins >= ? AND state_revision = ?")) {
+                    psU.setDouble(1, normalizedAmount);
+                    psU.setString(2, minionId.toString());
+                    psU.setDouble(3, normalizedAmount);
+                    psU.setLong(4, revision);
+                    updated = psU.executeUpdate();
+                }
+
+                if (updated != 1) {
+                    connection.rollback();
+                    connection.setAutoCommit(true);
+                    return false;
+                }
+
+                // Plain INSERT into minion_pending_operations with state ATTEMPTED
+                try (PreparedStatement psOp = connection.prepareStatement(
+                        "INSERT INTO minion_pending_operations (operation_id, minion_id, player_uuid, state, created_at, payload) VALUES (?, ?, ?, 'ATTEMPTED', ?, ?)")) {
+                    psOp.setString(1, operationId);
+                    psOp.setString(2, minionId.toString());
+                    psOp.setString(3, playerUuid != null ? playerUuid.toString() : "");
+                    psOp.setLong(4, System.currentTimeMillis());
+                    psOp.setString(5, String.valueOf(normalizedAmount));
+                    psOp.executeUpdate();
+                }
+
+                commitAttempted = true;
+                connection.commit();
+                connection.setAutoCommit(true);
+                return true;
+            } catch (SQLException e) {
+                if (commitAttempted) {
+                    logSevere("Commit exception during reservePayoutAtomic for " + minionId + ", probing reconciliation...", e);
+                    TransactionOutcome outcome = probeCommitReconciliation(minionId, operationId, TransactionType.PAYOUT_RESERVATION);
+                    if (outcome == TransactionOutcome.CONFIRMED_COMMIT) {
+                        return true;
+                    } else if (outcome == TransactionOutcome.CONFIRMED_ROLLBACK) {
+                        return false;
+                    } else {
+                        quarantineMinion(minionId);
+                        return false;
+                    }
+                } else {
+                    try {
+                        connection.rollback();
+                        connection.setAutoCommit(true);
+                    } catch (SQLException ignored) {}
+                    logSevere("Failed to reserve payout in database for " + minionId, e);
+                    return false;
+                }
+            }
+        } catch (SQLException e) {
+            logSevere("Database error during reservePayoutAtomic: " + operationId, e);
+            quarantineMinion(minionId);
+            return false;
+        }
+    }
+
+    public synchronized boolean rollbackPayoutAtomic(String operationId, UUID minionId, double amount) {
+        if (operationId == null || minionId == null || amount <= 0.0) return false;
+        double normalizedAmount = BigDecimal.valueOf(amount).setScale(4, RoundingMode.HALF_UP).doubleValue();
+        try {
+            ensureConnection();
+            if (connection == null) return false;
+            connection.setAutoCommit(false);
+            try {
+                // Guard state transition: only if currently ATTEMPTED
+                int opUpdated;
+                try (PreparedStatement psOp = connection.prepareStatement(
+                        "UPDATE minion_pending_operations SET state = 'PAYOUT_FAILED' WHERE operation_id = ? AND state = 'ATTEMPTED'")) {
+                    psOp.setString(1, operationId);
+                    opUpdated = psOp.executeUpdate();
+                }
+
+                if (opUpdated != 1) {
+                    // Precondition failed: Either operation was already PAYOUT_FAILED or not in ATTEMPTED state.
+                    connection.rollback();
+                    connection.setAutoCommit(true);
+                    return false;
+                }
+
+                // Additive restoration of shipping coins to minion row
+                try (PreparedStatement psM = connection.prepareStatement(
+                        "UPDATE minions SET shipping_coins = ROUND(shipping_coins + ?, 4), state_revision = state_revision + 1 WHERE id = ?")) {
+                    psM.setDouble(1, normalizedAmount);
+                    psM.setString(2, minionId.toString());
+                    psM.executeUpdate();
+                }
+
+                connection.commit();
+                connection.setAutoCommit(true);
+                return true;
+            } catch (SQLException e) {
+                connection.rollback();
+                connection.setAutoCommit(true);
+                logSevere("Failed to rollback payout in database for " + minionId, e);
+                return false;
+            }
+        } catch (SQLException e) {
+            logSevere("Database error during rollbackPayoutAtomic: " + operationId, e);
+            return false;
+        }
+    }
+
+    public synchronized boolean confirmPayoutAtomic(String operationId) {
+        return confirmPayoutAtomic(operationId, null);
+    }
+
+    public synchronized boolean confirmPayoutAtomic(String operationId, UUID minionId) {
+        if (operationId == null) return false;
+        try {
+            ensureConnection();
+            if (connection == null) {
+                if (minionId != null) quarantineMinion(minionId);
+                return false;
+            }
+            connection.setAutoCommit(false);
+            boolean commitAttempted = false;
+            try {
+                int updated;
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "UPDATE minion_pending_operations SET state = 'CONFIRMED' WHERE operation_id = ? AND state = 'ATTEMPTED'")) {
+                    ps.setString(1, operationId);
+                    updated = ps.executeUpdate();
+                }
+                if (updated == 1) {
+                    commitAttempted = true;
+                    connection.commit();
+                    connection.setAutoCommit(true);
+                    return true;
+                } else {
+                    connection.rollback();
+                    connection.setAutoCommit(true);
+                    return false;
+                }
+            } catch (SQLException e) {
+                if (commitAttempted) {
+                    logSevere("Commit exception during confirmPayoutAtomic for " + operationId + ", probing reconciliation...", e);
+                    TransactionOutcome outcome = probeCommitReconciliation(minionId, operationId, TransactionType.PAYOUT_CONFIRM);
+                    if (outcome == TransactionOutcome.CONFIRMED_COMMIT) {
+                        return true;
+                    } else if (outcome == TransactionOutcome.CONFIRMED_ROLLBACK) {
+                        return false;
+                    } else {
+                        if (minionId != null) quarantineMinion(minionId);
+                        return false;
+                    }
+                } else {
+                    try {
+                        connection.rollback();
+                        connection.setAutoCommit(true);
+                    } catch (SQLException ignored) {}
+                    logSevere("Database error during confirmPayoutAtomic: " + operationId, e);
+                    return false;
+                }
+            }
+        } catch (SQLException e) {
+            logSevere("Database error during confirmPayoutAtomic: " + operationId, e);
+            if (minionId != null) quarantineMinion(minionId);
+            return false;
+        }
+    }
+
+    public synchronized boolean ambiguousPayoutAtomic(String operationId) {
+        if (operationId == null) return false;
+        try {
+            ensureConnection();
+            if (connection == null) return false;
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE minion_pending_operations SET state = 'PAYOUT_AMBIGUOUS' WHERE operation_id = ? AND state = 'ATTEMPTED'")) {
+                ps.setString(1, operationId);
+                return ps.executeUpdate() > 0;
+            }
+        } catch (SQLException e) {
+            logSevere("Database error during ambiguousPayoutAtomic: " + operationId, e);
+            return false;
+        }
+    }
+
+    public synchronized TransactionOutcome probeCommitReconciliation(UUID minionId, String operationId) {
+        return probeCommitReconciliation(minionId, operationId, TransactionType.PICKUP_REMOVAL);
+    }
+
+    public synchronized TransactionOutcome probeCommitReconciliation(UUID minionId, String operationId, TransactionType type) {
+        if (type == null) type = TransactionType.PICKUP_REMOVAL;
+        if (minionId == null && operationId == null) return TransactionOutcome.CONFIRMED_ROLLBACK;
+        try {
+            ensureConnection();
+            if (connection == null) return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+
+            switch (type) {
+                case PICKUP_REMOVAL -> {
+                    boolean hasTombstone = false;
+                    if (operationId != null && minionId != null) {
+                        try (PreparedStatement psT = connection.prepareStatement(
+                                "SELECT 1 FROM minion_tombstones WHERE minion_id = ? AND operation_id = ?")) {
+                            psT.setString(1, minionId.toString());
+                            psT.setString(2, operationId);
+                            try (ResultSet rs = psT.executeQuery()) {
+                                hasTombstone = rs.next();
+                            }
+                        }
+                    }
+                    boolean hasMinion = minionId != null && minionExists(minionId);
+                    String opState = null;
+                    if (operationId != null) {
+                        try (PreparedStatement psOp = connection.prepareStatement("SELECT state FROM minion_pending_operations WHERE operation_id = ?")) {
+                            psOp.setString(1, operationId);
+                            try (ResultSet rs = psOp.executeQuery()) {
+                                if (rs.next()) opState = rs.getString("state");
+                            }
+                        }
+                    }
+                    if (hasTombstone && !hasMinion && ("MINION_REMOVED".equalsIgnoreCase(opState) || "DELIVERY_ATTEMPTED".equalsIgnoreCase(opState) || "COMPLETED".equalsIgnoreCase(opState))) {
+                        return TransactionOutcome.CONFIRMED_COMMIT;
+                    } else if (!hasTombstone && hasMinion && opState == null) {
+                        return TransactionOutcome.CONFIRMED_ROLLBACK;
+                    } else {
+                        return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+                    }
+                }
+                case PAYOUT_RESERVATION -> {
+                    if (operationId == null) return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+                    String opState = null;
+                    try (PreparedStatement psOp = connection.prepareStatement("SELECT state FROM minion_pending_operations WHERE operation_id = ?")) {
+                        psOp.setString(1, operationId);
+                        try (ResultSet rs = psOp.executeQuery()) {
+                            if (rs.next()) opState = rs.getString("state");
+                        }
+                    }
+                    if ("ATTEMPTED".equalsIgnoreCase(opState)) {
+                        return TransactionOutcome.CONFIRMED_COMMIT;
+                    } else if (opState == null) {
+                        return TransactionOutcome.CONFIRMED_ROLLBACK;
+                    } else {
+                        return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+                    }
+                }
+                case PAYOUT_ROLLBACK -> {
+                    if (operationId == null) return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+                    String opState = null;
+                    try (PreparedStatement psOp = connection.prepareStatement("SELECT state FROM minion_pending_operations WHERE operation_id = ?")) {
+                        psOp.setString(1, operationId);
+                        try (ResultSet rs = psOp.executeQuery()) {
+                            if (rs.next()) opState = rs.getString("state");
+                        }
+                    }
+                    if ("PAYOUT_FAILED".equalsIgnoreCase(opState)) {
+                        return TransactionOutcome.CONFIRMED_COMMIT;
+                    } else if ("ATTEMPTED".equalsIgnoreCase(opState)) {
+                        return TransactionOutcome.CONFIRMED_ROLLBACK;
+                    } else {
+                        return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+                    }
+                }
+                case PAYOUT_CONFIRM -> {
+                    if (operationId == null) return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+                    String opState = null;
+                    try (PreparedStatement psOp = connection.prepareStatement("SELECT state FROM minion_pending_operations WHERE operation_id = ?")) {
+                        psOp.setString(1, operationId);
+                        try (ResultSet rs = psOp.executeQuery()) {
+                            if (rs.next()) opState = rs.getString("state");
+                        }
+                    }
+                    if ("CONFIRMED".equalsIgnoreCase(opState)) {
+                        return TransactionOutcome.CONFIRMED_COMMIT;
+                    } else if ("ATTEMPTED".equalsIgnoreCase(opState)) {
+                        return TransactionOutcome.CONFIRMED_ROLLBACK;
+                    } else {
+                        return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+                    }
+                }
+                case ORDINARY_DELETION -> {
+                    boolean hasMinion = minionId != null && minionExists(minionId);
+                    boolean hasTombstone = false;
+                    if (minionId != null) {
+                        try (PreparedStatement psT = connection.prepareStatement("SELECT 1 FROM minion_tombstones WHERE minion_id = ?")) {
+                            psT.setString(1, minionId.toString());
+                            try (ResultSet rs = psT.executeQuery()) {
+                                hasTombstone = rs.next();
+                            }
+                        }
+                    }
+                    if (!hasMinion && hasTombstone) {
+                        return TransactionOutcome.CONFIRMED_COMMIT;
+                    } else if (hasMinion && !hasTombstone) {
+                        return TransactionOutcome.CONFIRMED_ROLLBACK;
+                    } else {
+                        return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+                    }
+                }
+                default -> {
+                    return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+                }
+            }
+        } catch (SQLException e) {
+            logSevere("Failed to execute reconciliation probe for minion " + minionId, e);
+            return TransactionOutcome.UNKNOWN_COMMIT_OUTCOME;
+        }
+    }
+
+    /**
+     * Atomically completes pickup by removing the pending operation and inserting tombstone if missing.
      */
     public synchronized boolean finalizePickup(String operationId, UUID minionId) {
         try {
             ensureConnection();
+            if (connection == null) return false;
             connection.setAutoCommit(false);
 
             try (PreparedStatement psOp = connection.prepareStatement("DELETE FROM minion_pending_operations WHERE operation_id = ?");

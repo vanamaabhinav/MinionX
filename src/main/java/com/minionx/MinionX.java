@@ -151,12 +151,24 @@ public class MinionX extends JavaPlugin {
         return instance;
     }
 
+    public static void setInstance(MinionX inst) {
+        instance = inst;
+    }
+
     public MinionManager getMinionManager() {
         return minionManager;
     }
 
+    public void setMinionManager(MinionManager minionManager) {
+        this.minionManager = minionManager;
+    }
+
     public MinionStorage getMinionStorage() {
         return minionStorage;
+    }
+
+    public void setMinionStorage(MinionStorage minionStorage) {
+        this.minionStorage = minionStorage;
     }
 
     public PlayerLimitManager getPlayerLimitManager() {

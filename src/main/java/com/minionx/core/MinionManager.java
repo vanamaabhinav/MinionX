@@ -56,6 +56,7 @@ public class MinionManager {
 
     public void unregister(Minion minion) {
         if (minion == null) return;
+        minion.advanceSchedulingGeneration();
         minionsById.remove(minion.getMinionId());
         activeLoadedMinions.remove(minion);
 
@@ -162,6 +163,7 @@ public class MinionManager {
         if (inChunk != null) {
             for (Minion m : inChunk) {
                 activeLoadedMinions.remove(m);
+                m.advanceSchedulingGeneration();
             }
         }
     }
@@ -171,7 +173,10 @@ public class MinionManager {
     }
 
     public void markUnloaded(Minion minion) {
-        if (minion != null) activeLoadedMinions.remove(minion);
+        if (minion != null) {
+            activeLoadedMinions.remove(minion);
+            minion.advanceSchedulingGeneration();
+        }
     }
 
     public void linkEntity(UUID entityId, Minion minion) {

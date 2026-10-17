@@ -11,7 +11,10 @@ import java.util.List;
 /**
  * Ultra-optimized constant-time offline production engine.
  * Computes exact item yields, Super Compaction batches, and XP in checked
- * 64-bit integer arithmetic with action-phase precision and paused-time advancement.
+ * 64-bit integer arithmetic with cycle-by-cycle precision and paused-time advancement.
+ * Strictly enforces Decision 6:
+ * - Each cycle is an all-or-nothing accounting unit across fuel boundaries.
+ * - Saturation state stops simulation and marks FULL without deleting unpriced items.
  */
 public class OfflineCalculator {
 
@@ -25,7 +28,8 @@ public class OfflineCalculator {
         }
 
         long now = System.currentTimeMillis();
-        long elapsedMillis = now - minion.getLastActionTime();
+        long lastAction = minion.getLastActionTime();
+        long elapsedMillis = now - lastAction;
         if (elapsedMillis <= 0) return 0;
 
         // 2. Cap offline calculation to configured max hours (default 720 hours = 30 days)
@@ -38,22 +42,49 @@ public class OfflineCalculator {
         }
 
         if (elapsedMillis > maxOfflineMillis) {
+            lastAction = now - maxOfflineMillis;
+            minion.setLastActionTime(lastAction);
             elapsedMillis = maxOfflineMillis;
         }
+
+        // 3. Segment downtime across fuel expiration boundaries (Decision 6)
+        long fuelEnd = minion.getFuelEndTime();
+        if (fuelEnd > 0 && fuelEnd > lastAction && fuelEnd < now && minion.isFuelActive()) {
+            // Segment 1: from lastAction to fuelEnd with fuel speed boost
+            int added1 = simulateSegment(minion, lastAction, fuelEnd);
+            if (minion.getState() == MinionState.FULL) {
+                minion.setLastActionTime(now);
+                return added1;
+            }
+            // Deactivate fuel at boundary
+            minion.setFuel((CustomFuel) null);
+            // Segment 2: from fuelEnd to now without fuel
+            int added2 = simulateSegment(minion, fuelEnd, now);
+            return added1 + added2;
+        } else {
+            if (fuelEnd > 0 && fuelEnd <= lastAction && minion.isFuelActive()) {
+                minion.setFuel((CustomFuel) null);
+            }
+            return simulateSegment(minion, lastAction, now);
+        }
+    }
+
+    private static int simulateSegment(Minion minion, long segStart, long segEnd) {
+        if (segEnd <= segStart) return 0;
+        long elapsedMillis = segEnd - segStart;
 
         double delaySeconds = minion.getEffectiveActionDelay();
         if (delaySeconds <= 0) delaySeconds = 14.0;
         long actionMillis = (long) (delaySeconds * 1000L);
         if (actionMillis <= 0) actionMillis = 1000L;
 
-        // 3. Action-based time resolution
         long totalActions = elapsedMillis / actionMillis;
         long leftoverMillis = elapsedMillis % actionMillis;
-        minion.setLastActionTime(now - leftoverMillis);
+        minion.setLastActionTime(segEnd - leftoverMillis);
 
         if (totalActions <= 0) return 0;
 
-        // 4. Alternating phase resolution (Action 0 = Place, Action 1 = Mine/Yield)
+        // Alternating phase resolution (Action 0 = Place, Action 1 = Mine/Yield)
         long harvestActions;
         if (!minion.wasLastActionPlace()) {
             harvestActions = totalActions / 2L;
@@ -65,7 +96,6 @@ public class OfflineCalculator {
 
         if (harvestActions <= 0) return 0;
 
-        // 5. Determine definition, drop item, and XP
         MinionDefinition def = minion.getCustomDefinitionId() != null
                 ? MinionRegistry.get(minion.getCustomDefinitionId())
                 : (minion.getType() != null ? MinionRegistry.get(minion.getType().name().toLowerCase()) : null);
@@ -73,104 +103,79 @@ public class OfflineCalculator {
         ItemStack baseDrop = determineDropItem(minion, def);
         int xpPerHarvest = def != null && def.getXpPerHarvest() > 0 ? def.getXpPerHarvest() : 1;
 
-        // 6. Snapshot pre-production state for atomic rollback on overflow
-        List<ItemStack> invSnapshot = cloneItemList(minion.getInventory());
-        List<ItemStack> storeSnapshot = cloneItemList(minion.getStorageContents());
-        double coinsSnapshot = minion.getShippingCoins();
-
-        // 7. Calculate secondary drops and Diamond Spreading via fixed-point micro-math (100% = 1,000,000)
-        long secProduced = 0;
-        long newSecRemainder = 0;
         boolean hasSecondary = def != null && def.hasSecondaryDrop() && def.getSecondaryDropChance() > 0 && def.getSecondaryDropItem() != null;
-        if (hasSecondary && def != null) {
-            long secChanceMicros = (long) (def.getSecondaryDropChance() * 1_000_000.0);
-            long existingSecRem = minion.getChannelRemainder("secondary");
-            long totalSecMicros = Math.addExact(existingSecRem, Math.multiplyExact(harvestActions, secChanceMicros));
-            secProduced = totalSecMicros / 1_000_000L;
-            newSecRemainder = totalSecMicros % 1_000_000L;
-        }
+        long secChanceMicros = hasSecondary ? (long) (def.getSecondaryDropChance() * 1_000_000.0) : 0L;
 
-        long diaProduced = 0;
-        long newDiaRemainder = 0;
         boolean hasSpreading = minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
                 || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING);
-        if (hasSpreading) {
-            long existingDiaRem = minion.getChannelRemainder("diamond_spreading");
-            long totalDiaMicros = Math.addExact(existingDiaRem, Math.multiplyExact(harvestActions, 100_000L)); // 10%
-            diaProduced = totalDiaMicros / 1_000_000L;
-            newDiaRemainder = totalDiaMicros % 1_000_000L;
-        }
 
-        // 8. Safely simulate pipeline insertion into internal slots, virtual storage, and Auto-Shipper
-        long totalBase = Math.multiplyExact(harvestActions, (long) baseDrop.getAmount());
-        boolean success = true;
+        long curSecRem = minion.getChannelRemainder("secondary");
+        long curDiaRem = minion.getChannelRemainder("diamond_spreading");
+
+        long successfulHarvests = 0;
         int actualAdded = 0;
 
-        // Base items
-        long remBase = totalBase;
-        while (remBase > 0) {
-            int batch = (int) Math.min(64L, remBase);
-            ItemStack stack = baseDrop.clone();
-            stack.setAmount(batch);
-            if (!minion.addItem(stack)) {
-                success = false;
+        for (long cycle = 0; cycle < harvestActions; cycle++) {
+            // Snapshot working lists for this individual cycle (Decision 6 all-or-nothing accounting unit)
+            List<ItemStack> invCycleSnap = cloneItemList(minion.getInventory());
+            List<ItemStack> storeCycleSnap = cloneItemList(minion.getStorageContents());
+            double coinsCycleSnap = minion.getShippingCoins();
+
+            List<ItemStack> cycleDrops = new ArrayList<>();
+            ItemStack baseStack = baseDrop.clone();
+            cycleDrops.add(baseStack);
+
+            long nextSecRem = curSecRem + secChanceMicros;
+            long secDropCount = nextSecRem / 1_000_000L;
+            nextSecRem = nextSecRem % 1_000_000L;
+            if (secDropCount > 0 && def != null && def.getSecondaryDropItem() != null) {
+                ItemStack secStack = def.getSecondaryDropItem().clone();
+                secStack.setAmount((int) secDropCount);
+                cycleDrops.add(secStack);
+            }
+
+            long nextDiaRem = curDiaRem + (hasSpreading ? 100_000L : 0L);
+            long diaDropCount = nextDiaRem / 1_000_000L;
+            nextDiaRem = nextDiaRem % 1_000_000L;
+            if (diaDropCount > 0) {
+                cycleDrops.add(new ItemStack(Material.DIAMOND, (int) diaDropCount));
+            }
+
+            // Test adding all drops for this cycle
+            boolean cycleFit = true;
+            for (ItemStack drop : cycleDrops) {
+                if (!minion.addItem(drop)) {
+                    cycleFit = false;
+                    break;
+                }
+            }
+
+            if (!cycleFit) {
+                // Roll back this cycle's partial additions
+                restoreItemList(minion.getInventory(), invCycleSnap);
+                restoreItemList(minion.getStorageContents(), storeCycleSnap);
+                minion.setShippingCoins(coinsCycleSnap);
+
+                // Saturation State: Stop simulation immediately, mark FULL
+                minion.setState(MinionState.FULL);
+                minion.setLastActionTime(segEnd); // Advance paused-time anchor
                 break;
             }
-            actualAdded += batch;
-            remBase -= batch;
+
+            // Cycle succeeded! Commit working remainders
+            curSecRem = nextSecRem;
+            curDiaRem = nextDiaRem;
+            successfulHarvests++;
+            actualAdded += baseStack.getAmount();
+
             CompressionManager.processCompaction(minion);
         }
 
-        // Secondary drops
-        if (success && secProduced > 0 && def != null && def.getSecondaryDropItem() != null) {
-            long remSec = secProduced;
-            while (remSec > 0) {
-                int batch = (int) Math.min(64L, remSec);
-                ItemStack stack = def.getSecondaryDropItem().clone();
-                stack.setAmount(batch);
-                if (!minion.addItem(stack)) {
-                    success = false;
-                    break;
-                }
-                actualAdded += batch;
-                remSec -= batch;
-                CompressionManager.processCompaction(minion);
-            }
-        }
+        if (hasSecondary) minion.setChannelRemainder("secondary", curSecRem);
+        if (hasSpreading) minion.setChannelRemainder("diamond_spreading", curDiaRem);
 
-        // Diamond spreading
-        if (success && diaProduced > 0) {
-            long remDia = diaProduced;
-            while (remDia > 0) {
-                int batch = (int) Math.min(64L, remDia);
-                ItemStack stack = new ItemStack(Material.DIAMOND, batch);
-                if (!minion.addItem(stack)) {
-                    success = false;
-                    break;
-                }
-                actualAdded += batch;
-                remDia -= batch;
-                CompressionManager.processCompaction(minion);
-            }
-        }
-
-        // 9. All-or-nothing rollback on capacity overflow without Auto-Shipper
-        if (!success) {
-            restoreItemList(minion.getInventory(), invSnapshot);
-            restoreItemList(minion.getStorageContents(), storeSnapshot);
-            minion.setShippingCoins(coinsSnapshot);
-
-            minion.setState(MinionState.FULL);
-            minion.setLastActionTime(now); // Advance paused-time anchor
-            return 0;
-        }
-
-        // 10. Commit changes atomically
-        if (hasSecondary) minion.setChannelRemainder("secondary", newSecRemainder);
-        if (hasSpreading) minion.setChannelRemainder("diamond_spreading", newDiaRemainder);
-
-        minion.incrementHarvested((int) Math.min(Integer.MAX_VALUE, harvestActions));
-        minion.addStoredXp((int) Math.min(Integer.MAX_VALUE, harvestActions * (long) xpPerHarvest));
+        minion.incrementHarvested((int) Math.min(Integer.MAX_VALUE, successfulHarvests));
+        minion.addStoredXp((int) Math.min(Integer.MAX_VALUE, successfulHarvests * (long) xpPerHarvest));
         CompressionManager.processCompaction(minion);
 
         return actualAdded;
