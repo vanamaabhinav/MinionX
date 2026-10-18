@@ -800,20 +800,21 @@ public class MinionStorage implements AutoCloseable {
         writeYamlAtomically(config.saveToString(), pendingOpsFile);
     }
 
-    public synchronized void updatePendingOperationState(String operationId, String newState, String payload) throws Exception {
+    public synchronized boolean updatePendingOperationState(String operationId, String newState, String payload) throws Exception {
         if (databaseStorage != null) {
-            databaseStorage.updatePendingOperationState(operationId, newState, payload);
-            return;
+            return databaseStorage.updatePendingOperationState(operationId, newState, payload);
         }
 
-        if (!pendingOpsFile.exists()) return;
+        if (!pendingOpsFile.exists()) return false;
         YamlConfiguration config = YamlConfiguration.loadConfiguration(pendingOpsFile);
         String path = "operations." + operationId;
+        if (!config.contains(path)) return false;
         config.set(path + ".state", newState);
         if (payload != null) {
             config.set(path + ".payload", payload);
         }
         writeYamlAtomically(config.saveToString(), pendingOpsFile);
+        return true;
     }
 
     public synchronized void removePendingOperation(String operationId) throws Exception {

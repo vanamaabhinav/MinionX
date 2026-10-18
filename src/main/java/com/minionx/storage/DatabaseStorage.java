@@ -1020,14 +1020,18 @@ public class DatabaseStorage {
         }
     }
 
-    public synchronized void updatePendingOperationState(String operationId, String newState, String payload) throws SQLException {
+    public synchronized boolean updatePendingOperationState(String operationId, String newState, String payload) throws SQLException {
         ensureConnection();
         String sql = "UPDATE minion_pending_operations SET state = ?, payload = ? WHERE operation_id = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, newState);
             ps.setString(2, payload);
             ps.setString(3, operationId);
-            ps.executeUpdate();
+            int updated = ps.executeUpdate();
+            if (connection != null && !connection.getAutoCommit()) {
+                connection.commit();
+            }
+            return updated > 0;
         }
     }
 
