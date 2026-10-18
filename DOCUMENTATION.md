@@ -318,14 +318,21 @@ The Operator Control Center provides administrators with a single, unified contr
 
 ---
 
-## 9. Anti-Dupe Security & Emergency Quarantine Mode
+## 9. Anti-Dupe Security, Escrow Durability & Crash Safety
 
-MinionX implements robust protection against duplication, inventory desync, and crash exploits.
+MinionX implements robust protection against duplication, inventory desync, and crash exploits:
 
-### Security Highlights:
+### Security & Durability Highlights:
 * **Thread-Safe Data Operations:** All inventory accesses and modifications are synchronized and backed by thread-safe data structures.
 * **Atomic Disk Serialization:** States are written to temporary files and atomically moved to destination paths, guaranteeing zero corrupted or truncated files if a server crashes.
-* **Non-Duplicable Pickups:** Minions are instantly unregistered from spatial maps before dropping to prevent double-mining or ghost placement.
+* **Non-Duplicable Pickups & Durable Escrow:**
+  * Minions are unregistered before dropping.
+  * Pickups are staged in durable operation records (`minion_pending_operations`) embedding stored XP (`XP:<xp>;;;PAYLOAD:::...`) before deletion.
+* **Crash-Safety Boundary & Zero-Leftover XP Invariant:**
+  * `/minion claim` writes `DELIVERY_ATTEMPTED` to disk before modifying player inventory. If a server stops mid-claim, reboot reconciliation marks it `UNKNOWN` and quarantines the minion.
+  * Stored XP is **only** awarded when inventory delivery has **zero leftovers**. If inventory fills up, unclaimed XP is preserved with remaining leftovers.
+* **Unresolved Payout Quarantine Fencing:**
+  * Payouts interrupted during Vault calls (`ATTEMPTED` or `PAYOUT_AMBIGUOUS`) are quarantined on startup. Automatic Vault retries and rollbacks are prohibited.
 * **Emergency Quarantine Mode (`/minion quarantine on`):**
   * Immediately freezes all minion item collections, breaking/pickups, and placements across the entire server.
   * Ticking continues or freezes depending on `settings.quarantine-freeze-ticks`.
@@ -368,8 +375,12 @@ MinionX natively integrates with the Minecraft server ecosystem:
 | `/minion list` | `minionx.use` | Lists player's placed minions and locations |
 | `/minion killall` | `minionx.admin` | Purges all placed minions and holograms |
 | `/minionsx` | `minionx.admin` | Opens the interactive MinionX Operator Hub |
-| `/minion claim` | `minionx.use` | Safely recovers undelivered or quarantined escrow items if player inventory was previously full |
-| `/minion recover [list\|resolve]` | `minionx.admin` | Audits and resolves quarantined escrow operations with logged operator reason |
+| `/minion claim` | `minionx.use` | Safely recovers verified escrow items and stored XP; blocks ambiguous operations |
+| `/minion recover list` | `minionx.admin` | Lists all pending, quarantined, or ambiguous operations in the escrow ledger |
+| `/minion recover resolve <opId> complete [reason]` | `minionx.admin` | Clears operation from escrow ledger with an audit entry |
+| `/minion recover resolve <opId> deliver [reason]` | `minionx.admin` | Delivers escrow items and safe XP (withholds ambiguous XP or records marked `XP_GRANTED`) |
+| `/minion recover resolve <opId> deliver-force-all [reason]` | `minionx.admin` | Force-delivers items from an ambiguous operation (withholding ambiguous XP) |
+| `/minion recover resolve <opId> deliver-force-all-with-xp [reason]` | `minionx.admin` | Explicit administrative override to deliver both items and stored XP after manual log verification |
 | `/minion reload` | `minionx.admin` | Hot-reloads all YAML configurations and registries |
 
 ### Permissions Matrix:

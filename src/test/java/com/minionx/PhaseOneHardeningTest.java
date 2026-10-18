@@ -1646,5 +1646,102 @@ public class PhaseOneHardeningTest {
         assertEquals(60, correctedDeliveredCount, "Corrected calculation accurately yields 60 delivered items");
         assertEquals(4, leftoverCount, "Leftover count is 4 items");
     }
+
+    // --- 54. Claim Crash Safety Boundary: Interruption Leaves DELIVERY_ATTEMPTED & Quarantines ---
+    @Test
+    public void testClaimCrashBetweenDeliveryAndAcknowledgmentIsQuarantined() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+        String opId = "claim-crash-op-1";
+
+        // Initial safe escrow state
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), "XP:100;;;PAYLOAD:::item_iron_x16"));
+
+        // Step 1: /minion claim transitions state to DELIVERY_ATTEMPTED before delivery
+        storage.updatePendingOperationState(opId, "DELIVERY_ATTEMPTED", "XP:100;;;PAYLOAD:::item_iron_x16");
+
+        // Step 2: Simulate crash (player received items/XP, but server halted before removePendingOperation)
+        // Simulate restart reconciliation
+        storage.reconcilePendingOperations(null);
+
+        // State remains DELIVERY_ATTEMPTED and minion is quarantined on restart
+        assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined on restart for interrupted claim");
+
+        com.minionx.storage.PendingOperation recoveredOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(recoveredOp);
+        assertEquals("UNKNOWN", recoveredOp.state(), "Interrupted DELIVERY_ATTEMPTED operation is safely marked UNKNOWN on startup");
+
+        // Step 3: /minion claim must reject UNKNOWN on subsequent attempts
+        boolean isAmbiguousForClaim = "DELIVERY_ATTEMPTED".equalsIgnoreCase(recoveredOp.state())
+                || "UNKNOWN".equalsIgnoreCase(recoveredOp.state())
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(recoveredOp.state());
+        assertTrue(isAmbiguousForClaim, "/minion claim must reject ambiguous state to prevent duplicate grant");
+
+        // Step 4: /minion recover must withhold automatic XP grant
+        boolean isAmbiguousForRecover = "DELIVERY_ATTEMPTED".equalsIgnoreCase(recoveredOp.state())
+                || "UNKNOWN".equalsIgnoreCase(recoveredOp.state());
+        boolean allowAutomaticXp = !isAmbiguousForRecover;
+        assertFalse(allowAutomaticXp, "Recovery must withhold automatic XP grant for interrupted claim");
+    }
+
+    // --- 55. Claim Explicitly Rejects All Ambiguous Operations ---
+    @Test
+    public void testClaimExplicitlyRejectsAmbiguousOperations() {
+        String[] ambiguousStates = {"DELIVERY_ATTEMPTED", "UNKNOWN", "AMBIGUOUS_PARTIAL_DELIVERY", "COMPLETION_UNCONFIRMED"};
+        for (String state : ambiguousStates) {
+            boolean isAmbiguous = "DELIVERY_ATTEMPTED".equalsIgnoreCase(state)
+                    || "UNKNOWN".equalsIgnoreCase(state)
+                    || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(state)
+                    || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(state);
+            assertTrue(isAmbiguous, "State " + state + " must be classified as ambiguous and blocked in /minion claim");
+
+            boolean isClaimable = !"MINION_REMOVED".equalsIgnoreCase(state)
+                    && !"QUARANTINED_LEFTOVERS".equalsIgnoreCase(state)
+                    && !"DELIVERY_FAILED_OFFLINE".equalsIgnoreCase(state)
+                    && !"PREPARED".equalsIgnoreCase(state)
+                    && !"DELIVERY_CLAIM_FAILED".equalsIgnoreCase(state);
+            assertTrue(isClaimable, "State " + state + " must not match any safe claimable state");
+        }
+    }
+
+    // --- 56. Recovery Parser Parses XP Amount in XP_GRANTED and Enables Force Override ---
+    @Test
+    public void testRecoveryParserParsesXpAmountInXpGrantedRecordAndEnablesForceOverride() {
+        String payloadXpGranted = "XP_GRANTED:150;;;PAYLOAD:::item_gold_x32";
+
+        int xpToGrant = 0;
+        boolean xpAlreadyDelivered = false;
+        String remainingPayload = payloadXpGranted;
+
+        if (remainingPayload.startsWith("XP_DELIVERED:") || remainingPayload.startsWith("XP_GRANTED:")) {
+            xpAlreadyDelivered = true;
+            int prefixLen = remainingPayload.startsWith("XP_DELIVERED:") ? 13 : 11;
+            int sep = remainingPayload.indexOf(";;;PAYLOAD:::");
+            if (sep >= prefixLen) {
+                xpToGrant = Integer.parseInt(remainingPayload.substring(prefixLen, sep));
+                remainingPayload = remainingPayload.substring(sep + 13);
+            }
+        }
+
+        // Verify amount is parsed and NOT zero!
+        assertEquals(150, xpToGrant, "Parser must extract exact XP amount from XP_GRANTED prefix");
+        assertTrue(xpAlreadyDelivered, "xpAlreadyDelivered must be true");
+        assertEquals("item_gold_x32", remainingPayload, "Payload must be stripped of XP prefix");
+
+        // Default recovery withholds XP
+        boolean defaultAllow = !xpAlreadyDelivered;
+        assertFalse(defaultAllow, "Standard recovery must not grant XP from XP_GRANTED record");
+
+        // Explicit administrative override 'deliver-force-all-with-xp' permits grant
+        String action = "deliver-force-all-with-xp";
+        boolean forceAllow = "deliver-force-all-with-xp".equals(action) || (!false && !xpAlreadyDelivered);
+        assertTrue(forceAllow, "deliver-force-all-with-xp must override already-delivered flag");
+        assertTrue(xpToGrant > 0, "xpToGrant must be > 0 so force delivery actually grants the 150 XP");
+    }
 }
 

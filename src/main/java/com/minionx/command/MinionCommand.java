@@ -591,8 +591,14 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         for (com.minionx.storage.PendingOperation op : playerOps) {
             String state = op.state();
-            if ("AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(state) || "UNKNOWN".equalsIgnoreCase(state) || "DELIVERY_ATTEMPTED".equalsIgnoreCase(state)) {
-                player.sendMessage(ColorUtil.color("&cOperation " + op.operationId() + " requires administrator audit due to an ambiguous or interrupted delivery outcome. Automatic claim is prohibited to prevent item duplication."));
+            // 1. Strict Ambiguous Delivery Protection:
+            // Prohibit automatic player claim for ANY ambiguous or unresolved state
+            boolean isAmbiguous = "DELIVERY_ATTEMPTED".equalsIgnoreCase(state)
+                    || "UNKNOWN".equalsIgnoreCase(state)
+                    || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(state)
+                    || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(state);
+            if (isAmbiguous) {
+                player.sendMessage(ColorUtil.color("&cOperation " + op.operationId() + " requires administrator audit due to an ambiguous delivery outcome (" + state + "). Automatic claim is prohibited to prevent item/XP duplication."));
                 continue;
             }
             if (!"MINION_REMOVED".equalsIgnoreCase(state) && !"QUARANTINED_LEFTOVERS".equalsIgnoreCase(state) && !"DELIVERY_FAILED_OFFLINE".equalsIgnoreCase(state) && !"PREPARED".equalsIgnoreCase(state) && !"DELIVERY_CLAIM_FAILED".equalsIgnoreCase(state)) {
@@ -606,15 +612,23 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             boolean xpAlreadyDelivered = false;
             if (payload.startsWith("XP_DELIVERED:") || payload.startsWith("XP_GRANTED:")) {
                 xpAlreadyDelivered = true;
+                int prefixLen = payload.startsWith("XP_DELIVERED:") ? 13 : 11;
                 int sep = payload.indexOf(";;;PAYLOAD:::");
-                if (sep >= 0) payload = payload.substring(sep + 13);
+                if (sep >= prefixLen) {
+                    try {
+                        xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
+                    } catch (Exception ignored) {}
+                    payload = payload.substring(sep + 13);
+                }
             } else if ((payload.startsWith("XP:") || payload.startsWith("XP_PENDING:")) && payload.contains(";;;PAYLOAD:::")) {
                 int prefixLen = payload.startsWith("XP_PENDING:") ? 11 : 3;
                 int sep = payload.indexOf(";;;PAYLOAD:::");
-                try {
-                    xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
-                } catch (Exception ignored) {}
-                payload = payload.substring(sep + 13);
+                if (sep >= prefixLen) {
+                    try {
+                        xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
+                    } catch (Exception ignored) {}
+                    payload = payload.substring(sep + 13);
+                }
             }
 
             String[] rawItems = payload.split(";;;ITEM;;;");
@@ -637,6 +651,19 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 try {
                     storage.removePendingOperation(op.operationId());
                 } catch (Exception ignored) {}
+                continue;
+            }
+
+            // 2. Crash-Safety Boundary: Transition operation to DELIVERY_ATTEMPTED before modifying player inventory or granting XP!
+            // If the server stops or crashes at any point during delivery or before completion acknowledgment,
+            // the operation remains in DELIVERY_ATTEMPTED on reboot, preventing automatic re-claims and duplicate XP!
+            boolean claimAttemptPersisted = false;
+            try {
+                storage.updatePendingOperationState(op.operationId(), "DELIVERY_ATTEMPTED", op.payload());
+                claimAttemptPersisted = true;
+            } catch (Exception ignored) {}
+            if (!claimAttemptPersisted) {
+                player.sendMessage(ColorUtil.color("&cFailed to initiate secure claim transaction for operation " + op.operationId() + ". Please try again."));
                 continue;
             }
 
