@@ -413,8 +413,8 @@ public class PhaseOneHardeningTest {
         state.minionCoins.put(minionId.toString(), 250.0);
 
         // Reserve payout: balance reduced by 250.0, state set to ATTEMPTED
-        boolean reserved = storage.reservePayoutAtomic(opId, minionId, playerUuid, 250.0, 2L);
-        assertTrue(reserved, "reservePayoutAtomic must succeed");
+        DatabaseStorage.PayoutReservationResult reserved = storage.reservePayoutAtomic(opId, minionId, playerUuid, 250.0, 2L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.RESERVED, reserved, "reservePayoutAtomic must succeed");
         assertEquals(0.0, state.minionCoins.get(minionId.toString()), 0.001);
         assertEquals("ATTEMPTED", state.pendingOperationStates.get(opId));
 
@@ -443,7 +443,7 @@ public class PhaseOneHardeningTest {
         String opId = "payout-confirm-" + UUID.randomUUID();
 
         state.minionCoins.put(minionId.toString(), 100.0);
-        assertTrue(storage.reservePayoutAtomic(opId, minionId, playerUuid, 100.0, 2L));
+        assertEquals(DatabaseStorage.PayoutReservationResult.RESERVED, storage.reservePayoutAtomic(opId, minionId, playerUuid, 100.0, 2L));
         assertEquals("ATTEMPTED", state.pendingOperationStates.get(opId));
 
         // Confirm payout: must transition to CONFIRMED (durable audit record preserved, not deleted)
@@ -609,8 +609,8 @@ public class PhaseOneHardeningTest {
 
         // 1. First reservation succeeds
         state.minionCoins.put(minionId.toString(), 100.0);
-        boolean first = storage.reservePayoutAtomic(opId, minionId, playerUuid, 50.0, 1L);
-        assertTrue(first, "First reservation must succeed");
+        DatabaseStorage.PayoutReservationResult first = storage.reservePayoutAtomic(opId, minionId, playerUuid, 50.0, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.RESERVED, first, "First reservation must succeed");
         assertEquals("ATTEMPTED", state.pendingOperationStates.get(opId));
 
         // 2. Transition to CONFIRMED
@@ -619,8 +619,8 @@ public class PhaseOneHardeningTest {
         assertEquals("CONFIRMED", state.pendingOperationStates.get(opId));
 
         // 3. Second call with same opId must be rejected and must NOT reset state to ATTEMPTED
-        boolean second = storage.reservePayoutAtomic(opId, minionId, playerUuid, 50.0, 2L);
-        assertFalse(second, "Second reservation with same opId must be rejected");
+        DatabaseStorage.PayoutReservationResult second = storage.reservePayoutAtomic(opId, minionId, playerUuid, 50.0, 2L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK, second, "Second reservation with same opId must be rejected");
         assertEquals("CONFIRMED", state.pendingOperationStates.get(opId), "Operation state must remain CONFIRMED");
     }
 
@@ -744,8 +744,8 @@ public class PhaseOneHardeningTest {
         state.minionCoins.put(minionId.toString(), 100.0);
 
         // Payout with non-standard floating precision 12.3456789
-        boolean reserved = storage.reservePayoutAtomic(opId, minionId, playerUuid, 12.3456789, 1L);
-        assertTrue(reserved);
+        DatabaseStorage.PayoutReservationResult reserved = storage.reservePayoutAtomic(opId, minionId, playerUuid, 12.3456789, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.RESERVED, reserved);
 
         // Check payload stored in pending op is normalized to 4 decimals (12.3457)
         String storedPayload = state.pendingOperationPayloads.get(opId);
@@ -810,13 +810,13 @@ public class PhaseOneHardeningTest {
         state.minions.add(minionId2.toString());
 
         // First payout succeeds with sharedOpId
-        boolean firstPayout = storage.reservePayoutAtomic(sharedOpId, minionId1, playerUuid, 25.0, 1L);
-        assertTrue(firstPayout);
+        DatabaseStorage.PayoutReservationResult firstPayout = storage.reservePayoutAtomic(sharedOpId, minionId1, playerUuid, 25.0, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.RESERVED, firstPayout);
         assertEquals(75.0, state.minionCoins.get(minionId1.toString()), 0.0001);
 
         // Attempting to reuse sharedOpId for a second payout must fail and not deduct coins
-        boolean secondPayout = storage.reservePayoutAtomic(sharedOpId, minionId1, playerUuid, 25.0, 2L);
-        assertFalse(secondPayout, "Reusing existing operationId for payout must be rejected");
+        DatabaseStorage.PayoutReservationResult secondPayout = storage.reservePayoutAtomic(sharedOpId, minionId1, playerUuid, 25.0, 2L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK, secondPayout, "Reusing existing operationId for payout must be rejected");
         assertEquals(75.0, state.minionCoins.get(minionId1.toString()), 0.0001, "No extra coins may be deducted on duplicate opId");
 
         // Attempting to reuse sharedOpId for a pickup of minionId2 must return CONFLICTING_PAYLOAD and not delete minionId2
@@ -916,8 +916,8 @@ public class PhaseOneHardeningTest {
 
         // When connection is absent / lost during reservation, minion must be quarantined
         storage.setConnection(null);
-        boolean result = storage.reservePayoutAtomic(opId, minionId, UUID.randomUUID(), 50.0, 1L);
-        assertFalse(result);
+        DatabaseStorage.PayoutReservationResult result = storage.reservePayoutAtomic(opId, minionId, UUID.randomUUID(), 50.0, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME, result);
         assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined when commit/connection fails");
     }
 
@@ -958,4 +958,126 @@ public class PhaseOneHardeningTest {
         assertNotNull(peeked);
         assertTrue(peeked.dueTimeMillis() <= now, "Due actions remain eligible for dispatch immediately");
     }
+
+    // --- 29. Payout Rollback Failure Escalate to UNKNOWN_OUTCOME and Quarantine Barrier ---
+    @Test
+    public void testPayoutRollbackFailureEscalatesToUnknownOutcomeAndQuarantinesMinion() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        UUID playerUuid = UUID.randomUUID();
+        String opId = "payout-rb-fail-" + UUID.randomUUID();
+
+        // Minion has 100 coins
+        state.minionCoins.put(minionId.toString(), 100.0);
+
+        // When statement fails and rollback fails, outcome must be UNKNOWN_OUTCOME and minion quarantined
+        state.throwOnExecute = true;
+        state.throwOnRollback = true;
+        DatabaseStorage.PayoutReservationResult result = storage.reservePayoutAtomic(opId, minionId, playerUuid, 50.0, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME, result,
+                "When rollback throws an exception, outcome is uncertain and must return UNKNOWN_OUTCOME");
+        assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined when rollback cannot be confirmed");
+    }
+
+    // --- 30. Pickup Blocked When Permanent Tombstone Already Exists ---
+    @Test
+    public void testPickupBlockedWhenTombstoneAlreadyExists() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        UUID playerUuid = UUID.randomUUID();
+        String opId = "pickup-tomb-conflict-" + UUID.randomUUID();
+
+        state.minions.add(minionId.toString());
+        state.trackMinionPresence = true;
+        // Coexisting tombstone already present in database!
+        state.tombstones.put(minionId.toString(), 1L);
+        state.tombstoneOperations.put(minionId.toString(), "prior-deletion-op");
+
+        DatabaseStorage.PickupRemovalResult result = storage.executePickupRemoval(opId, minionId, playerUuid, 1L, "PAYLOAD");
+        assertEquals(DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME, result,
+                "Coexisting active minion and permanent tombstone is contradictory; must return UNKNOWN_OUTCOME");
+        assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined upon contradictory tombstone state");
+        assertTrue(state.minions.contains(minionId.toString()), "Active minion row must NOT be deleted when tombstone conflict exists");
+        assertEquals("prior-deletion-op", state.tombstoneOperations.get(minionId.toString()),
+                "Original tombstone linkage must NOT be overwritten");
+    }
+
+    // --- 31. Idempotent Pickup Rejects Contradictory Active Minion Or Missing Tombstone ---
+    @Test
+    public void testIdempotentPickupRejectsContradictoryActiveMinionOrMissingTombstone() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        UUID playerUuid = UUID.randomUUID();
+        String opId = "idemp-contradict-" + UUID.randomUUID();
+
+        // Pending operation exists with state MINION_REMOVED
+        state.pendingOperationStates.put(opId, "MINION_REMOVED");
+        state.pendingOperationMinions.put(opId, minionId.toString());
+        state.pendingOperationPlayers.put(opId, playerUuid.toString());
+        state.pendingOperationPayloads.put(opId, "PAYLOAD");
+
+        // Contradiction A: Active minion is still present in database!
+        state.minions.add(minionId.toString());
+        state.trackMinionPresence = true;
+        state.tombstones.put(minionId.toString(), 1L);
+        state.tombstoneOperations.put(minionId.toString(), opId);
+
+        DatabaseStorage.PickupRemovalResult resA = storage.executePickupRemoval(opId, minionId, playerUuid, 1L, "PAYLOAD");
+        assertEquals(DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME, resA,
+                "Idempotent retry when active minion row still exists is contradictory and must return UNKNOWN_OUTCOME");
+        assertTrue(storage.isQuarantined(minionId));
+
+        // Contradiction B: Minion absent, but tombstone operation does not match opId!
+        storage.unquarantineMinion(minionId);
+        state.minions.remove(minionId.toString());
+        state.tombstoneOperations.put(minionId.toString(), "mismatched-op");
+
+        DatabaseStorage.PickupRemovalResult resB = storage.executePickupRemoval(opId, minionId, playerUuid, 1L, "PAYLOAD");
+        assertEquals(DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME, resB,
+                "Idempotent retry when tombstone operation linkage does not match must return UNKNOWN_OUTCOME");
+        assertTrue(storage.isQuarantined(minionId));
+
+        // Valid consistent state: Minion absent AND tombstone matches opId
+        storage.unquarantineMinion(minionId);
+        state.tombstoneOperations.put(minionId.toString(), opId);
+
+        DatabaseStorage.PickupRemovalResult validRes = storage.executePickupRemoval(opId, minionId, playerUuid, 1L, "PAYLOAD");
+        assertEquals(DatabaseStorage.PickupRemovalResult.ALREADY_COMMITTED_MINION_REMOVED, validRes,
+                "Consistent idempotent lookup must safely return ALREADY_COMMITTED_MINION_REMOVED");
+    }
+
+    // --- 32. Pickup Rollback Failure Escalates to UNKNOWN_OUTCOME and Quarantines Minion ---
+    @Test
+    public void testPickupRollbackFailureEscalatesToUnknownOutcomeAndQuarantinesMinion() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        UUID playerUuid = UUID.randomUUID();
+        String opId = "pickup-rb-fail-" + UUID.randomUUID();
+
+        state.minions.add(minionId.toString());
+        state.throwOnExecute = true;
+        state.throwOnRollback = true;
+
+        DatabaseStorage.PickupRemovalResult result = storage.executePickupRemoval(opId, minionId, playerUuid, 1L, "PAYLOAD");
+        assertEquals(DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME, result,
+                "When rollback throws during pickup failure, outcome must be UNKNOWN_OUTCOME");
+        assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined when pickup rollback outcome is uncertain");
+    }
 }
+

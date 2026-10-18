@@ -894,12 +894,26 @@ public class MinionStorage implements AutoCloseable {
                     return DatabaseStorage.PickupRemovalResult.CONFLICTING_PAYLOAD;
                 }
 
+                // Verify consistency: active minion absent and tombstone matches operationId
+                String minionPath = "minions." + minionId.toString();
+                String tOp = config.getString("tombstones." + minionId + ".operation-id");
+                if (config.contains(minionPath) || !operationId.equalsIgnoreCase(tOp)) {
+                    quarantineMinion(minionId);
+                    return DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME;
+                }
+
                 return switch (storedState != null ? storedState.toUpperCase() : "") {
                     case "MINION_REMOVED" -> DatabaseStorage.PickupRemovalResult.ALREADY_COMMITTED_MINION_REMOVED;
                     case "DELIVERY_ATTEMPTED", "UNKNOWN" -> DatabaseStorage.PickupRemovalResult.ALREADY_DELIVERY_ATTEMPTED;
                     case "COMPLETED" -> DatabaseStorage.PickupRemovalResult.ALREADY_COMPLETED;
                     default -> DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME;
                 };
+            }
+
+            // Reject if a tombstone already exists for this minionId before deleting active row!
+            if (config.contains("tombstones." + minionId)) {
+                quarantineMinion(minionId);
+                return DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME;
             }
 
             // 2. Precondition check: Minion row exists
@@ -928,6 +942,7 @@ public class MinionStorage implements AutoCloseable {
             return DatabaseStorage.PickupRemovalResult.COMMITTED_NOW;
         } catch (IOException e) {
             logSevere("Failed to execute atomic YAML pickup removal for " + minionId, e);
+            quarantineMinion(minionId);
             return DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME;
         }
     }
@@ -998,8 +1013,10 @@ public class MinionStorage implements AutoCloseable {
         }
     }
 
-    public synchronized boolean reservePayoutAtomic(String operationId, UUID minionId, UUID playerUuid, double amount, long revision) {
-        if (operationId == null || minionId == null || !Double.isFinite(amount) || amount <= 0.0) return false;
+    public synchronized DatabaseStorage.PayoutReservationResult reservePayoutAtomic(String operationId, UUID minionId, UUID playerUuid, double amount, long revision) {
+        if (operationId == null || minionId == null || !Double.isFinite(amount) || amount <= 0.0) {
+            return DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
+        }
         double normalizedAmount = BigDecimal.valueOf(amount).setScale(4, RoundingMode.HALF_UP).doubleValue();
 
         if (databaseStorage != null) {
@@ -1008,21 +1025,21 @@ public class MinionStorage implements AutoCloseable {
         }
 
         try {
-            if (!dataFile.exists()) return false;
+            if (!dataFile.exists()) return DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
             YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
             String path = "minions." + minionId.toString();
-            if (!config.contains(path)) return false;
+            if (!config.contains(path)) return DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
 
             YamlConfiguration opConfig = pendingOpsFile.exists() ?
                     YamlConfiguration.loadConfiguration(pendingOpsFile) : new YamlConfiguration();
             String opPath = "operations." + operationId;
-            if (opConfig.contains(opPath)) return false; // Duplicate operation guard
+            if (opConfig.contains(opPath)) return DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK; // Duplicate operation guard
 
             double currentCoins = config.getDouble(path + ".shipping-coins", 0.0);
             double normalizedCoins = BigDecimal.valueOf(currentCoins).setScale(4, RoundingMode.HALF_UP).doubleValue();
             long currentRev = config.getLong(path + ".state-revision", 0L);
-            if (currentRev != revision) return false; // Optimistic revision guard
-            if (normalizedCoins < normalizedAmount) return false;
+            if (currentRev != revision) return DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK; // Optimistic revision guard
+            if (normalizedCoins < normalizedAmount) return DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
 
             config.set(path + ".shipping-coins", BigDecimal.valueOf(normalizedCoins - normalizedAmount).setScale(4, RoundingMode.HALF_UP).doubleValue());
             config.set(path + ".state-revision", revision + 1);
@@ -1034,10 +1051,11 @@ public class MinionStorage implements AutoCloseable {
             opConfig.set(opPath + ".created_at", System.currentTimeMillis());
             opConfig.set(opPath + ".payload", String.valueOf(normalizedAmount));
             writeYamlAtomically(opConfig.saveToString(), pendingOpsFile);
-            return true;
+            return DatabaseStorage.PayoutReservationResult.RESERVED;
         } catch (IOException e) {
             logSevere("Failed to reserve payout in YAML for " + minionId, e);
-            return false;
+            quarantineMinion(minionId);
+            return DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME;
         }
     }
 

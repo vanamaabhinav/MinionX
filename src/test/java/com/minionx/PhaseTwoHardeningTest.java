@@ -104,14 +104,28 @@ public class PhaseTwoHardeningTest {
         assertTrue(deletedItems, "Must delete minion items");
         assertTrue(deletedMinion, "Must delete active minion row");
 
-        // Test Rollback on Failure: if any statement throws, entire transaction must roll back
+        // Test Rollback on Failure: if statement throws and rollback succeeds -> CONFIRMED_ROLLBACK
         state.executedStatements.clear();
         state.transactionEvents.clear();
         state.throwOnExecute = true;
 
-        DatabaseStorage.PickupRemovalResult failedResult = storage.executePickupRemoval(UUID.randomUUID().toString(), minionId, playerUuid, revision, payload);
-        assertEquals(DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME, failedResult, "executePickupRemoval must return UNKNOWN_OUTCOME when statement fails");
+        UUID failedMinionId = UUID.randomUUID();
+        DatabaseStorage.PickupRemovalResult failedResult = storage.executePickupRemoval(UUID.randomUUID().toString(), failedMinionId, playerUuid, revision, payload);
+        assertEquals(DatabaseStorage.PickupRemovalResult.CONFIRMED_ROLLBACK, failedResult, "executePickupRemoval must return CONFIRMED_ROLLBACK when statement fails and rollback succeeds");
         assertTrue(state.transactionEvents.contains("rollback"), "Transaction must rollback on failure");
+        assertFalse(storage.isQuarantined(failedMinionId), "Minion must NOT be quarantined when rollback is confirmed");
+
+        // Test Rollback Failure: if rollback itself throws -> UNKNOWN_OUTCOME + quarantine barrier
+        state.executedStatements.clear();
+        state.transactionEvents.clear();
+        state.throwOnExecute = true;
+        state.throwOnRollback = true;
+
+        UUID rbFailedMinionId = UUID.randomUUID();
+        DatabaseStorage.PickupRemovalResult rollbackFailedResult = storage.executePickupRemoval(UUID.randomUUID().toString(), rbFailedMinionId, playerUuid, revision, payload);
+        assertEquals(DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME, rollbackFailedResult, "executePickupRemoval must return UNKNOWN_OUTCOME when rollback fails");
+        assertTrue(state.transactionEvents.contains("rollback_failed"), "Rollback failure event must be recorded");
+        assertTrue(storage.isQuarantined(rbFailedMinionId), "Minion MUST be quarantined when rollback outcome is uncertain");
     }
 
     // --- 2. Partial Pickup Delivery & Leftover Quarantine ---

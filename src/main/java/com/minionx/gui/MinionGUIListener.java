@@ -627,87 +627,135 @@ public class MinionGUIListener implements Listener {
         }
         String payloadStr = String.join(";;;ITEM;;;", serializedPayload);
 
-        // 5. Phase 1: Atomic Minion Removal & Escrow Commit (MINION_REMOVED)
+        // 5. Phase 1: Atomic Minion Removal & Escrow Commit (MINION_REMOVED) dispatched asynchronously
         String operationId = UUID.randomUUID().toString();
-        DatabaseStorage.PickupRemovalResult removalResult = MinionX.getInstance().getMinionStorage().executePickupRemoval(
-                operationId,
-                minion.getMinionId(),
-                player.getUniqueId(),
-                minion.getStateRevision(),
-                payloadStr
-        );
-        if (removalResult != DatabaseStorage.PickupRemovalResult.COMMITTED_NOW &&
-            removalResult != DatabaseStorage.PickupRemovalResult.ALREADY_COMMITTED_MINION_REMOVED) {
-            if (removalResult == DatabaseStorage.PickupRemovalResult.ALREADY_DELIVERY_ATTEMPTED) {
-                player.sendMessage(ColorUtil.color("&cPickup delivery is already in progress or attempted."));
-            } else if (removalResult == DatabaseStorage.PickupRemovalResult.ALREADY_COMPLETED) {
-                player.sendMessage(ColorUtil.color("&eThis minion pickup has already been completed."));
-            } else {
-                player.sendMessage(ColorUtil.color("&cFailed to initiate secure pickup transaction. Please try again."));
-            }
+        UUID minionId = minion.getMinionId();
+        UUID playerUuid = player.getUniqueId();
+        long stateRevision = minion.getStateRevision();
+
+        if (storage == null) {
             minion.releaseTransaction();
             return;
         }
 
-        // Clean up runtime visual and manager entities immediately upon confirmed removal
-        MinionX.getInstance().getMinionManager().unregister(minion);
-        MinionVisual.remove(minion);
-        MinionHologram.remove(minion);
-        if (minion.hasLinkedStorage()) {
-            MinionStorageListener.removeStorageOnMinionRemoval(minion, false);
-        }
+        storage.getPersistenceExecutor().submit(() -> {
+            DatabaseStorage.PickupRemovalResult removalResult = storage.executePickupRemoval(
+                    operationId,
+                    minionId,
+                    playerUuid,
+                    stateRevision,
+                    payloadStr
+            );
 
-        // 6. Phase 2: Claim Delivery Attempt (MINION_REMOVED -> DELIVERY_ATTEMPTED)
-        boolean claimed = MinionX.getInstance().getMinionStorage().claimDeliveryAttempt(operationId);
-        if (!claimed) {
-            player.sendMessage(ColorUtil.color("&cPickup delivery attempt claim failed."));
-            minion.releaseTransaction();
-            return;
-        }
-
-        List<ItemStack> leftoverItems = new ArrayList<>();
-        for (ItemStack item : itemsToTransfer) {
-            HashMap<Integer, ItemStack> left = player.getInventory().addItem(item);
-            if (!left.isEmpty()) {
-                leftoverItems.addAll(left.values());
-            }
-        }
-
-        // 7. Phase 3: Explicit Delivery Confirmation / Leftover Quarantine
-        if (leftoverItems.isEmpty()) {
-            // Full delivery confirmed! Mark COMPLETED and remove pending operation
-            MinionX.getInstance().getMinionStorage().completeDelivery(operationId);
-            try {
-                MinionX.getInstance().getMinionStorage().removePendingOperation(operationId);
-            } catch (Exception ignored) {}
-            player.sendMessage(ColorUtil.color("&eYou picked up your " + minion.getDisplayName() + " Minion!"));
-            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
-        } else {
-            // Partial delivery: DO NOT mark COMPLETED! Operation remains quarantined in escrow ledger.
-            List<String> remPayload = new ArrayList<>();
-            for (ItemStack rem : leftoverItems) {
-                YamlConfiguration yc = new YamlConfiguration();
-                yc.set("item", rem);
-                remPayload.add(yc.saveToString());
-                if (player.isOnline()) {
-                    player.getWorld().dropItemNaturally(player.getLocation(), rem);
+            Runnable onServerThread = () -> {
+                if (removalResult != DatabaseStorage.PickupRemovalResult.COMMITTED_NOW &&
+                    removalResult != DatabaseStorage.PickupRemovalResult.ALREADY_COMMITTED_MINION_REMOVED) {
+                    if (removalResult == DatabaseStorage.PickupRemovalResult.ALREADY_DELIVERY_ATTEMPTED) {
+                        if (player.isOnline()) player.sendMessage(ColorUtil.color("&cPickup delivery is already in progress or attempted."));
+                    } else if (removalResult == DatabaseStorage.PickupRemovalResult.ALREADY_COMPLETED) {
+                        if (player.isOnline()) player.sendMessage(ColorUtil.color("&eThis minion pickup has already been completed."));
+                    } else if (removalResult == DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME) {
+                        if (player.isOnline()) player.sendMessage(ColorUtil.color("&cPickup transaction outcome is uncertain. Minion has been quarantined pending reconciliation."));
+                    } else {
+                        if (player.isOnline()) player.sendMessage(ColorUtil.color("&cFailed to initiate secure pickup transaction. Please try again."));
+                    }
+                    minion.releaseTransaction();
+                    return;
                 }
-            }
-            try {
-                MinionX.getInstance().getMinionStorage().updatePendingOperationState(
-                        operationId, "QUARANTINED_LEFTOVERS", String.join(";;;ITEM;;;", remPayload));
-            } catch (Exception ignored) {}
-            player.sendMessage(ColorUtil.color("&eMinion picked up! Some items did not fit in your inventory and were placed at your feet."));
-            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
-        }
 
-        // Claim XP and coins safely
-        int xp = minion.claimStoredXp();
-        if (xp > 0) {
-            player.giveExp(xp);
-        }
-        collectShippingCoinsSafely(player, minion);
-        minion.releaseTransaction();
+                // Clean up runtime visual and manager entities immediately upon confirmed removal
+                if (MinionX.getInstance() != null && MinionX.getInstance().getMinionManager() != null) {
+                    MinionX.getInstance().getMinionManager().unregister(minion);
+                }
+                MinionVisual.remove(minion);
+                MinionHologram.remove(minion);
+                if (minion.hasLinkedStorage()) {
+                    MinionStorageListener.removeStorageOnMinionRemoval(minion, false);
+                }
+
+                // 6. Phase 2: Claim Delivery Attempt asynchronously
+                storage.getPersistenceExecutor().submit(() -> {
+                    boolean claimed = storage.claimDeliveryAttempt(operationId);
+
+                    Runnable onClaimComplete = () -> {
+                        if (!claimed) {
+                            if (player.isOnline()) player.sendMessage(ColorUtil.color("&cPickup delivery attempt claim failed."));
+                            minion.releaseTransaction();
+                            return;
+                        }
+
+                        List<ItemStack> leftoverItems = new ArrayList<>();
+                        if (player.isOnline()) {
+                            for (ItemStack item : itemsToTransfer) {
+                                HashMap<Integer, ItemStack> left = player.getInventory().addItem(item);
+                                if (!left.isEmpty()) {
+                                    leftoverItems.addAll(left.values());
+                                }
+                            }
+                        } else {
+                            leftoverItems.addAll(itemsToTransfer);
+                        }
+
+                        // 7. Phase 3: Explicit Delivery Confirmation / Leftover Quarantine
+                        if (leftoverItems.isEmpty()) {
+                            // Full delivery confirmed! Mark COMPLETED asynchronously
+                            storage.getPersistenceExecutor().submit(() -> {
+                                storage.completeDelivery(operationId);
+                                try {
+                                    storage.removePendingOperation(operationId);
+                                } catch (Exception ignored) {}
+                            });
+                            if (player.isOnline()) {
+                                player.sendMessage(ColorUtil.color("&eYou picked up your " + minion.getDisplayName() + " Minion!"));
+                                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
+                            }
+                        } else {
+                            // Partial delivery: DO NOT mark COMPLETED! Operation remains quarantined in escrow ledger.
+                            List<String> remPayload = new ArrayList<>();
+                            for (ItemStack rem : leftoverItems) {
+                                YamlConfiguration yc = new YamlConfiguration();
+                                yc.set("item", rem);
+                                remPayload.add(yc.saveToString());
+                                if (player.isOnline()) {
+                                    player.getWorld().dropItemNaturally(player.getLocation(), rem);
+                                }
+                            }
+                            String leftoversStr = String.join(";;;ITEM;;;", remPayload);
+                            storage.getPersistenceExecutor().submit(() -> {
+                                try {
+                                    storage.updatePendingOperationState(
+                                            operationId, "QUARANTINED_LEFTOVERS", leftoversStr);
+                                } catch (Exception ignored) {}
+                            });
+                            if (player.isOnline()) {
+                                player.sendMessage(ColorUtil.color("&eMinion picked up! Some items did not fit in your inventory and were placed at your feet."));
+                                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
+                            }
+                        }
+
+                        // Claim XP and coins safely
+                        int xp = minion.claimStoredXp();
+                        if (xp > 0 && player.isOnline()) {
+                            player.giveExp(xp);
+                        }
+                        collectShippingCoinsSafely(player, minion);
+                        minion.releaseTransaction();
+                    };
+
+                    if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
+                        Bukkit.getScheduler().runTask(MinionX.getInstance(), onClaimComplete);
+                    } else {
+                        onClaimComplete.run();
+                    }
+                });
+            };
+
+            if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
+                Bukkit.getScheduler().runTask(MinionX.getInstance(), onServerThread);
+            } else {
+                onServerThread.run();
+            }
+        });
     }
 
     private void collectShippingCoinsSafely(Player player, Minion minion) {
@@ -738,24 +786,24 @@ public class MinionGUIListener implements Listener {
 
         // 3. Dispatch atomic reservation to persistence
         storage.getPersistenceExecutor().submit(() -> {
-            boolean reserved = storage.reservePayoutAtomic(opId, minionId, playerUuid, normalizedCoins, dbRev);
-            if (!reserved) {
-                // If minion is quarantined due to ambiguous commit, keep payout lock and do not cancel reserved balance
-                if (storage.isQuarantined(minionId)) {
-                    Runnable quarantineNotify = () -> {
-                        if (player.isOnline()) {
-                            player.sendMessage(ColorUtil.color("&cPayout ledger outcome is uncertain. Minion has been quarantined pending reconciliation."));
-                        }
-                    };
-                    if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
-                        Bukkit.getScheduler().runTask(MinionX.getInstance(), quarantineNotify);
-                    } else {
-                        quarantineNotify.run();
+            DatabaseStorage.PayoutReservationResult reservationResult = storage.reservePayoutAtomic(opId, minionId, playerUuid, normalizedCoins, dbRev);
+            if (reservationResult == DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME) {
+                // Ambiguous commit or rollback failure: keep payout lock and retain reserved balance!
+                Runnable quarantineNotify = () -> {
+                    if (player.isOnline()) {
+                        player.sendMessage(ColorUtil.color("&cPayout ledger outcome is uncertain. Minion has been quarantined pending reconciliation."));
                     }
-                    return;
+                };
+                if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
+                    Bukkit.getScheduler().runTask(MinionX.getInstance(), quarantineNotify);
+                } else {
+                    quarantineNotify.run();
                 }
+                return;
+            }
 
-                // Reservation failed cleanly: restore live balance on main thread
+            if (reservationResult == DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK) {
+                // Reservation cleanly failed: restore live balance on main thread and release lock
                 Runnable restoreTask = () -> {
                     minion.cancelReservedCoins();
                     storage.releasePayoutLock(minionId);
@@ -771,7 +819,7 @@ public class MinionGUIListener implements Listener {
                 return;
             }
 
-            // 4. Main-Thread: Invoke Vault API
+            // 4. Main-Thread: Invoke Vault API (RESERVED)
             Runnable vaultTask = () -> {
                 com.minionx.hook.EconomyHook.PayoutResult result = com.minionx.hook.EconomyHook.depositWithResult(player, normalizedCoins);
 

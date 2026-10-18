@@ -30,6 +30,7 @@ public class MockSqlHelper {
         public final List<String> transactionEvents = new ArrayList<>();
         public boolean autoCommit = true;
         public boolean throwOnExecute = false;
+        public boolean throwOnRollback = false;
         public String databaseProductName = "SQLite";
 
         public final Set<String> minions = new HashSet<>();
@@ -82,6 +83,10 @@ public class MockSqlHelper {
                                 return null;
                             }
                             case "rollback" -> {
+                                if (state.throwOnRollback) {
+                                    state.transactionEvents.add("rollback_failed");
+                                    throw new SQLException("Simulated rollback failure");
+                                }
                                 state.transactionEvents.add("rollback");
                                 return null;
                             }
@@ -230,6 +235,9 @@ public class MockSqlHelper {
                             String mId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
                             String opId = call.parameters.get(2) != null ? call.parameters.get(2).toString() : null;
                             if (mId != null) {
+                                if (state.tombstones.containsKey(mId)) {
+                                    throw new SQLException("Duplicate entry for primary key minion_tombstones: " + mId);
+                                }
                                 if (opId != null) state.tombstoneOperations.put(mId, opId);
                                 state.tombstones.put(mId, 1L);
                             }
@@ -285,6 +293,20 @@ public class MockSqlHelper {
                             String mId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
                             String opId = call.parameters.get(2) != null ? call.parameters.get(2).toString() : null;
                             if (mId != null && opId != null && opId.equals(state.tombstoneOperations.get(mId))) {
+                                return createSingleRowResultSet();
+                            }
+                            return createEmptyResultSet();
+                        }
+                        if (upper.contains("SELECT OPERATION_ID FROM MINION_TOMBSTONES WHERE MINION_ID = ?")) {
+                            String mId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            if (mId != null && state.tombstoneOperations.containsKey(mId)) {
+                                return createSingleColumnResultSet("operation_id", state.tombstoneOperations.get(mId));
+                            }
+                            return createEmptyResultSet();
+                        }
+                        if (upper.contains("SELECT 1 FROM MINION_TOMBSTONES WHERE MINION_ID = ?")) {
+                            String mId = call.parameters.get(1) != null ? call.parameters.get(1).toString() : null;
+                            if (mId != null && (state.tombstones.containsKey(mId) || state.tombstoneOperations.containsKey(mId))) {
                                 return createSingleRowResultSet();
                             }
                             return createEmptyResultSet();
@@ -506,6 +528,30 @@ public class MockSqlHelper {
                     }
                     if ("getLong".equals(name)) {
                         return cur.entry != null && cur.entry.getValue() != null ? cur.entry.getValue() : 0L;
+                    }
+                    if ("close".equals(name)) return null;
+                    return defaultValue(method.getReturnType());
+                }
+        );
+    }
+
+    private static ResultSet createSingleColumnResultSet(String colName, String value) {
+        final boolean[] read = {false};
+        return (ResultSet) Proxy.newProxyInstance(
+                ResultSet.class.getClassLoader(),
+                new Class<?>[]{ResultSet.class},
+                (proxy, method, args) -> {
+                    String name = method.getName();
+                    if ("next".equals(name)) {
+                        if (!read[0]) {
+                            read[0] = true;
+                            return true;
+                        }
+                        return false;
+                    }
+                    if ("getString".equals(name) && args != null && args.length >= 1) {
+                        String col = (String) args[0];
+                        if (colName.equalsIgnoreCase(col)) return value;
                     }
                     if ("close".equals(name)) return null;
                     return defaultValue(method.getReturnType());
