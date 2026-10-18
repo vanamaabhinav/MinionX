@@ -526,6 +526,13 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
+        if (storage != null && storage.isQuarantined(minion.getMinionId())) {
+            player.sendMessage(ColorUtil.color("&cCannot pick up minion: this minion is quarantined due to an unresolved transaction."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            minion.releaseTransaction();
+            return;
+        }
+
         // Anti-loss check: require automated shipping coins to be collected before pickup
         if (minion.getClaimableShippingCoins() >= 0.0001) {
             player.sendMessage(ColorUtil.color("&cPlease collect your accumulated Automated Shipping coins before picking up this minion."));
@@ -633,7 +640,9 @@ public class MinionGUIListener implements Listener {
             yc.set("item", stack);
             serializedPayload.add(yc.saveToString());
         }
-        String payloadStr = String.join(";;;ITEM;;;", serializedPayload);
+        int storedXp = minion.getStoredXp();
+        String rawPayloadStr = String.join(";;;ITEM;;;", serializedPayload);
+        String payloadStr = (storedXp > 0) ? "XP:" + storedXp + ";;;PAYLOAD:::" + rawPayloadStr : rawPayloadStr;
 
         // 5. Phase 1: Atomic Minion Removal & Escrow Commit (MINION_REMOVED) dispatched asynchronously
         String operationId = UUID.randomUUID().toString();
@@ -717,12 +726,10 @@ public class MinionGUIListener implements Listener {
                                     // Offline player protection: if player disconnected during async DB calls, do NOT deliver or consume XP!
                                     if (player == null || !player.isOnline()) {
                                         storage.quarantineMinion(minionId);
-                                        int storedXp = minion.getStoredXp();
-                                        String offlinePayload = (storedXp > 0) ? "XP:" + storedXp + ";;;PAYLOAD:::" + payloadStr : payloadStr;
                                         storage.getPersistenceExecutor().submit(() -> {
                                             try {
                                                 storage.updatePendingOperationState(
-                                                        operationId, "DELIVERY_FAILED_OFFLINE", offlinePayload);
+                                                        operationId, "DELIVERY_FAILED_OFFLINE", payloadStr);
                                             } catch (Exception ignored) {}
                                         });
                                         if (MinionX.getInstance() != null) {
@@ -798,20 +805,22 @@ public class MinionGUIListener implements Listener {
                                         }
                                         String deliveredStr = String.join(";;;ITEM;;;", delPayload);
 
+                                        String leftoverPayloadWithXp = (storedXp > 0) ? "XP:" + storedXp + ";;;PAYLOAD:::" + leftoversStr : leftoversStr;
                                         storage.getPersistenceExecutor().submit(() -> {
                                             boolean updated = false;
                                             try {
                                                 storage.updatePendingOperationState(
-                                                        operationId, "QUARANTINED_LEFTOVERS", leftoversStr);
+                                                        operationId, "QUARANTINED_LEFTOVERS", leftoverPayloadWithXp);
                                                 updated = true;
                                             } catch (Throwable t) {
                                                 updated = false;
                                             }
                                             boolean finalUpdated = updated;
                                             if (!finalUpdated) {
-                                                // Failed to record leftovers: mark AMBIGUOUS_PARTIAL_DELIVERY with full ledger!
+                                                // Failed to record leftovers: mark AMBIGUOUS_PARTIAL_DELIVERY with full ledger + XP!
                                                 try {
-                                                    String auditLedger = "DELIVERED:::" + deliveredStr + ";;;LEFTOVER:::" + leftoversStr;
+                                                    String auditLedger = (storedXp > 0 ? "XP:" + storedXp + ";;;PAYLOAD:::" : "") +
+                                                            "DELIVERED:::" + deliveredStr + ";;;LEFTOVER:::" + leftoversStr;
                                                     storage.updatePendingOperationState(
                                                             operationId, "AMBIGUOUS_PARTIAL_DELIVERY", auditLedger);
                                                 } catch (Exception ignored) {}
@@ -871,6 +880,11 @@ public class MinionGUIListener implements Listener {
 
         MinionStorage storage = MinionX.getInstance() != null ? MinionX.getInstance().getMinionStorage() : null;
         if (storage == null) return;
+
+        if (storage.isQuarantined(minion.getMinionId())) {
+            player.sendMessage(ColorUtil.color("&cCannot collect shipping coins: this minion is quarantined due to an unresolved transaction."));
+            return;
+        }
 
         // 1. Acquire main-thread payout lock
         if (!storage.acquirePayoutLock(minion.getMinionId())) {

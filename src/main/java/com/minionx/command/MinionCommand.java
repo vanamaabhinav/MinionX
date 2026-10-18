@@ -661,8 +661,12 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     yc.set("item", rem);
                     remSerialized.add(yc.saveToString());
                 }
+                String remPayloadStr = String.join(";;;ITEM;;;", remSerialized);
+                if (xpToGrant > 0) {
+                    remPayloadStr = "XP:" + xpToGrant + ";;;PAYLOAD:::" + remPayloadStr;
+                }
                 try {
-                    storage.updatePendingOperationState(op.operationId(), "QUARANTINED_LEFTOVERS", String.join(";;;ITEM;;;", remSerialized));
+                    storage.updatePendingOperationState(op.operationId(), "QUARANTINED_LEFTOVERS", remPayloadStr);
                 } catch (Exception ignored) {}
                 player.sendMessage(ColorUtil.color("&eYour inventory became full! Some items remain in your escrow claim. Make space and run /minion claim again."));
                 break;
@@ -738,6 +742,18 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                 Player targetPlayer = Bukkit.getPlayer(targetOp.playerUuid());
                 String payload = targetOp.payload();
+
+                // 1. Extract XP if present (must occur BEFORE leftover extraction to avoid stripping prefix)
+                int xpToGrant = 0;
+                if (payload != null && payload.startsWith("XP:") && payload.contains(";;;PAYLOAD:::")) {
+                    int sep = payload.indexOf(";;;PAYLOAD:::");
+                    try {
+                        xpToGrant = Integer.parseInt(payload.substring(3, sep));
+                    } catch (Exception ignored) {}
+                    payload = payload.substring(sep + 13);
+                }
+
+                // 2. Extract leftover items only if AMBIGUOUS_PARTIAL_DELIVERY
                 if ("AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(targetOp.state())) {
                     int leftoverIndex = (payload != null) ? payload.indexOf(";;;LEFTOVER:::") : -1;
                     if (leftoverIndex >= 0) {
@@ -746,15 +762,6 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId + " is AMBIGUOUS_PARTIAL_DELIVERY but leftover section is missing. Cannot deliver safely."));
                         return;
                     }
-                }
-
-                int xpToGrant = 0;
-                if (payload != null && payload.startsWith("XP:") && payload.contains(";;;PAYLOAD:::")) {
-                    int sep = payload.indexOf(";;;PAYLOAD:::");
-                    try {
-                        xpToGrant = Integer.parseInt(payload.substring(3, sep));
-                    } catch (Exception ignored) {}
-                    payload = payload.substring(sep + 13);
                 }
 
                 int itemsDelivered = 0;

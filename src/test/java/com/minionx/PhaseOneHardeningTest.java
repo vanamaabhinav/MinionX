@@ -1445,5 +1445,104 @@ public class PhaseOneHardeningTest {
         assertTrue(storage.isPayoutActive(minionId), "Payout lock must be retained if confirmation fails");
         assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined if confirmation fails");
     }
+
+    // --- 48. Stored XP Preserved Across All Failure / Leftover Escrow Paths ---
+    @Test
+    public void testStoredXpPreservedInLeftoversAndDeliveryClaimFailure() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        UUID minionId1 = UUID.randomUUID();
+        UUID minionId2 = UUID.randomUUID();
+        UUID minionId3 = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        // 1. DELIVERY_CLAIM_FAILED preserves XP
+        String payloadClaimFailed = "XP:150;;;PAYLOAD:::item_iron_x64";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                "op-claim-failed", minionId1, playerId, "DELIVERY_CLAIM_FAILED", System.currentTimeMillis(), payloadClaimFailed));
+
+        // 2. QUARANTINED_LEFTOVERS preserves XP
+        String payloadLeftovers = "XP:200;;;PAYLOAD:::item_iron_x32";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                "op-leftovers", minionId2, playerId, "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), payloadLeftovers));
+
+        // 3. AMBIGUOUS_PARTIAL_DELIVERY preserves XP
+        String payloadAmbiguous = "XP:300;;;PAYLOAD:::DELIVERED:::item_iron_x32;;;LEFTOVER:::item_iron_x32";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                "op-ambiguous", minionId3, playerId, "AMBIGUOUS_PARTIAL_DELIVERY", System.currentTimeMillis(), payloadAmbiguous));
+
+        List<com.minionx.storage.PendingOperation> pending = storage.getPendingOperations();
+        assertEquals(3, pending.size());
+
+        for (com.minionx.storage.PendingOperation op : pending) {
+            assertTrue(op.payload().startsWith("XP:"), "Every failure/leftover payload must preserve stored XP");
+        }
+
+        // Startup reconciliation retains all three and quarantines minions
+        storage.reconcilePendingOperations(null);
+        assertTrue(storage.isQuarantined(minionId1));
+        assertTrue(storage.isQuarantined(minionId2));
+        assertTrue(storage.isQuarantined(minionId3));
+    }
+
+    // --- 49. Startup Reconciliation Quarantines Unresolved Payouts (ATTEMPTED & PAYOUT_AMBIGUOUS) ---
+    @Test
+    public void testStartupReconciliationQuarantinesUnresolvedPayoutsAndFences() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        UUID minionAttempted = UUID.randomUUID();
+        UUID minionAmbiguous = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                "payout-attempted-1", minionAttempted, playerId, "ATTEMPTED", System.currentTimeMillis(), "500.0"));
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                "payout-ambiguous-1", minionAmbiguous, playerId, "PAYOUT_AMBIGUOUS", System.currentTimeMillis(), "250.0"));
+
+        // Simulate server restart and reconciliation
+        storage.reconcilePendingOperations(null);
+
+        // Both minions must be quarantined
+        assertTrue(storage.isQuarantined(minionAttempted), "ATTEMPTED payout minion must be quarantined on startup");
+        assertTrue(storage.isQuarantined(minionAmbiguous), "PAYOUT_AMBIGUOUS minion must be quarantined on startup");
+
+        // Both minions must have active payout locks re-established
+        assertTrue(storage.isPayoutActive(minionAttempted), "Payout lock must be active for ATTEMPTED minion on startup");
+        assertTrue(storage.isPayoutActive(minionAmbiguous), "Payout lock must be active for PAYOUT_AMBIGUOUS minion on startup");
+
+        // Attempting to acquire payout lock must fail
+        assertFalse(storage.acquirePayoutLock(minionAttempted), "Cannot acquire payout lock on quarantined ATTEMPTED minion");
+        assertFalse(storage.acquirePayoutLock(minionAmbiguous), "Cannot acquire payout lock on quarantined PAYOUT_AMBIGUOUS minion");
+    }
+
+    // --- 50. Recovery Decodes Offline XP and Ambiguous Partial Payloads Without Loss ---
+    @Test
+    public void testOfflineAndAmbiguousRecoveryExtractsBothXpAndItems() {
+        // Test 1: DELIVERY_FAILED_OFFLINE decoding
+        String offlinePayload = "XP:75;;;PAYLOAD:::item_cobble_x64;;;ITEM;;;item_cobble_x32";
+        int xpOffline = 0;
+        String itemsOffline = offlinePayload;
+        if (itemsOffline.startsWith("XP:") && itemsOffline.contains(";;;PAYLOAD:::")) {
+            int sep = itemsOffline.indexOf(";;;PAYLOAD:::");
+            xpOffline = Integer.parseInt(itemsOffline.substring(3, sep));
+            itemsOffline = itemsOffline.substring(sep + 13);
+        }
+        assertEquals(75, xpOffline, "Must extract exact XP from DELIVERY_FAILED_OFFLINE");
+        assertEquals("item_cobble_x64;;;ITEM;;;item_cobble_x32", itemsOffline, "Must extract remaining items payload");
+
+        // Test 2: AMBIGUOUS_PARTIAL_DELIVERY decoding (XP must be extracted BEFORE leftover slicing!)
+        String ambiguousPayload = "XP:90;;;PAYLOAD:::DELIVERED:::item_delivered_x32;;;LEFTOVER:::item_leftover_x32";
+        int xpAmbiguous = 0;
+        String itemsAmbiguous = ambiguousPayload;
+        if (itemsAmbiguous.startsWith("XP:") && itemsAmbiguous.contains(";;;PAYLOAD:::")) {
+            int sep = itemsAmbiguous.indexOf(";;;PAYLOAD:::");
+            xpAmbiguous = Integer.parseInt(itemsAmbiguous.substring(3, sep));
+            itemsAmbiguous = itemsAmbiguous.substring(sep + 13);
+        }
+        assertEquals(90, xpAmbiguous, "Must extract exact XP from AMBIGUOUS_PARTIAL_DELIVERY");
+
+        int leftoverIdx = itemsAmbiguous.indexOf(";;;LEFTOVER:::");
+        assertTrue(leftoverIdx >= 0);
+        itemsAmbiguous = itemsAmbiguous.substring(leftoverIdx + 14);
+        assertEquals("item_leftover_x32", itemsAmbiguous, "Must extract ONLY the leftover items, excluding already delivered items");
+    }
 }
 

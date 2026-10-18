@@ -86,11 +86,14 @@ public class MinionStorage implements AutoCloseable {
     }
 
     public boolean isPayoutActive(UUID minionId) {
-        return minionId != null && payoutLocks.contains(minionId);
+        return minionId != null && (payoutLocks.contains(minionId) || isQuarantined(minionId));
     }
 
     public boolean acquirePayoutLock(UUID minionId) {
-        return minionId != null && payoutLocks.add(minionId);
+        if (minionId == null || isQuarantined(minionId)) {
+            return false;
+        }
+        return payoutLocks.add(minionId);
     }
 
     public void releasePayoutLock(UUID minionId) {
@@ -742,28 +745,10 @@ public class MinionStorage implements AutoCloseable {
                 } else if ("MINION_REMOVED".equalsIgnoreCase(state) || "DELIVERY_CLAIM_FAILED".equalsIgnoreCase(state) || "QUARANTINED_LEFTOVERS".equalsIgnoreCase(state) || "UNKNOWN".equalsIgnoreCase(state)) {
                     quarantineMinion(op.minionId());
                     logWarning("Startup reconciliation: Preserved durable escrow operation " + op.operationId() + " (state: " + state + ") for minion " + op.minionId() + ". Quarantined for safe claim/audit.");
-                } else if ("ATTEMPTED".equalsIgnoreCase(state)) {
-                    // In-flight payout when shutdown/crash occurred:
-                    boolean minionExists = (manager != null && manager.getMinionById(op.minionId()) != null) || (!tombstoneSet.contains(op.minionId()) && minionExistsInStorage(op.minionId()));
-                    if (minionExists) {
-                        double amt = 0.0;
-                        try {
-                            amt = Double.parseDouble(op.payload());
-                        } catch (Exception ignored) {}
-                        if (amt > 0.0) {
-                            rollbackPayoutAtomic(op.operationId(), op.minionId(), amt);
-                            if (manager != null) {
-                                Minion m = manager.getMinionById(op.minionId());
-                                if (m != null) {
-                                    m.addShippingCoins(amt);
-                                }
-                            }
-                            logWarning("Startup reconciliation: Rolled back interrupted ATTEMPTED payout " + op.operationId() + " (" + amt + " coins) for minion " + op.minionId());
-                        }
-                    } else {
-                        ambiguousPayoutAtomic(op.operationId());
-                        logWarning("Startup reconciliation: Minion " + op.minionId() + " absent for ATTEMPTED payout " + op.operationId() + ". Marked PAYOUT_AMBIGUOUS.");
-                    }
+                } else if ("ATTEMPTED".equalsIgnoreCase(state) || "PAYOUT_AMBIGUOUS".equalsIgnoreCase(state)) {
+                    quarantineMinion(op.minionId());
+                    payoutLocks.add(op.minionId());
+                    logSevere("Startup reconciliation: Minion " + op.minionId() + " has unresolved payout operation " + op.operationId() + " (state: " + state + "). Quarantined and payout lock re-established for administrator audit. Automatic Vault retry or rollback is prohibited.", null);
                 }
             }
         }
