@@ -389,6 +389,8 @@ public class DatabaseStorage {
 
     public enum PayoutReservationResult {
         RESERVED,
+        ALREADY_RESERVED,
+        ALREADY_CONFIRMED,
         FAILED_CONFIRMED_ROLLBACK,
         UNKNOWN_OUTCOME
     }
@@ -1069,14 +1071,15 @@ public class DatabaseStorage {
         if (connection == null) return false;
         try {
             connection.rollback();
+            connection.setAutoCommit(true);
             return true;
         } catch (SQLException e) {
-            logSevere("Rollback execution threw an exception!", e);
-            return false;
-        } finally {
+            logSevere("CRITICAL: Rollback execution or autoCommit reset threw an exception! Connection compromised.", e);
             try {
-                connection.setAutoCommit(true);
+                connection.close();
             } catch (SQLException ignored) {}
+            connection = null;
+            return false;
         }
     }
 
@@ -1158,18 +1161,30 @@ public class DatabaseStorage {
                     }
                 }
 
-                // 3. Precondition check: Delete active minion row
+                // 3. Precondition check: Delete active minion row with strict revision check
                 int deletedMinions;
-                try (PreparedStatement psM = connection.prepareStatement("DELETE FROM minions WHERE id = ?")) {
+                try (PreparedStatement psM = connection.prepareStatement("DELETE FROM minions WHERE id = ? AND state_revision = ?")) {
                     psM.setString(1, minionId.toString());
+                    psM.setLong(2, revision);
                     deletedMinions = psM.executeUpdate();
                 }
 
                 if (deletedMinions == 0) {
+                    boolean minionStillExists = false;
+                    try (PreparedStatement psCheck = connection.prepareStatement("SELECT 1 FROM minions WHERE id = ?")) {
+                        psCheck.setString(1, minionId.toString());
+                        try (ResultSet rsCheck = psCheck.executeQuery()) {
+                            minionStillExists = rsCheck.next();
+                        }
+                    } catch (SQLException ignored) {}
+
                     boolean rbOk = executeRollbackSafely();
                     if (!rbOk) {
                         quarantineMinion(minionId);
                         return PickupRemovalResult.UNKNOWN_OUTCOME;
+                    }
+                    if (minionStillExists) {
+                        logWarning("Pickup removal rejected: revision mismatch for minion " + minionId + " (supplied rev: " + revision + ")");
                     }
                     return PickupRemovalResult.PRECONDITION_FAILED;
                 }
@@ -1315,17 +1330,48 @@ public class DatabaseStorage {
             connection.setAutoCommit(false);
             boolean commitAttempted = false;
             try {
-                // Check if operationId already exists (do not reset state!)
-                try (PreparedStatement psCheck = connection.prepareStatement("SELECT state FROM minion_pending_operations WHERE operation_id = ?")) {
+                // Check if operationId already exists (idempotency reconciliation)
+                try (PreparedStatement psCheck = connection.prepareStatement(
+                        "SELECT minion_id, player_uuid, state, payload FROM minion_pending_operations WHERE operation_id = ?")) {
                     psCheck.setString(1, operationId);
                     try (ResultSet rs = psCheck.executeQuery()) {
                         if (rs.next()) {
+                            String storedMinion = rs.getString("minion_id");
+                            String storedPlayer = rs.getString("player_uuid");
+                            String storedState = rs.getString("state");
+                            String storedPayload = rs.getString("payload");
+
+                            boolean minionMatches = minionId.toString().equalsIgnoreCase(storedMinion);
+                            boolean playerMatches = (playerUuid == null || storedPlayer == null || playerUuid.toString().equalsIgnoreCase(storedPlayer));
+                            boolean amountMatches = false;
+                            try {
+                                if (storedPayload != null) {
+                                    double storedAmt = Double.parseDouble(storedPayload);
+                                    amountMatches = Math.abs(storedAmt - normalizedAmount) < 0.0001;
+                                }
+                            } catch (Exception ignored) {}
+
+                            if (!minionMatches || !playerMatches || !amountMatches) {
+                                executeRollbackSafely();
+                                quarantineMinion(minionId);
+                                return PayoutReservationResult.UNKNOWN_OUTCOME;
+                            }
+
                             boolean rbOk = executeRollbackSafely();
                             if (!rbOk) {
                                 quarantineMinion(minionId);
                                 return PayoutReservationResult.UNKNOWN_OUTCOME;
                             }
-                            return PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
+
+                            return switch (storedState != null ? storedState.toUpperCase() : "") {
+                                case "ATTEMPTED" -> PayoutReservationResult.ALREADY_RESERVED;
+                                case "CONFIRMED" -> PayoutReservationResult.ALREADY_CONFIRMED;
+                                case "PAYOUT_FAILED" -> PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
+                                default -> {
+                                    quarantineMinion(minionId);
+                                    yield PayoutReservationResult.UNKNOWN_OUTCOME;
+                                }
+                            };
                         }
                     }
                 }

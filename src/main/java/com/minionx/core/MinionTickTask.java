@@ -196,6 +196,12 @@ public class MinionTickTask extends BukkitRunnable {
                 continue;
             }
 
+            // If minion is transacting (e.g. pickup removal in progress), defer action
+            if (minion.isTransacting()) {
+                actionQueue.offer(new ScheduledMinion(minion.getMinionId(), now + 1000L, minion.getSchedulingGeneration()));
+                continue;
+            }
+
             // Wall-Clock Durability: calculate runtime due time from persisted wall-clock timestamp
             long delayMillis = (long) (minion.getEffectiveActionDelay() * 1000L);
             long actualDueTime = minion.getLastActionTime() + delayMillis;

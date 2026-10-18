@@ -386,13 +386,15 @@ public class Minion {
     }
 
     public synchronized boolean reserveClaimableCoins(double amount) {
-        double claimable = getShippingCoins();
-        if (amount <= 0.0 || claimable < amount - 0.00001) {
+        if (!Double.isFinite(amount) || amount <= 0.0) {
             return false;
         }
-        double remaining = Math.max(0.0, claimable - amount);
-        this.shippingCoins = remaining;
-        this.shippingCoinsMicros = Math.round(remaining * 1_000_000.0);
+        long amountMicros = Math.round(amount * 1_000_000.0);
+        if (amountMicros <= 0 || this.shippingCoinsMicros < amountMicros) {
+            return false;
+        }
+        this.shippingCoinsMicros -= amountMicros;
+        this.shippingCoins = this.shippingCoinsMicros / 1_000_000.0;
         this.reservedShippingCoins += amount;
         return true;
     }

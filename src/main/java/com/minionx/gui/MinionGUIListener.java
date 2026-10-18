@@ -802,6 +802,23 @@ public class MinionGUIListener implements Listener {
                 return;
             }
 
+            if (reservationResult == DatabaseStorage.PayoutReservationResult.ALREADY_CONFIRMED) {
+                // Payout was already completed previously: commit reserved coins (do NOT refund!), release lock
+                Runnable alreadyConfirmedTask = () -> {
+                    minion.commitReservedCoins();
+                    storage.releasePayoutLock(minionId);
+                    if (player.isOnline()) {
+                        player.sendMessage(ColorUtil.color("&eThis automated shipping payout has already been processed."));
+                    }
+                };
+                if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
+                    Bukkit.getScheduler().runTask(MinionX.getInstance(), alreadyConfirmedTask);
+                } else {
+                    alreadyConfirmedTask.run();
+                }
+                return;
+            }
+
             if (reservationResult == DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK) {
                 // Reservation cleanly failed: restore live balance on main thread and release lock
                 Runnable restoreTask = () -> {
@@ -819,7 +836,7 @@ public class MinionGUIListener implements Listener {
                 return;
             }
 
-            // 4. Main-Thread: Invoke Vault API (RESERVED)
+            // 4. Main-Thread: Invoke Vault API (RESERVED or ALREADY_RESERVED)
             Runnable vaultTask = () -> {
                 com.minionx.hook.EconomyHook.PayoutResult result = com.minionx.hook.EconomyHook.depositWithResult(player, normalizedCoins);
 

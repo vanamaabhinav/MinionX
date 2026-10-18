@@ -620,7 +620,7 @@ public class PhaseOneHardeningTest {
 
         // 3. Second call with same opId must be rejected and must NOT reset state to ATTEMPTED
         DatabaseStorage.PayoutReservationResult second = storage.reservePayoutAtomic(opId, minionId, playerUuid, 50.0, 2L);
-        assertEquals(DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK, second, "Second reservation with same opId must be rejected");
+        assertEquals(DatabaseStorage.PayoutReservationResult.ALREADY_CONFIRMED, second, "Second reservation with same opId must return ALREADY_CONFIRMED");
         assertEquals("CONFIRMED", state.pendingOperationStates.get(opId), "Operation state must remain CONFIRMED");
     }
 
@@ -814,9 +814,9 @@ public class PhaseOneHardeningTest {
         assertEquals(DatabaseStorage.PayoutReservationResult.RESERVED, firstPayout);
         assertEquals(75.0, state.minionCoins.get(minionId1.toString()), 0.0001);
 
-        // Attempting to reuse sharedOpId for a second payout must fail and not deduct coins
+        // Attempting to reuse sharedOpId for a second payout with same params returns ALREADY_RESERVED and does not deduct coins
         DatabaseStorage.PayoutReservationResult secondPayout = storage.reservePayoutAtomic(sharedOpId, minionId1, playerUuid, 25.0, 2L);
-        assertEquals(DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK, secondPayout, "Reusing existing operationId for payout must be rejected");
+        assertEquals(DatabaseStorage.PayoutReservationResult.ALREADY_RESERVED, secondPayout, "Reusing existing operationId for payout must return ALREADY_RESERVED");
         assertEquals(75.0, state.minionCoins.get(minionId1.toString()), 0.0001, "No extra coins may be deducted on duplicate opId");
 
         // Attempting to reuse sharedOpId for a pickup of minionId2 must return CONFLICTING_PAYLOAD and not delete minionId2
@@ -1078,6 +1078,101 @@ public class PhaseOneHardeningTest {
         assertEquals(DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME, result,
                 "When rollback throws during pickup failure, outcome must be UNKNOWN_OUTCOME");
         assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined when pickup rollback outcome is uncertain");
+    }
+
+    // --- 33. Payout Idempotent Retry Does Not Restore Already Deducted Coins ---
+    @Test
+    public void testPayoutIdempotentRetryDoesNotRestoreAlreadyDeductedCoins() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        UUID playerUuid = UUID.randomUUID();
+        String opId = "payout-idemp-" + UUID.randomUUID();
+
+        // Scenario A: Operation already committed in ATTEMPTED state
+        state.pendingOperationStates.put(opId, "ATTEMPTED");
+        state.pendingOperationMinions.put(opId, minionId.toString());
+        state.pendingOperationPlayers.put(opId, playerUuid.toString());
+        state.pendingOperationPayloads.put(opId, "500.0");
+
+        DatabaseStorage.PayoutReservationResult resAttempted = storage.reservePayoutAtomic(opId, minionId, playerUuid, 500.0, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.ALREADY_RESERVED, resAttempted,
+                "Idempotent retry of ATTEMPTED payout must return ALREADY_RESERVED and not FAILED_CONFIRMED_ROLLBACK");
+
+        // Scenario B: Operation already completed in CONFIRMED state
+        state.pendingOperationStates.put(opId, "CONFIRMED");
+        DatabaseStorage.PayoutReservationResult resConfirmed = storage.reservePayoutAtomic(opId, minionId, playerUuid, 500.0, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.ALREADY_CONFIRMED, resConfirmed,
+                "Idempotent retry of CONFIRMED payout must return ALREADY_CONFIRMED so caller does not refund");
+
+        // Scenario C: Operation exists but parameters mismatch (corrupt/conflicting retry)
+        DatabaseStorage.PayoutReservationResult resMismatch = storage.reservePayoutAtomic(opId, minionId, playerUuid, 250.0, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME, resMismatch,
+                "Mismatched payout amount on retry must return UNKNOWN_OUTCOME and quarantine");
+        assertTrue(storage.isQuarantined(minionId));
+    }
+
+    // --- 34. Pickup Revision Mismatch Rejects Deletion ---
+    @Test
+    public void testPickupRevisionMismatchRejectsDeletion() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        UUID playerUuid = UUID.randomUUID();
+        String opId = "pickup-rev-mismatch-" + UUID.randomUUID();
+
+        // Minion is present in database
+        state.minions.add(minionId.toString());
+        state.trackMinionPresence = true;
+        // Simulate revision mismatch: 0 rows affected by revision-guarded delete
+        state.defaultUpdateCount = 0;
+
+        DatabaseStorage.PickupRemovalResult result = storage.executePickupRemoval(opId, minionId, playerUuid, 5L, "PAYLOAD");
+        assertEquals(DatabaseStorage.PickupRemovalResult.PRECONDITION_FAILED, result,
+                "Pickup removal with mismatched revision must fail precondition without deleting child items or inserting tombstone");
+        assertFalse(state.tombstones.containsKey(minionId.toString()), "Tombstone must NOT be inserted on revision mismatch");
+    }
+
+    // --- 35. Rollback setAutoCommit Failure Invalidate Connection & Escalates to UNKNOWN ---
+    @Test
+    public void testRollbackAutoCommitFailureEscalatesToUnknown() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        UUID playerUuid = UUID.randomUUID();
+        String opId = "autocommit-fail-" + UUID.randomUUID();
+
+        // Cause DML failure and simulate setAutoCommit(true) throwing in rollback helper
+        state.throwOnExecute = true;
+        state.throwOnSetAutoCommitTrue = true;
+
+        DatabaseStorage.PayoutReservationResult res = storage.reservePayoutAtomic(opId, minionId, playerUuid, 100.0, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME, res,
+                "If setAutoCommit(true) fails during rollback recovery, outcome must escalate to UNKNOWN_OUTCOME");
+        assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined when connection recovery fails");
+    }
+
+    // --- 36. Exact Integer Micros Currency No Epsilon Bypass ---
+    @Test
+    public void testExactIntegerMicrosCurrencyNoEpsilonBypass() {
+        Minion minion = new Minion(UUID.randomUUID(), com.minionx.api.MinionType.COBBLESTONE, 1);
+        // Set balance to 499.9999 (499,999,900 micros)
+        minion.setShippingCoins(499.9999);
+
+        // Attempting to reserve 500.0 (500,000,000 micros) must fail with zero epsilon bypass
+        boolean reserved = minion.reserveClaimableCoins(500.0);
+        assertFalse(reserved, "reserveClaimableCoins must fail when balance is 499.9999 and requested is 500.0");
+        assertEquals(0.0, minion.getReservedShippingCoins(), 0.000001);
+        assertEquals(499.9999, minion.getClaimableShippingCoins(), 0.0001);
     }
 }
 

@@ -916,9 +916,13 @@ public class MinionStorage implements AutoCloseable {
                 return DatabaseStorage.PickupRemovalResult.UNKNOWN_OUTCOME;
             }
 
-            // 2. Precondition check: Minion row exists
+            // 2. Precondition check: Minion row exists and revision matches
             String minionPath = "minions." + minionId.toString();
             if (!config.contains(minionPath)) {
+                return DatabaseStorage.PickupRemovalResult.PRECONDITION_FAILED;
+            }
+            long storedRev = config.getLong(minionPath + ".state-revision", 0L);
+            if (storedRev != revision) {
                 return DatabaseStorage.PickupRemovalResult.PRECONDITION_FAILED;
             }
 
@@ -1033,7 +1037,37 @@ public class MinionStorage implements AutoCloseable {
             YamlConfiguration opConfig = pendingOpsFile.exists() ?
                     YamlConfiguration.loadConfiguration(pendingOpsFile) : new YamlConfiguration();
             String opPath = "operations." + operationId;
-            if (opConfig.contains(opPath)) return DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK; // Duplicate operation guard
+            if (opConfig.contains(opPath)) {
+                String storedMinion = opConfig.getString(opPath + ".minion_id");
+                String storedPlayer = opConfig.getString(opPath + ".player_uuid");
+                String storedPayload = opConfig.getString(opPath + ".payload");
+                String storedState = opConfig.getString(opPath + ".state");
+
+                boolean minionMatches = minionId.toString().equalsIgnoreCase(storedMinion);
+                boolean playerMatches = (playerUuid == null || storedPlayer == null || playerUuid.toString().equalsIgnoreCase(storedPlayer));
+                boolean amountMatches = false;
+                try {
+                    if (storedPayload != null) {
+                        double storedAmt = Double.parseDouble(storedPayload);
+                        amountMatches = Math.abs(storedAmt - normalizedAmount) < 0.0001;
+                    }
+                } catch (Exception ignored) {}
+
+                if (!minionMatches || !playerMatches || !amountMatches) {
+                    quarantineMinion(minionId);
+                    return DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME;
+                }
+
+                return switch (storedState != null ? storedState.toUpperCase() : "") {
+                    case "ATTEMPTED" -> DatabaseStorage.PayoutReservationResult.ALREADY_RESERVED;
+                    case "CONFIRMED" -> DatabaseStorage.PayoutReservationResult.ALREADY_CONFIRMED;
+                    case "PAYOUT_FAILED" -> DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
+                    default -> {
+                        quarantineMinion(minionId);
+                        yield DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME;
+                    }
+                };
+            }
 
             double currentCoins = config.getDouble(path + ".shipping-coins", 0.0);
             double normalizedCoins = BigDecimal.valueOf(currentCoins).setScale(4, RoundingMode.HALF_UP).doubleValue();

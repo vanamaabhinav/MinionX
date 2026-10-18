@@ -31,6 +31,7 @@ public class MockSqlHelper {
         public boolean autoCommit = true;
         public boolean throwOnExecute = false;
         public boolean throwOnRollback = false;
+        public boolean throwOnSetAutoCommitTrue = false;
         public String databaseProductName = "SQLite";
 
         public final Set<String> minions = new HashSet<>();
@@ -71,6 +72,10 @@ public class MockSqlHelper {
                         switch (name) {
                             case "setAutoCommit" -> {
                                 boolean ac = (Boolean) args[0];
+                                if (ac && state.throwOnSetAutoCommitTrue) {
+                                    state.transactionEvents.add("setAutoCommit_failed");
+                                    throw new SQLException("Simulated setAutoCommit(true) failure");
+                                }
                                 state.autoCommit = ac;
                                 state.transactionEvents.add("setAutoCommit:" + ac);
                                 return null;
