@@ -1243,5 +1243,74 @@ public class PhaseOneHardeningTest {
                 "Tentatively reserved coins must be restored to live balance on ALREADY_CONFIRMED");
         assertEquals(0.0, minion.getReservedShippingCoins(), 0.0001);
     }
+
+    // --- 40. Precision Invariance: Memory and Storage Parity ---
+    @Test
+    public void testPrecisionInvarianceBetweenMemoryAndStorage() {
+        Minion minion = new Minion(UUID.randomUUID(), com.minionx.api.MinionType.COBBLESTONE, 1);
+        // Earning sub-4-decimal amount: 0.00014
+        minion.addShippingCoins(0.00014);
+
+        // In-memory balance must normalize to 4-decimals (0.000100 / 100 micros)
+        assertEquals(0.0001, minion.getShippingCoins(), 0.000001);
+        assertEquals(100L, minion.getShippingCoinsMicros(), "shippingCoinsMicros must be multiple of 100 to eliminate drift with SQL ROUND(4)");
+
+        // Deducting 0.0001 leaves exactly 0.0
+        boolean reserved = minion.reserveClaimableCoins(0.0001);
+        assertTrue(reserved);
+        assertEquals(0.0, minion.getShippingCoins(), 0.000001);
+        assertEquals(0L, minion.getShippingCoinsMicros());
+    }
+
+    // --- 41. Startup Reconciliation Quarantines Escrow States ---
+    @Test
+    public void testStartupReconciliationQuarantinesEscrowStates() {
+        MinionStorage storage = new MinionStorage(null);
+        UUID minionId1 = UUID.randomUUID();
+        UUID minionId2 = UUID.randomUUID();
+        UUID minionId3 = UUID.randomUUID();
+
+        storage.recordTombstone(minionId1, 1L);
+        storage.recordTombstone(minionId2, 1L);
+        storage.recordTombstone(minionId3, 1L);
+
+        try {
+            storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                    "op-1", minionId1, UUID.randomUUID(), "MINION_REMOVED", System.currentTimeMillis(), "payload1"));
+            storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                    "op-2", minionId2, UUID.randomUUID(), "DELIVERY_CLAIM_FAILED", System.currentTimeMillis(), "payload2"));
+            storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                    "op-3", minionId3, UUID.randomUUID(), "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), "payload3"));
+        } catch (Exception e) {
+            fail("Failed to record pending operations for test: " + e.getMessage());
+        }
+
+        storage.reconcilePendingOperations(null);
+
+        assertTrue(storage.isQuarantined(minionId1), "MINION_REMOVED operation minion must be quarantined on startup");
+        assertTrue(storage.isQuarantined(minionId2), "DELIVERY_CLAIM_FAILED operation minion must be quarantined on startup");
+        assertTrue(storage.isQuarantined(minionId3), "QUARANTINED_LEFTOVERS operation minion must be quarantined on startup");
+    }
+
+    // --- 42. Rollback Payout Atomic Fails When Not Attempted ---
+    @Test
+    public void testRollbackPayoutAtomicFailsWhenNotAttempted() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        String opId = "payout-rb-fail-" + UUID.randomUUID();
+
+        // Operation is already CONFIRMED (not ATTEMPTED)
+        state.pendingOperationStates.put(opId, "CONFIRMED");
+        state.minionCoins.put(minionId.toString(), 100.0);
+        state.minions.add(minionId.toString());
+
+        boolean rolledBack = storage.rollbackPayoutAtomic(opId, minionId, 25.0);
+        assertFalse(rolledBack, "rollbackPayoutAtomic must return false when operation is not in ATTEMPTED state");
+        assertEquals(100.0, state.minionCoins.get(minionId.toString()), 0.0001, "Minion balance must not be credited on failed rollback");
+    }
 }
 

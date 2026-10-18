@@ -526,6 +526,14 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
+        // Anti-loss check: require automated shipping coins to be collected before pickup
+        if (minion.getClaimableShippingCoins() >= 0.0001) {
+            player.sendMessage(ColorUtil.color("&cPlease collect your accumulated Automated Shipping coins before picking up this minion."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            minion.releaseTransaction();
+            return;
+        }
+
         if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
             player.sendMessage(ColorUtil.color("&c[Quarantine] Minion pickup is disabled during emergency quarantine mode!"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
@@ -694,7 +702,15 @@ public class MinionGUIListener implements Listener {
                             Runnable onClaimComplete = () -> {
                                 try {
                                     if (!finalClaimed) {
-                                        if (player.isOnline()) player.sendMessage(ColorUtil.color("&cPickup delivery attempt claim failed."));
+                                        storage.quarantineMinion(minionId);
+                                        storage.getPersistenceExecutor().submit(() -> {
+                                            try {
+                                                storage.updatePendingOperationState(operationId, "DELIVERY_CLAIM_FAILED", payloadStr);
+                                            } catch (Exception ignored) {}
+                                        });
+                                        if (player.isOnline()) {
+                                            player.sendMessage(ColorUtil.color("&cPickup delivery attempt claim failed. Your minion items are safely held in escrow (Operation: " + operationId + "). Contact staff for recovery."));
+                                        }
                                         return;
                                     }
 
@@ -724,7 +740,7 @@ public class MinionGUIListener implements Listener {
                                             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
                                         }
                                     } else {
-                                        // Partial delivery: DO NOT drop leftovers into world! Keep exclusively in escrow ledger.
+                                        // Partial delivery: serialize leftovers and verify durable write to escrow ledger
                                         List<String> remPayload = new ArrayList<>();
                                         for (ItemStack rem : leftoverItems) {
                                             YamlConfiguration yc = new YamlConfiguration();
@@ -733,23 +749,41 @@ public class MinionGUIListener implements Listener {
                                         }
                                         String leftoversStr = String.join(";;;ITEM;;;", remPayload);
                                         storage.getPersistenceExecutor().submit(() -> {
+                                            boolean updated = false;
                                             try {
                                                 storage.updatePendingOperationState(
                                                         operationId, "QUARANTINED_LEFTOVERS", leftoversStr);
-                                            } catch (Exception ignored) {}
+                                                updated = true;
+                                            } catch (Throwable t) {
+                                                updated = false;
+                                            }
+                                            boolean finalUpdated = updated;
+                                            Runnable onLeftoverResult = () -> {
+                                                storage.quarantineMinion(minionId);
+                                                if (finalUpdated) {
+                                                    if (player.isOnline()) {
+                                                        player.sendMessage(ColorUtil.color("&eMinion picked up! Some items did not fit in your inventory and are safely held in escrow (Operation: " + operationId + ")."));
+                                                        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
+                                                    }
+                                                } else {
+                                                    if (player.isOnline()) {
+                                                        player.sendMessage(ColorUtil.color("&cCRITICAL: Some items did not fit in your inventory and saving to escrow failed! Operation " + operationId + " is quarantined for administrator recovery."));
+                                                    }
+                                                }
+                                            };
+                                            if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {
+                                                Bukkit.getScheduler().runTask(MinionX.getInstance(), onLeftoverResult);
+                                            } else {
+                                                onLeftoverResult.run();
+                                            }
                                         });
-                                        if (player.isOnline()) {
-                                            player.sendMessage(ColorUtil.color("&eMinion picked up! Some items did not fit in your inventory and remain securely quarantined in escrow."));
-                                            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
-                                        }
                                     }
 
-                                    // Claim XP and coins safely
+                                    // Claim XP safely (coins were collected prior to pickup deletion)
                                     int xp = minion.claimStoredXp();
                                     if (xp > 0 && player.isOnline()) {
                                         player.giveExp(xp);
                                     }
-                                    collectShippingCoinsSafely(player, minion);
                                 } finally {
                                     minion.releaseTransaction();
                                 }
@@ -874,10 +908,15 @@ public class MinionGUIListener implements Listener {
                         Runnable mainRestore = () -> {
                             if (rolledBack) {
                                 minion.cancelReservedCoins();
-                            }
-                            storage.releasePayoutLock(minionId);
-                            if (player.isOnline()) {
-                                player.sendMessage(ColorUtil.color("&cEconomy deposit failed (" + result.errorMessage() + "). Coins restored to minion."));
+                                storage.releasePayoutLock(minionId);
+                                if (player.isOnline()) {
+                                    player.sendMessage(ColorUtil.color("&cEconomy deposit failed (" + result.errorMessage() + "). Coins restored to minion."));
+                                }
+                            } else {
+                                storage.quarantineMinion(minionId);
+                                if (player.isOnline()) {
+                                    player.sendMessage(ColorUtil.color("&cEconomy deposit failed and database rollback could not be confirmed. Minion has been quarantined for administrator audit."));
+                                }
                             }
                         };
                         if (MinionX.getInstance() != null && MinionX.getInstance().isEnabled()) {

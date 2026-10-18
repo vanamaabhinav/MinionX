@@ -730,8 +730,12 @@ public class MinionStorage implements AutoCloseable {
                 } else if ("DELIVERY_ATTEMPTED".equalsIgnoreCase(state)) {
                     try {
                         updatePendingOperationState(op.operationId(), "UNKNOWN", op.payload());
+                        quarantineMinion(op.minionId());
                         logWarning("Startup reconciliation: Operation " + op.operationId() + " was DELIVERY_ATTEMPTED before shutdown. Quarantined as UNKNOWN for admin audit.");
                     } catch (Exception ignored) {}
+                } else if ("MINION_REMOVED".equalsIgnoreCase(state) || "DELIVERY_CLAIM_FAILED".equalsIgnoreCase(state) || "QUARANTINED_LEFTOVERS".equalsIgnoreCase(state) || "UNKNOWN".equalsIgnoreCase(state)) {
+                    quarantineMinion(op.minionId());
+                    logWarning("Startup reconciliation: Preserved durable escrow operation " + op.operationId() + " (state: " + state + ") for minion " + op.minionId() + ". Quarantined for safe claim/audit.");
                 } else if ("ATTEMPTED".equalsIgnoreCase(state)) {
                     // In-flight payout when shutdown/crash occurred:
                     boolean minionExists = (manager != null && manager.getMinionById(op.minionId()) != null) || (!tombstoneSet.contains(op.minionId()) && minionExistsInStorage(op.minionId()));

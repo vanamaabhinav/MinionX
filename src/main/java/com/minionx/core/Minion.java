@@ -386,16 +386,20 @@ public class Minion {
     }
 
     public synchronized boolean reserveClaimableCoins(double amount) {
-        if (!Double.isFinite(amount) || amount <= 0.0) {
+        if (!Double.isFinite(amount) || amount < 0.0001) {
             return false;
         }
-        long amountMicros = Math.round(amount * 1_000_000.0);
-        if (amountMicros <= 0 || this.shippingCoinsMicros < amountMicros) {
+        double normalized = java.math.BigDecimal.valueOf(amount).setScale(4, java.math.RoundingMode.HALF_UP).doubleValue();
+        if (normalized < 0.0001) {
+            return false;
+        }
+        long amountMicros = Math.round(normalized * 1_000_000.0);
+        if (this.shippingCoinsMicros < amountMicros) {
             return false;
         }
         this.shippingCoinsMicros -= amountMicros;
         this.shippingCoins = this.shippingCoinsMicros / 1_000_000.0;
-        this.reservedShippingCoins += amount;
+        this.reservedShippingCoins += normalized;
         return true;
     }
 
@@ -414,8 +418,9 @@ public class Minion {
 
     public void setShippingCoins(double coins) {
         double clamped = Math.max(0.0, coins);
-        this.shippingCoins = clamped;
-        this.shippingCoinsMicros = Math.round(clamped * 1_000_000.0);
+        double normalized = java.math.BigDecimal.valueOf(clamped).setScale(4, java.math.RoundingMode.HALF_UP).doubleValue();
+        this.shippingCoins = normalized;
+        this.shippingCoinsMicros = Math.round(normalized * 1_000_000.0);
         advanceStateRevision();
     }
 
@@ -424,14 +429,18 @@ public class Minion {
     }
 
     public void setShippingCoinsMicros(long micros) {
-        this.shippingCoinsMicros = Math.max(0L, micros);
+        // Enforce 4-decimal alignment (multiples of 100 micros)
+        long clamped = Math.max(0L, micros);
+        long normalizedMicros = (clamped / 100L) * 100L;
+        this.shippingCoinsMicros = normalizedMicros;
         this.shippingCoins = this.shippingCoinsMicros / 1_000_000.0;
         advanceStateRevision();
     }
 
     public void addShippingCoins(double coins) {
         if (coins > 0) {
-            long addMicros = Math.round(coins * 1_000_000.0);
+            double normalized = java.math.BigDecimal.valueOf(coins).setScale(4, java.math.RoundingMode.HALF_UP).doubleValue();
+            long addMicros = Math.round(normalized * 1_000_000.0);
             try {
                 this.shippingCoinsMicros = Math.addExact(this.shippingCoinsMicros, addMicros);
             } catch (ArithmeticException e) {
