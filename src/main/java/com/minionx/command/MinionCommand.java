@@ -590,8 +590,26 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         int totalItemsRestored = 0;
 
         for (com.minionx.storage.PendingOperation op : playerOps) {
+            String state = op.state();
+            if ("AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(state) || "UNKNOWN".equalsIgnoreCase(state) || "DELIVERY_ATTEMPTED".equalsIgnoreCase(state)) {
+                player.sendMessage(ColorUtil.color("&cOperation " + op.operationId() + " requires administrator audit due to an ambiguous or interrupted delivery outcome. Automatic claim is prohibited to prevent item duplication."));
+                continue;
+            }
+            if (!"MINION_REMOVED".equalsIgnoreCase(state) && !"QUARANTINED_LEFTOVERS".equalsIgnoreCase(state) && !"DELIVERY_FAILED_OFFLINE".equalsIgnoreCase(state) && !"PREPARED".equalsIgnoreCase(state) && !"DELIVERY_CLAIM_FAILED".equalsIgnoreCase(state)) {
+                continue;
+            }
+
             String payload = op.payload();
             if (payload == null || payload.isBlank()) continue;
+
+            int xpToGrant = 0;
+            if (payload.startsWith("XP:") && payload.contains(";;;PAYLOAD:::")) {
+                int sep = payload.indexOf(";;;PAYLOAD:::");
+                try {
+                    xpToGrant = Integer.parseInt(payload.substring(3, sep));
+                } catch (Exception ignored) {}
+                payload = payload.substring(sep + 13);
+            }
 
             String[] rawItems = payload.split(";;;ITEM;;;");
             List<ItemStack> toDeliver = new ArrayList<>();
@@ -606,6 +624,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             }
 
             if (toDeliver.isEmpty()) {
+                if (xpToGrant > 0) {
+                    player.giveExp(xpToGrant);
+                    player.sendMessage(ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
+                }
                 try {
                     storage.removePendingOperation(op.operationId());
                 } catch (Exception ignored) {}
@@ -624,6 +646,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             totalItemsRestored += deliveredCount;
 
             if (leftovers.isEmpty()) {
+                if (xpToGrant > 0) {
+                    player.giveExp(xpToGrant);
+                    player.sendMessage(ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
+                }
                 try {
                     storage.removePendingOperation(op.operationId());
                     claimedOps++;
@@ -702,11 +728,40 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             String operatorId = (sender instanceof Player p) ? p.getUniqueId().toString() : "CONSOLE";
             long now = System.currentTimeMillis();
 
-            if ("deliver".equals(action)) {
+            if ("deliver".equals(action) || "deliver-force-all".equals(action)) {
+                if (("UNKNOWN".equalsIgnoreCase(targetOp.state()) || "DELIVERY_ATTEMPTED".equalsIgnoreCase(targetOp.state())) && !"deliver-force-all".equals(action)) {
+                    sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId + " has state '" + targetOp.state() + "'. Delivery may have partially succeeded before interruption! Plain 'deliver' is prohibited to prevent duplicate items."));
+                    sender.sendMessage(ColorUtil.color("&cIf you have verified the player received 0 items, use: /minion recover resolve " + opId + " deliver-force-all <reason>"));
+                    sender.sendMessage(ColorUtil.color("&cOtherwise, use /minion recover resolve " + opId + " complete <reason> to clear."));
+                    return;
+                }
+
                 Player targetPlayer = Bukkit.getPlayer(targetOp.playerUuid());
                 String payload = targetOp.payload();
+                if ("AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(targetOp.state())) {
+                    int leftoverIndex = (payload != null) ? payload.indexOf(";;;LEFTOVER:::") : -1;
+                    if (leftoverIndex >= 0) {
+                        payload = payload.substring(leftoverIndex + 14);
+                    } else {
+                        sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId + " is AMBIGUOUS_PARTIAL_DELIVERY but leftover section is missing. Cannot deliver safely."));
+                        return;
+                    }
+                }
+
+                int xpToGrant = 0;
+                if (payload != null && payload.startsWith("XP:") && payload.contains(";;;PAYLOAD:::")) {
+                    int sep = payload.indexOf(";;;PAYLOAD:::");
+                    try {
+                        xpToGrant = Integer.parseInt(payload.substring(3, sep));
+                    } catch (Exception ignored) {}
+                    payload = payload.substring(sep + 13);
+                }
+
                 int itemsDelivered = 0;
                 if (payload != null && !payload.isBlank() && targetPlayer != null && targetPlayer.isOnline()) {
+                    if (xpToGrant > 0) {
+                        targetPlayer.giveExp(xpToGrant);
+                    }
                     String[] rawItems = payload.split(";;;ITEM;;;");
                     for (String raw : rawItems) {
                         try {
@@ -729,9 +784,9 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     storage.removePendingOperation(targetOp.operationId());
                 } catch (Exception ignored) {}
                 if (plugin != null) {
-                    plugin.getLogger().info("[MinionX Escrow Audit] Operator " + operatorId + " at " + now + " resolved operation " + opId + " as DELIVER (" + itemsDelivered + " items). Reason: " + reason);
+                    plugin.getLogger().info("[MinionX Escrow Audit] Operator " + operatorId + " at " + now + " resolved operation " + opId + " as " + action.toUpperCase() + " (" + itemsDelivered + " items, " + xpToGrant + " XP). Reason: " + reason);
                 }
-                sender.sendMessage(ColorUtil.color("&aOperation &e" + opId + " &aresolved and delivered (" + itemsDelivered + " items). Audit logged."));
+                sender.sendMessage(ColorUtil.color("&aOperation &e" + opId + " &aresolved and delivered (" + itemsDelivered + " items, " + xpToGrant + " XP). Audit logged."));
             } else if ("complete".equals(action)) {
                 try {
                     storage.removePendingOperation(targetOp.operationId());
@@ -741,12 +796,12 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 }
                 sender.sendMessage(ColorUtil.color("&aOperation &e" + opId + " &amarked as COMPLETE and removed from ledger. Audit logged."));
             } else {
-                sender.sendMessage(ColorUtil.color("&cUnknown action '" + action + "'. Valid actions: deliver, complete"));
+                sender.sendMessage(ColorUtil.color("&cUnknown action '" + action + "'. Valid actions: deliver, deliver-force-all, complete"));
             }
             return;
         }
 
-        sender.sendMessage(ColorUtil.color("&cUsage: /minion recover [list|resolve <opId> <deliver|complete> [reason]]"));
+        sender.sendMessage(ColorUtil.color("&cUsage: /minion recover [list|resolve <opId> <deliver|deliver-force-all|complete> [reason]]"));
     }
 
 }

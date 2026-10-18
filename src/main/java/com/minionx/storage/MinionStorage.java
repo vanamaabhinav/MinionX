@@ -731,8 +731,14 @@ public class MinionStorage implements AutoCloseable {
                     try {
                         updatePendingOperationState(op.operationId(), "UNKNOWN", op.payload());
                         quarantineMinion(op.minionId());
-                        logWarning("Startup reconciliation: Operation " + op.operationId() + " was DELIVERY_ATTEMPTED before shutdown. Quarantined as UNKNOWN for admin audit.");
+                        logWarning("Startup reconciliation: Operation " + op.operationId() + " was DELIVERY_ATTEMPTED before shutdown. Quarantined as UNKNOWN for admin audit. Automatic redelivery prohibited.");
                     } catch (Exception ignored) {}
+                } else if ("AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(state)) {
+                    quarantineMinion(op.minionId());
+                    logSevere("Startup reconciliation: Operation " + op.operationId() + " has state AMBIGUOUS_PARTIAL_DELIVERY! Automatic redelivery prohibited to prevent item duplication. Audit ledger preserved: " + op.payload(), null);
+                } else if ("DELIVERY_FAILED_OFFLINE".equalsIgnoreCase(state)) {
+                    quarantineMinion(op.minionId());
+                    logWarning("Startup reconciliation: Operation " + op.operationId() + " was DELIVERY_FAILED_OFFLINE. Retaining items and unconsumed XP for safe re-claim.");
                 } else if ("MINION_REMOVED".equalsIgnoreCase(state) || "DELIVERY_CLAIM_FAILED".equalsIgnoreCase(state) || "QUARANTINED_LEFTOVERS".equalsIgnoreCase(state) || "UNKNOWN".equalsIgnoreCase(state)) {
                     quarantineMinion(op.minionId());
                     logWarning("Startup reconciliation: Preserved durable escrow operation " + op.operationId() + " (state: " + state + ") for minion " + op.minionId() + ". Quarantined for safe claim/audit.");

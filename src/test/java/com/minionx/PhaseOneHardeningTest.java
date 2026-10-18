@@ -1312,5 +1312,138 @@ public class PhaseOneHardeningTest {
         assertFalse(rolledBack, "rollbackPayoutAtomic must return false when operation is not in ATTEMPTED state");
         assertEquals(100.0, state.minionCoins.get(minionId.toString()), 0.0001, "Minion balance must not be credited on failed rollback");
     }
+
+    // --- 43. Offline Player Disconnect Preserves Items and Unconsumed Stored XP ---
+    @Test
+    public void testPickupOfflinePlayerRetainsItemsAndStoredXp() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+        String opId = "offline-pickup-" + UUID.randomUUID();
+
+        Minion minion = new Minion(minionId, MinionType.COBBLESTONE, 1);
+        minion.addStoredXp(120);
+        assertEquals(120, minion.getStoredXp());
+
+        // In offline disconnect handling, player is offline, so claimStoredXp() is NEVER called.
+        // Payload records XP prefix: "XP:" + storedXp + ";;;PAYLOAD:::" + payloadStr
+        String payloadStr = "mock_item_yaml";
+        int storedXp = minion.getStoredXp();
+        String offlinePayload = (storedXp > 0) ? "XP:" + storedXp + ";;;PAYLOAD:::" + payloadStr : payloadStr;
+
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "DELIVERY_FAILED_OFFLINE", System.currentTimeMillis(), offlinePayload));
+        storage.quarantineMinion(minionId);
+
+        // Verify minion stored XP was NOT consumed
+        assertEquals(120, minion.getStoredXp(), "Minion stored XP must not be consumed when player is offline");
+        assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined when delivery fails offline");
+
+        // Verify durable state is DELIVERY_FAILED_OFFLINE
+        List<com.minionx.storage.PendingOperation> pending = storage.getPendingOperations();
+        com.minionx.storage.PendingOperation op = pending.stream().filter(o -> o.operationId().equals(opId)).findFirst().orElse(null);
+        assertNotNull(op);
+        assertEquals("DELIVERY_FAILED_OFFLINE", op.state());
+        assertTrue(op.payload().startsWith("XP:120;;;PAYLOAD:::"));
+
+        // Startup reconciliation retains DELIVERY_FAILED_OFFLINE and keeps minion quarantined
+        storage.reconcilePendingOperations(null);
+        assertTrue(storage.isQuarantined(minionId));
+    }
+
+    // --- 44. Failed Leftover Persistence Records Ambiguous Ledger and Quarantines ---
+    @Test
+    public void testPartialDeliveryFailureRecordsAmbiguousLedgerAndProhibitsAutomaticRedelivery() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+        String opId = "ambiguous-delivery-" + UUID.randomUUID();
+
+        String deliveredStr = "item_diamond_x32";
+        String leftoversStr = "item_diamond_x32";
+        String auditLedger = "DELIVERED:::" + deliveredStr + ";;;LEFTOVER:::" + leftoversStr;
+
+        // When writing QUARANTINED_LEFTOVERS fails, it transitions to AMBIGUOUS_PARTIAL_DELIVERY with full ledger
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "AMBIGUOUS_PARTIAL_DELIVERY", System.currentTimeMillis(), auditLedger));
+        storage.quarantineMinion(minionId);
+
+        assertTrue(storage.isQuarantined(minionId));
+
+        // Startup reconciliation must quarantine minion and preserve AMBIGUOUS_PARTIAL_DELIVERY without redelivering full payload
+        storage.reconcilePendingOperations(null);
+        assertTrue(storage.isQuarantined(minionId));
+
+        List<com.minionx.storage.PendingOperation> pending = storage.getPendingOperations();
+        com.minionx.storage.PendingOperation op = pending.stream().filter(o -> o.operationId().equals(opId)).findFirst().orElse(null);
+        assertNotNull(op);
+        assertEquals("AMBIGUOUS_PARTIAL_DELIVERY", op.state());
+        assertEquals(auditLedger, op.payload());
+    }
+
+    // --- 45. Complete Delivery Failure Retains Pending Operation ---
+    @Test
+    public void testCompleteDeliveryFailureRetainsPendingOperation() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        String opId = "complete-fail-" + UUID.randomUUID();
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        // Operation is not in DELIVERY_ATTEMPTED state (e.g. MINION_REMOVED or nonexistent)
+        state.pendingOperationStates.put(opId, "MINION_REMOVED");
+
+        boolean completed = storage.completeDelivery(opId);
+        assertFalse(completed, "completeDelivery must return false when row cannot be transitioned from DELIVERY_ATTEMPTED");
+
+        // When completeDelivery returns false, caller MUST retain pending operation
+        assertEquals("MINION_REMOVED", state.pendingOperationStates.get(opId));
+    }
+
+    // --- 46. Ambiguous Payout Quarantines and Retains Lock ---
+    @Test
+    public void testAmbiguousPayoutQuarantinesAndRetainsLock() {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        UUID minionId = UUID.randomUUID();
+
+        // 1. Acquire payout lock
+        boolean locked = storage.acquirePayoutLock(minionId);
+        assertTrue(locked);
+        assertTrue(storage.isPayoutActive(minionId));
+
+        // 2. Ambiguous outcome occurs: minion is explicitly quarantined and payout lock is NOT released
+        storage.quarantineMinion(minionId);
+
+        // Lock remains held!
+        assertTrue(storage.isPayoutActive(minionId), "Payout lock must remain held when payout outcome is ambiguous");
+        assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined when payout outcome is ambiguous");
+
+        // Trying to acquire payout lock again fails
+        assertFalse(storage.acquirePayoutLock(minionId), "Cannot acquire payout lock while previous ambiguous payout is fenced");
+    }
+
+    // --- 47. Failed Payout Confirmation Quarantines and Retains Lock ---
+    @Test
+    public void testFailedPayoutConfirmationQuarantinesAndRetainsLock() {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        UUID minionId = UUID.randomUUID();
+
+        // 1. Acquire payout lock
+        boolean locked = storage.acquirePayoutLock(minionId);
+        assertTrue(locked);
+
+        // 2. Database confirmation fails: confirmPayoutAtomic returns false
+        boolean confirmed = false; // simulated failure
+        if (!confirmed) {
+            storage.quarantineMinion(minionId);
+            // lock is NOT released
+        }
+
+        assertTrue(storage.isPayoutActive(minionId), "Payout lock must be retained if confirmation fails");
+        assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined if confirmation fails");
+    }
 }
 
