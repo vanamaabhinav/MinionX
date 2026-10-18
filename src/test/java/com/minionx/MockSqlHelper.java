@@ -32,6 +32,7 @@ public class MockSqlHelper {
         public boolean throwOnExecute = false;
         public boolean throwOnRollback = false;
         public boolean throwOnSetAutoCommitTrue = false;
+        public boolean throwOnCommit = false;
         public String databaseProductName = "SQLite";
 
         public final Set<String> minions = new HashSet<>();
@@ -84,6 +85,10 @@ public class MockSqlHelper {
                                 return state.autoCommit;
                             }
                             case "commit" -> {
+                                if (state.throwOnCommit) {
+                                    state.transactionEvents.add("commit_failed");
+                                    throw new SQLException("Simulated commit failure");
+                                }
                                 state.transactionEvents.add("commit");
                                 return null;
                             }
@@ -102,6 +107,7 @@ public class MockSqlHelper {
                                 return true;
                             }
                             case "close" -> {
+                                state.transactionEvents.add("close");
                                 return null;
                             }
                             case "createStatement" -> {

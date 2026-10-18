@@ -389,7 +389,6 @@ public class DatabaseStorage {
 
     public enum PayoutReservationResult {
         RESERVED,
-        ALREADY_RESERVED,
         ALREADY_CONFIRMED,
         FAILED_CONFIRMED_ROLLBACK,
         UNKNOWN_OUTCOME
@@ -1223,7 +1222,11 @@ public class DatabaseStorage {
                 return PickupRemovalResult.COMMITTED_NOW;
             } catch (SQLException e) {
                 if (commitAttempted) {
-                    logSevere("Commit exception in executePickupRemoval for " + minionId + ", probing reconciliation...", e);
+                    try {
+                        connection.close();
+                    } catch (SQLException ignored) {}
+                    connection = null;
+                    logSevere("Commit/autoCommit exception in executePickupRemoval for " + minionId + ", probing reconciliation...", e);
                     TransactionOutcome outcome = probeCommitReconciliation(minionId, operationId, TransactionType.PICKUP_REMOVAL);
                     if (outcome == TransactionOutcome.CONFIRMED_COMMIT) {
                         return PickupRemovalResult.COMMITTED_NOW;
@@ -1316,10 +1319,13 @@ public class DatabaseStorage {
     }
 
     public synchronized PayoutReservationResult reservePayoutAtomic(String operationId, UUID minionId, UUID playerUuid, double amount, long revision) {
-        if (operationId == null || minionId == null || !Double.isFinite(amount) || amount <= 0.0) {
+        if (operationId == null || minionId == null || playerUuid == null || !Double.isFinite(amount) || amount < 0.0001) {
             return PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
         }
         double normalizedAmount = BigDecimal.valueOf(amount).setScale(4, RoundingMode.HALF_UP).doubleValue();
+        if (normalizedAmount < 0.0001) {
+            return PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
+        }
 
         try {
             ensureConnection();
@@ -1342,12 +1348,13 @@ public class DatabaseStorage {
                             String storedPayload = rs.getString("payload");
 
                             boolean minionMatches = minionId.toString().equalsIgnoreCase(storedMinion);
-                            boolean playerMatches = (playerUuid == null || storedPlayer == null || playerUuid.toString().equalsIgnoreCase(storedPlayer));
+                            boolean playerMatches = storedPlayer != null && playerUuid.toString().equalsIgnoreCase(storedPlayer);
                             boolean amountMatches = false;
                             try {
                                 if (storedPayload != null) {
                                     double storedAmt = Double.parseDouble(storedPayload);
-                                    amountMatches = Math.abs(storedAmt - normalizedAmount) < 0.0001;
+                                    amountMatches = BigDecimal.valueOf(storedAmt).setScale(4, RoundingMode.HALF_UP)
+                                            .compareTo(BigDecimal.valueOf(normalizedAmount).setScale(4, RoundingMode.HALF_UP)) == 0;
                                 }
                             } catch (Exception ignored) {}
 
@@ -1364,9 +1371,14 @@ public class DatabaseStorage {
                             }
 
                             return switch (storedState != null ? storedState.toUpperCase() : "") {
-                                case "ATTEMPTED" -> PayoutReservationResult.ALREADY_RESERVED;
                                 case "CONFIRMED" -> PayoutReservationResult.ALREADY_CONFIRMED;
                                 case "PAYOUT_FAILED" -> PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
+                                case "ATTEMPTED" -> {
+                                    // Previous attempt is unresolved (may have already reached Vault before crash!).
+                                    // Never automatically redeposit; quarantine for audit/reconciliation.
+                                    quarantineMinion(minionId);
+                                    yield PayoutReservationResult.UNKNOWN_OUTCOME;
+                                }
                                 default -> {
                                     quarantineMinion(minionId);
                                     yield PayoutReservationResult.UNKNOWN_OUTCOME;
@@ -1401,7 +1413,7 @@ public class DatabaseStorage {
                         "INSERT INTO minion_pending_operations (operation_id, minion_id, player_uuid, state, created_at, payload) VALUES (?, ?, ?, 'ATTEMPTED', ?, ?)")) {
                     psOp.setString(1, operationId);
                     psOp.setString(2, minionId.toString());
-                    psOp.setString(3, playerUuid != null ? playerUuid.toString() : "");
+                    psOp.setString(3, playerUuid.toString());
                     psOp.setLong(4, System.currentTimeMillis());
                     psOp.setString(5, String.valueOf(normalizedAmount));
                     psOp.executeUpdate();
@@ -1413,7 +1425,11 @@ public class DatabaseStorage {
                 return PayoutReservationResult.RESERVED;
             } catch (SQLException e) {
                 if (commitAttempted) {
-                    logSevere("Commit exception during reservePayoutAtomic for " + minionId + ", probing reconciliation...", e);
+                    try {
+                        connection.close();
+                    } catch (SQLException ignored) {}
+                    connection = null;
+                    logSevere("Commit/autoCommit exception during reservePayoutAtomic for " + minionId + ", probing reconciliation...", e);
                     TransactionOutcome outcome = probeCommitReconciliation(minionId, operationId, TransactionType.PAYOUT_RESERVATION);
                     if (outcome == TransactionOutcome.CONFIRMED_COMMIT) {
                         return PayoutReservationResult.RESERVED;
@@ -1448,6 +1464,7 @@ public class DatabaseStorage {
             ensureConnection();
             if (connection == null) return false;
             connection.setAutoCommit(false);
+            boolean commitAttempted = false;
             try {
                 // Guard state transition: only if currently ATTEMPTED
                 int opUpdated;
@@ -1471,10 +1488,19 @@ public class DatabaseStorage {
                     psM.executeUpdate();
                 }
 
+                commitAttempted = true;
                 connection.commit();
                 connection.setAutoCommit(true);
                 return true;
             } catch (SQLException e) {
+                if (commitAttempted) {
+                    try {
+                        connection.close();
+                    } catch (SQLException ignored) {}
+                    connection = null;
+                    logSevere("Commit/autoCommit exception during rollbackPayoutAtomic for " + operationId, e);
+                    return false;
+                }
                 executeRollbackSafely();
                 logSevere("Failed to rollback payout in database for " + minionId, e);
                 return false;
@@ -1517,6 +1543,10 @@ public class DatabaseStorage {
                 }
             } catch (SQLException e) {
                 if (commitAttempted) {
+                    try {
+                        connection.close();
+                    } catch (SQLException ignored) {}
+                    connection = null;
                     logSevere("Commit exception during confirmPayoutAtomic for " + operationId + ", probing reconciliation...", e);
                     TransactionOutcome outcome = probeCommitReconciliation(minionId, operationId, TransactionType.PAYOUT_CONFIRM);
                     if (outcome == TransactionOutcome.CONFIRMED_COMMIT) {

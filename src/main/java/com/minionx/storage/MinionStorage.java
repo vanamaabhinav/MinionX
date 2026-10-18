@@ -1018,10 +1018,13 @@ public class MinionStorage implements AutoCloseable {
     }
 
     public synchronized DatabaseStorage.PayoutReservationResult reservePayoutAtomic(String operationId, UUID minionId, UUID playerUuid, double amount, long revision) {
-        if (operationId == null || minionId == null || !Double.isFinite(amount) || amount <= 0.0) {
+        if (operationId == null || minionId == null || playerUuid == null || !Double.isFinite(amount) || amount < 0.0001) {
             return DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
         }
         double normalizedAmount = BigDecimal.valueOf(amount).setScale(4, RoundingMode.HALF_UP).doubleValue();
+        if (normalizedAmount < 0.0001) {
+            return DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
+        }
 
         if (databaseStorage != null) {
             // Delegate atomic dual-balance reservation to DatabaseStorage
@@ -1044,12 +1047,13 @@ public class MinionStorage implements AutoCloseable {
                 String storedState = opConfig.getString(opPath + ".state");
 
                 boolean minionMatches = minionId.toString().equalsIgnoreCase(storedMinion);
-                boolean playerMatches = (playerUuid == null || storedPlayer == null || playerUuid.toString().equalsIgnoreCase(storedPlayer));
+                boolean playerMatches = storedPlayer != null && playerUuid.toString().equalsIgnoreCase(storedPlayer);
                 boolean amountMatches = false;
                 try {
                     if (storedPayload != null) {
                         double storedAmt = Double.parseDouble(storedPayload);
-                        amountMatches = Math.abs(storedAmt - normalizedAmount) < 0.0001;
+                        amountMatches = BigDecimal.valueOf(storedAmt).setScale(4, RoundingMode.HALF_UP)
+                                .compareTo(BigDecimal.valueOf(normalizedAmount).setScale(4, RoundingMode.HALF_UP)) == 0;
                     }
                 } catch (Exception ignored) {}
 
@@ -1059,9 +1063,12 @@ public class MinionStorage implements AutoCloseable {
                 }
 
                 return switch (storedState != null ? storedState.toUpperCase() : "") {
-                    case "ATTEMPTED" -> DatabaseStorage.PayoutReservationResult.ALREADY_RESERVED;
                     case "CONFIRMED" -> DatabaseStorage.PayoutReservationResult.ALREADY_CONFIRMED;
                     case "PAYOUT_FAILED" -> DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK;
+                    case "ATTEMPTED" -> {
+                        quarantineMinion(minionId);
+                        yield DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME;
+                    }
                     default -> {
                         quarantineMinion(minionId);
                         yield DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME;

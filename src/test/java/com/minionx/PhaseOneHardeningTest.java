@@ -814,10 +814,11 @@ public class PhaseOneHardeningTest {
         assertEquals(DatabaseStorage.PayoutReservationResult.RESERVED, firstPayout);
         assertEquals(75.0, state.minionCoins.get(minionId1.toString()), 0.0001);
 
-        // Attempting to reuse sharedOpId for a second payout with same params returns ALREADY_RESERVED and does not deduct coins
+        // Attempting to reuse sharedOpId for a second payout with same params returns UNKNOWN_OUTCOME and does not deduct coins
         DatabaseStorage.PayoutReservationResult secondPayout = storage.reservePayoutAtomic(sharedOpId, minionId1, playerUuid, 25.0, 2L);
-        assertEquals(DatabaseStorage.PayoutReservationResult.ALREADY_RESERVED, secondPayout, "Reusing existing operationId for payout must return ALREADY_RESERVED");
+        assertEquals(DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME, secondPayout, "Reusing existing operationId for payout in ATTEMPTED state must return UNKNOWN_OUTCOME and quarantine");
         assertEquals(75.0, state.minionCoins.get(minionId1.toString()), 0.0001, "No extra coins may be deducted on duplicate opId");
+        assertTrue(storage.isQuarantined(minionId1), "Minion must be quarantined on retry of ATTEMPTED payout operation");
 
         // Attempting to reuse sharedOpId for a pickup of minionId2 must return CONFLICTING_PAYLOAD and not delete minionId2
         DatabaseStorage.PickupRemovalResult pickupResult = storage.executePickupRemoval(sharedOpId, minionId2, playerUuid, 1L, "DIFFERENT_PAYLOAD");
@@ -1099,8 +1100,9 @@ public class PhaseOneHardeningTest {
         state.pendingOperationPayloads.put(opId, "500.0");
 
         DatabaseStorage.PayoutReservationResult resAttempted = storage.reservePayoutAtomic(opId, minionId, playerUuid, 500.0, 1L);
-        assertEquals(DatabaseStorage.PayoutReservationResult.ALREADY_RESERVED, resAttempted,
-                "Idempotent retry of ATTEMPTED payout must return ALREADY_RESERVED and not FAILED_CONFIRMED_ROLLBACK");
+        assertEquals(DatabaseStorage.PayoutReservationResult.UNKNOWN_OUTCOME, resAttempted,
+                "Idempotent retry of ATTEMPTED payout must return UNKNOWN_OUTCOME and quarantine to prevent double deposit");
+        assertTrue(storage.isQuarantined(minionId), "Minion must be quarantined on retry of ATTEMPTED operation");
 
         // Scenario B: Operation already completed in CONFIRMED state
         state.pendingOperationStates.put(opId, "CONFIRMED");
@@ -1173,6 +1175,73 @@ public class PhaseOneHardeningTest {
         assertFalse(reserved, "reserveClaimableCoins must fail when balance is 499.9999 and requested is 500.0");
         assertEquals(0.0, minion.getReservedShippingCoins(), 0.000001);
         assertEquals(499.9999, minion.getClaimableShippingCoins(), 0.0001);
+    }
+
+    // --- 37. Sub-Decimal Payout Rejection (< 0.0001) ---
+    @Test
+    public void testSubDecimalPayoutAmountRejected() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        UUID playerUuid = UUID.randomUUID();
+
+        // 0.00004 normalizes to 0.0000 in HALF_UP 4-decimal, must be rejected outright!
+        DatabaseStorage.PayoutReservationResult res1 = storage.reservePayoutAtomic(
+                "payout-sub-" + UUID.randomUUID(), minionId, playerUuid, 0.00004, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK, res1,
+                "Payout request < 0.0001 (e.g., 0.00004) must be rejected outright");
+
+        DatabaseStorage.PayoutReservationResult res2 = storage.reservePayoutAtomic(
+                "payout-sub-" + UUID.randomUUID(), minionId, playerUuid, 0.00009, 1L);
+        assertEquals(DatabaseStorage.PayoutReservationResult.FAILED_CONFIRMED_ROLLBACK, res2,
+                "Payout request < 0.0001 (e.g., 0.00009) must be rejected outright");
+    }
+
+    // --- 38. Commit Exception Invalidates Connection ---
+    @Test
+    public void testCommitExceptionInvalidatesConnection() {
+        MockSqlHelper.State state = new MockSqlHelper.State();
+        Connection connection = MockSqlHelper.createMockConnection(state);
+        DatabaseStorage storage = new DatabaseStorage(null);
+        storage.setConnection(connection);
+
+        UUID minionId = UUID.randomUUID();
+        UUID playerUuid = UUID.randomUUID();
+        String opId = "commit-fail-" + UUID.randomUUID();
+
+        state.minions.add(minionId.toString());
+        state.trackMinionPresence = true;
+        state.defaultUpdateCount = 1;
+        state.throwOnCommit = true;
+
+        DatabaseStorage.PayoutReservationResult res = storage.reservePayoutAtomic(opId, minionId, playerUuid, 10.0, 1L);
+        // Connection should have been closed and invalidated upon commit exception
+        assertTrue(state.transactionEvents.contains("close"), "Connection must be closed on commit failure");
+        assertNull(storage.getConnection(), "DatabaseStorage cached connection must be set to null after commit failure");
+    }
+
+    // --- 39. Dual Balance Restores Coins on ALREADY_CONFIRMED ---
+    @Test
+    public void testDualBalanceRestoresCoinsOnAlreadyConfirmedReplay() {
+        Minion minion = new Minion(UUID.randomUUID(), com.minionx.api.MinionType.COBBLESTONE, 1);
+        minion.setShippingCoins(100.0);
+
+        // Main thread tentatively reserves 50.0 coins
+        boolean reserved = minion.reserveClaimableCoins(50.0);
+        assertTrue(reserved);
+        assertEquals(50.0, minion.getClaimableShippingCoins(), 0.0001);
+        assertEquals(50.0, minion.getReservedShippingCoins(), 0.0001);
+
+        // Persistence returns ALREADY_CONFIRMED (previous historical payout completed with same opId)
+        // Main thread cancels reserved coins so newly earned live coins are preserved!
+        minion.cancelReservedCoins();
+
+        assertEquals(100.0, minion.getClaimableShippingCoins(), 0.0001,
+                "Tentatively reserved coins must be restored to live balance on ALREADY_CONFIRMED");
+        assertEquals(0.0, minion.getReservedShippingCoins(), 0.0001);
     }
 }
 
