@@ -742,18 +742,22 @@ public class MinionGUIListener implements Listener {
                                     List<ItemStack> leftoverItems = new ArrayList<>();
                                     List<ItemStack> deliveredItems = new ArrayList<>();
                                     for (ItemStack item : itemsToTransfer) {
-                                        HashMap<Integer, ItemStack> left = player.getInventory().addItem(item);
+                                        int origCount = item.getAmount();
+                                        ItemStack itemClone = item.clone();
+                                        HashMap<Integer, ItemStack> left = player.getInventory().addItem(itemClone);
                                         if (!left.isEmpty()) {
                                             leftoverItems.addAll(left.values());
                                             int leftoverCount = left.values().stream().mapToInt(ItemStack::getAmount).sum();
-                                            int deliveredCount = item.getAmount() - leftoverCount;
+                                            int deliveredCount = origCount - leftoverCount;
                                             if (deliveredCount > 0) {
                                                 ItemStack d = item.clone();
                                                 d.setAmount(deliveredCount);
                                                 deliveredItems.add(d);
                                             }
                                         } else {
-                                            deliveredItems.add(item.clone());
+                                            ItemStack d = item.clone();
+                                            d.setAmount(origCount);
+                                            deliveredItems.add(d);
                                         }
                                     }
 
@@ -778,8 +782,13 @@ public class MinionGUIListener implements Listener {
                                                     storage.removePendingOperation(operationId);
                                                 } catch (Exception ignored) {}
                                             } else {
+                                                // If completeDelivery fails, mark operation payload to record XP_GRANTED so recovery never double-grants!
+                                                try {
+                                                    String xpGrantedPayload = "XP_GRANTED:" + xp + ";;;PAYLOAD:::" + rawPayloadStr;
+                                                    storage.updatePendingOperationState(operationId, "DELIVERY_ATTEMPTED", xpGrantedPayload);
+                                                } catch (Exception ignored) {}
                                                 if (MinionX.getInstance() != null) {
-                                                    MinionX.getInstance().getLogger().warning("completeDelivery unconfirmed for operation " + operationId + ". Retaining recovery record.");
+                                                    MinionX.getInstance().getLogger().warning("completeDelivery unconfirmed for operation " + operationId + ". Retaining recovery record with XP_GRANTED flag.");
                                                 }
                                             }
                                         });

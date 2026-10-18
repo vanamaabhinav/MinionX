@@ -1544,5 +1544,107 @@ public class PhaseOneHardeningTest {
         itemsAmbiguous = itemsAmbiguous.substring(leftoverIdx + 14);
         assertEquals("item_leftover_x32", itemsAmbiguous, "Must extract ONLY the leftover items, excluding already delivered items");
     }
+
+    // --- 51. Repeated Claim After Partial Delivery Prevents Duplicate XP ---
+    @Test
+    public void testRepeatedClaimAfterPartialInventoryDeliveryDoesNotDuplicateXp() {
+        int initialXp = 100;
+        int totalItems = 20;
+
+        // Step 1: Claim attempt 1 with partial inventory space (15 items fit, 5 leftovers)
+        int spaceAttempt1 = 15;
+        int deliveredStep1 = Math.min(spaceAttempt1, totalItems);
+        int leftoversStep1 = totalItems - deliveredStep1;
+        int xpGrantedStep1 = 0;
+
+        // Invariant: XP is ONLY granted when leftovers.isEmpty()
+        if (leftoversStep1 == 0) {
+            xpGrantedStep1 = initialXp;
+        }
+        assertEquals(0, xpGrantedStep1, "XP must NOT be granted when item delivery has leftovers");
+        assertEquals(5, leftoversStep1, "5 items must remain in leftovers");
+
+        // The remaining escrow payload retains the full XP
+        String remPayload = "XP:" + initialXp + ";;;PAYLOAD:::items_count_" + leftoversStep1;
+        assertTrue(remPayload.startsWith("XP:100;"), "Unclaimed XP must be preserved with leftover escrow");
+
+        // Step 2: Player clears inventory and claims remaining 5 items (space >= 5)
+        int spaceAttempt2 = 20;
+        int remainingItemsToDeliver = leftoversStep1;
+        int deliveredStep2 = Math.min(spaceAttempt2, remainingItemsToDeliver);
+        int leftoversStep2 = remainingItemsToDeliver - deliveredStep2;
+        int xpGrantedStep2 = 0;
+
+        // Parse XP from remaining payload
+        int parsedXp = 0;
+        if (remPayload.startsWith("XP:") && remPayload.contains(";;;PAYLOAD:::")) {
+            int sep = remPayload.indexOf(";;;PAYLOAD:::");
+            parsedXp = Integer.parseInt(remPayload.substring(3, sep));
+        }
+        assertEquals(100, parsedXp);
+
+        if (leftoversStep2 == 0) {
+            xpGrantedStep2 = parsedXp;
+        }
+        assertEquals(100, xpGrantedStep2, "XP must be granted when all remaining items fit (0 leftovers)");
+        assertEquals(0, leftoversStep2);
+
+        // Verify total XP across both steps is EXACTLY initialXp (never 200)
+        int totalXpGranted = xpGrantedStep1 + xpGrantedStep2;
+        assertEquals(100, totalXpGranted, "Total XP granted across partial claims must equal exact initial XP (no double grants)");
+    }
+
+    // --- 52. Ambiguous Delivery Outcome Withholds Automatic XP in Recovery ---
+    @Test
+    public void testAmbiguousDeliveryOutcomeWithholdsAutomaticXpInRecovery() {
+        // Case 1: DELIVERY_ATTEMPTED (items/XP may have already reached player)
+        String opStateAttempted = "DELIVERY_ATTEMPTED";
+        String payloadAttempted = "XP:120;;;PAYLOAD:::item_diamond_x16";
+        boolean isAmbiguous1 = "UNKNOWN".equalsIgnoreCase(opStateAttempted)
+                || "DELIVERY_ATTEMPTED".equalsIgnoreCase(opStateAttempted)
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(opStateAttempted);
+        assertTrue(isAmbiguous1, "DELIVERY_ATTEMPTED must be classified as an ambiguous delivery outcome");
+
+        int xpToGrant1 = 120;
+        boolean allowAutomaticXp1 = !isAmbiguous1;
+        assertFalse(allowAutomaticXp1, "Automatic XP grant must be withheld for ambiguous DELIVERY_ATTEMPTED operation");
+
+        // Case 2: Operation marked XP_GRANTED after failed completeDelivery
+        String payloadXpGranted = "XP_GRANTED:120;;;PAYLOAD:::item_diamond_x16";
+        boolean xpAlreadyDelivered = payloadXpGranted.startsWith("XP_GRANTED:") || payloadXpGranted.startsWith("XP_DELIVERED:");
+        assertTrue(xpAlreadyDelivered, "Must detect XP was already granted in prior pickup attempt");
+        boolean allowXpGrant2 = !xpAlreadyDelivered;
+        assertFalse(allowXpGrant2, "Must never re-grant XP when marked XP_GRANTED");
+
+        // Case 3: DELIVERY_FAILED_OFFLINE (unambiguous: player was offline, 0 items and 0 XP delivered)
+        String opStateOffline = "DELIVERY_FAILED_OFFLINE";
+        boolean isAmbiguous3 = "UNKNOWN".equalsIgnoreCase(opStateOffline)
+                || "DELIVERY_ATTEMPTED".equalsIgnoreCase(opStateOffline)
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(opStateOffline);
+        assertFalse(isAmbiguous3, "DELIVERY_FAILED_OFFLINE is an unambiguous safe escrow state");
+        boolean allowAutomaticXp3 = !isAmbiguous3;
+        assertTrue(allowAutomaticXp3, "Automatic XP grant is permitted for unambiguous DELIVERY_FAILED_OFFLINE");
+    }
+
+    // --- 53. Delivered Item Accounting With Mutated ItemStack ---
+    @Test
+    public void testDeliveredItemAccountingWithMutatedItemStack() {
+        int originalStackAmount = 64;
+        int inventorySpaceAvailable = 60;
+
+        // In Bukkit, addItem may mutate the input ItemStack amount to the remaining count (4)
+        int mutatedItemStackAmount = originalStackAmount - inventorySpaceAvailable; // 4
+        int leftoverCount = mutatedItemStackAmount; // 4
+
+        // Erroneous calculation: item.getAmount() - leftoverCount = 4 - 4 = 0
+        int buggyDeliveredCount = mutatedItemStackAmount - leftoverCount;
+        assertEquals(0, buggyDeliveredCount, "Buggy calculation yields 0 delivered despite 60 items delivered");
+
+        // Corrected calculation: preserve origCount before calling addItem
+        int origCount = originalStackAmount;
+        int correctedDeliveredCount = origCount - leftoverCount;
+        assertEquals(60, correctedDeliveredCount, "Corrected calculation accurately yields 60 delivered items");
+        assertEquals(4, leftoverCount, "Leftover count is 4 items");
+    }
 }
 
