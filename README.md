@@ -1,13 +1,13 @@
 <div align="center">
 
 # ⚡ MinionX ⚡
-### Enterprise Autonomous Minions Engine for Minecraft Paper / Purpur 1.20.4 – 1.21+
-**The Most Powerful, Feature-Packed & Zero-Lag Hypixel-Inspired Minions Plugin Ever Engineered.**
+### Autonomous Minions Plugin for Minecraft Paper / Purpur 1.20.4 – 1.21+
+**An Authentic, High-Performance Hypixel-Inspired Minions Engine.**
 
 [![Paper](https://img.shields.io/badge/Platform-Paper%20%7C%20Purpur%20%7C%20Pufferfish-00a8ff?style=for-the-badge&logo=curseforge)](https://papermc.io)
 [![Minecraft Version](https://img.shields.io/badge/Minecraft-1.20.4%20%E2%80%93%201.21+-brightgreen?style=for-the-badge&logo=minecraft)](https://www.minecraft.net)
 [![Java Version](https://img.shields.io/badge/Java-21%20LTS-orange?style=for-the-badge&logo=openjdk)](https://adoptium.net)
-[![Performance](https://img.shields.io/badge/TPS-20.0%20Guaranteed-success?style=for-the-badge&logo=speedtest)](https://github.com/vanamaabhinav/MinionX)
+[![Performance](https://img.shields.io/badge/Scheduling-Priority%20Queue-success?style=for-the-badge&logo=speedtest)](https://github.com/vanamaabhinav/MinionX)
 [![Status](https://img.shields.io/badge/Release-v0.2.0--Pre--Release-blueviolet?style=for-the-badge)](https://github.com/vanamaabhinav/MinionX)
 
 [Explore Full Wiki](https://av-studios-1.gitbook.io/av-studios-minionx-wiki/) • [Administrator Manual](DOCUMENTATION.md) • [Report Issue](https://github.com/vanamaabhinav/MinionX/issues)
@@ -20,9 +20,9 @@
 
 Whether you are hosting a **SkyBlock network**, **Prison empire**, **Survival SMP**, or **RPG realm**, automated minions are the backbone of player retention and long-term economy. 
 
-Most minion plugins suffer from **crippling server lag**, **duplication exploits**, **clunky YAML-only configs**, and **inflexible hardcoded tiers**.
+Most minion plugins suffer from **unbounded entity tick overhead**, **duplication exploits**, **clunky YAML-only configs**, and **inflexible hardcoded tiers**.
 
-**MinionX solves all of that.** Engineered from the ground up on modern **Java 21** and optimized specifically for **Paper, Purpur, and Pufferfish**, MinionX delivers an authentic Hypixel-grade minion experience with **unmatched customization, modern billboard display entities, 5 in-game visual creator studios, and an uncompromising 20 TPS performance guarantee.**
+**MinionX solves all of that.** Engineered on modern **Java 21** and optimized specifically for **Paper, Purpur, and Pufferfish**, MinionX delivers an authentic Hypixel-grade minion experience with **comprehensive customization, modern billboard display entities, 6 in-game visual creator studios, and bounded-budget tick scheduling.**
 
 ---
 
@@ -34,10 +34,10 @@ Most minion plugins suffer from **crippling server lag**, **duplication exploits
 | 🗿 **Bundled Offline Head Textures** | Authentic player heads for all 37 minions across Tiers I–XII bundled locally (Zero Mojang API rate limits). |
 | 🎛️ **6 In-Game Visual Studios** | Create and edit Minions, Upgrades/Hoppers, Fuels, Tiers, Skins, and Storages visually in-game — **Zero YAML required!** |
 | 📈 **Per-Minion Tier Studio** | Configure independent Max Tiers, upgrade costs, speeds, and capacities for each individual minion. |
-| ⚡ **Deterministic O(1) Offline Math** | Calculates 30 days of offline production instantly without loading or ticking entities. |
+| ⚡ **Deterministic Offline Simulation** | Calculates offline downtime production cycle-by-cycle without loading or ticking entities. |
 | 🧰 **Unified Custom RPG Items** | Seamlessly works with **ItemsAdder**, **MMOItems**, **Oraxen**, and custom PDC/CustomModelData items. |
 | 🔄 **Super Compactor 3000** | Auto-condenses raw items into enchanted tiers with strict anti-swallowing isolation. |
-| 🛡️ **Anti-Dupe & Emergency Quarantine** | Thread-safe transactions and a one-click `/minion quarantine` freeze switch. |
+| 🛡️ **Anti-Dupe & Emergency Quarantine** | Thread-safe transactions, durable escrow journaling, and a one-click `/minion quarantine` freeze switch. |
 | 🎭 **51 Collectible Minion Skins** | Transform minion appearance with cosmetic skins, RGB armor dyes, and held accessories. |
 | 📦 **Symmetrical Storage Expansions** | Link Small (+3), Medium (+9), Large (+15), or custom chests up to 27 slots. |
 | 💰 **Automated Hoppers & Economy** | Budget and Enchanted Hoppers sell overflow directly to **Vault** economy balances. |
@@ -96,20 +96,22 @@ MinionX features an enterprise-grade compression engine that seamlessly bridges 
 
 ---
 
-### 4. ⚡ 20 TPS Guaranteed: Engineered for Massive Networks
-MinionX was built from day one to handle thousands of active minions on high-population servers:
+### 4. ⚡ High-Performance Architecture: Engineered for Scalability
+MinionX was built from day one to handle high minion counts on active servers:
 
-- **Zero Entity Tick Overhead**: Armor stands are placed with Paper-native `setCanTick(false)` and `setMarker(true)`. The Minecraft entity tick loop completely skips minion models!
-- **Modern Billboard Text Displays**: Nametags and floating holograms use modern Paper `TextDisplay` entities with `Billboard.CENTER`. They rotate client-side without sending continuous server packets or causing flicker.
-- **Deterministic O(1) Offline Progress Math**: When chunks unload or players disconnect, minions cease all ticking. When chunks reload, MinionX calculates elapsed downtime using deterministic math and fills inventories instantly.
-- **Thread-Safe Atomic Saves**: All data is written asynchronously to atomic temporary files before replacing save files, preventing corrupted states during sudden power outages or crashes.
+- **Non-Ticking Display Entities**: Minion models use Paper-native `setCanTick(false)` and `setMarker(true)` armor stands. The vanilla entity tick loop completely skips minion models!
+- **Modern Billboard Text Displays**: Nametags and floating holograms use Paper `TextDisplay` entities with `Billboard.CENTER`. They rotate client-side without sending continuous server packets or causing flicker.
+- **Bounded Priority Queue Scheduling**: Minion AI actions are scheduled via a bounded generational priority queue processing up to a capped action and time budget per tick with latency shedding under heavy server load.
+- **Offline Downtime Simulation**: When chunks unload or players disconnect, minions cease all ticking. When chunks reload, MinionX computes elapsed downtime cycle-by-cycle across fuel boundaries without ticking entities.
+- **Durable Persistence & Single-Server Isolation**: Flat-file storage writes atomically to temporary files before moving, while SQLite and MySQL database backends provide persistent relational storage. Each server instance requires an isolated database schema (cross-server proxy synchronization is not supported).
 
 ---
 
-### 5. 🛡️ Enterprise Anti-Dupe Security & Emergency Quarantine
-Economy exploits can ruin a server in minutes. MinionX provides unmatched security guarantees:
+### 5. 🛡️ Anti-Dupe Security, Durable Escrow & Emergency Quarantine
+Economy exploits can ruin a server in minutes. MinionX provides robust security guarantees:
 
 - **Synchronized Transaction Locks**: Inventory collections, upgrades, and hopper transfers use internal lock guards to prevent click-spamming and packet injection dupes.
+- **Durable Escrow Journaling**: Minion pickups stage items and XP in a durable pending operations journal (`minion_pending_operations`) before deleting world entities, with `/minion claim` and `/minion recover` reconciliation across crashes.
 - **Emergency Quarantine Switch (`/minion quarantine on`)**: Suspect a glitch or exploit? Toggle Quarantine Mode to immediately freeze all placed minion actions and GUI interactions network-wide without needing to kick players or take the server offline!
 - **Sanity Audits**: Automatic inventory validation prevents negative item counts or invalid slot placements.
 

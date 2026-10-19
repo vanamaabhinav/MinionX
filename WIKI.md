@@ -36,7 +36,7 @@ MinionX brings automated resource gathering to your server, inspired by classic 
 ### Key Capabilities:
 * **Included Minion Types**: Comes with over 30 pre-configured minions across mining, farming, foraging, and combat categories (such as Cobblestone, Iron, Diamond, Wheat, Oak, Zombie, and Blaze).
 * **Flexible Customization**: Server administrators can add brand-new minions, multi-drop loot tables, custom working delays, and unique item requirements either through configuration files or directly in-game.
-* **Optimized Architecture**: Uses modern text display entities for floating nametags, non-ticking armor stands for minion models, and mathematical catch-up calculations for unloaded chunks to keep server tick times smooth.
+* **Optimized Architecture**: Uses modern text display entities for floating nametags, non-ticking armor stands for minion models, a bounded generational priority queue scheduler, and offline catch-up simulation for unloaded chunks.
 * **Extensive Compatibility**: Natively supports major land claim systems, economy providers, skill plugins, and custom item frameworks.
 
 ---
@@ -284,7 +284,7 @@ All settings are neatly separated across dedicated files in `plugins/MinionX/`:
 
 | File | Purpose |
 |---|---|
-| `config.yml` | General server settings, limits, storage backends, display options, and skill hooks. |
+| `config.yml` | General server settings, limits, storage backends (YAML, SQLite, single-instance MySQL), display options, and skill hooks. |
 | `tiers.yml` | Default action delays, storage slot counts, and upgrade costs per tier. |
 | `minions.yml` | Minion types, target blocks/mobs, drop tables, and per-minion tier overrides. |
 | `fuels.yml` | Temporary and permanent fuel definitions and speed multipliers. |
@@ -381,7 +381,7 @@ A: When both the minion's internal inventory and any linked storage chest are fu
 A: No. Storage chests are protected by owner verification. Only the minion's owner or an operator can open the chest, and items can only be withdrawn.
 
 **Q: How does offline catch-up work?**  
-A: When an unloaded chunk reloads or the server restarts, MinionX calculates production for the elapsed time in constant time, accounting for active fuels, applying compaction recipes, and stopping gracefully if storage reaches capacity.
+A: When an unloaded chunk reloads or the server restarts, MinionX computes elapsed downtime cycle-by-cycle across fuel boundaries, applying compaction recipes, and stopping gracefully if storage reaches capacity without dropping or deleting unpriced items.
 
 **Q: Can custom minions have different maximum tiers?**  
 A: Yes. You can set `max-tier` in `minions.yml` or through `/minion create` to limit specific minions to any tier you prefer.

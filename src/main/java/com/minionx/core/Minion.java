@@ -616,7 +616,7 @@ public class Minion {
         if (hasAutoSeller() && toAdd.getAmount() > 0) {
             double unitPrice = com.minionx.api.PriceRegistry.getPrice(toAdd);
             if (unitPrice <= 0.0) {
-                // Decision 6: Unpriced items cannot be sold for 0 coins or destroyed for free
+                // Items without a configured price in prices.yml cannot be sold or destroyed for free; overflow handling stops when unpriced items remain.
                 return false;
             }
             CustomUpgrade hopper = getShippingUpgrade();

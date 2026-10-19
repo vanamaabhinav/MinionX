@@ -13,6 +13,7 @@
 3. [Modular Configuration Architecture](#3-modular-configuration-architecture)
 4. [In-Game Creator Studios](#4-in-game-creator-studios)
    * [Minion Creator Studio (`/minion create`)](#minion-creator-studio)
+   * [Upgrade & Hopper Creator Studio (`/minion create upgrade`)](#upgrade--hopper-creator-studio)
    * [Fuel Creator Studio (`/minion create fuel`)](#fuel-creator-studio)
    * [Tier Creator & Editor Studio (`/minion tier`)](#tier-creator--editor-studio)
    * [Skin Creator Studio (`/minion create skin`)](#skin-creator-studio)
@@ -30,7 +31,7 @@
 
 ## 1. System Requirements & Installation
 
-MinionX is built from the ground up to run at an unwavering 20 TPS on high-population production servers.
+MinionX is engineered for production Minecraft servers with bounded-budget tick scheduling, non-ticking display entities, and deterministic offline downtime simulation.
 
 ### Requirements:
 * **Server Software:** Paper, Purpur, or Pufferfish (1.20.4 – 1.21.x). *(Spigot and CraftBukkit are not supported due to modern display entities and asynchronous tick requirements)*.
@@ -101,6 +102,9 @@ settings:
 
 storage:
   type: YAML # Supported: YAML (default), SQLITE, MYSQL
+  # NOTE: MySQL is for persistent relational storage on a single server instance.
+  # Multiple servers must use separate, isolated database schemas. Cross-server
+  # proxy synchronization is not supported.
 ```
 
 ---
@@ -119,6 +123,14 @@ MinionX features full-fledged in-game visual GUIs for designing, customizing, an
   * Clone exact drop items with custom metadata, lore, or CustomModelData directly from player cursor.
   * Integrate custom MythicMobs internal IDs for combat minions.
   * Choose hand tools, armor styles, and head textures.
+
+### Upgrade & Hopper Creator Studio
+* **Command:** `/minion create upgrade` (or click Slot 22 inside `/minionsx`)
+* **Features:**
+  * Configure upgrade ID, display name, and item material.
+  * Select upgrade behavior: automated shipping hopper, compaction, auto-smelter, speed boost, or area expander.
+  * Configure economy sell ratio (for hoppers), speed multiplier percentages, and radius expansions.
+  * Live test item delivery and direct atomic persistence to `upgrades.yml`.
 
 ### Fuel Creator Studio
 * **Command:** `/minion create fuel` (or click Slot 50 inside `/minionsx` Fuel Supplies)
@@ -375,8 +387,8 @@ MinionX natively integrates with the Minecraft server ecosystem:
 
 | Command | Permission | Description |
 |---|---|---|
-| `/minion create [minion\|fuel\|skin\|storage]` | `minionx.admin` | Opens the designated in-game creator studio |
-| `/minion tier [list\|edit]` | `minionx.admin` | Opens the In-Game Dynamic Tier Studio |
+| `/minion create [minion\|upgrade\|fuel\|skin\|storage]` | `minionx.admin` | Opens the designated in-game creator studio |
+| `/minion tier [id]` | `minionx.admin` | Opens the Global or Per-Minion Tier Studio |
 | `/minion give <player> <type> [tier]` | `minionx.admin` | Gives a minion head item (Tiers I–XII) |
 | `/minion give <player> <fuel_id>` | `minionx.admin` | Gives a configured fuel item |
 | `/minion give <player> <upgrade_id>` | `minionx.admin` | Gives a configured upgrade or hopper item |
@@ -415,7 +427,7 @@ A: Yes. All fuels designed in the Fuel Creator Studio (`/minion create fuel`) ar
 A: No. MinionX features strict anti-swallowing isolation. Vanilla recipes will never consume items with custom display names or CustomModelData.
 
 **Q: How does offline production work?**  
-A: When a chunk unloads or the server restarts, minion calculations pause. Upon chunk reload or player interaction, MinionX computes elapsed time in $O(1)$ constant time, calculates exact production, runs compression recipes, and populates the minion storage cleanly.
+A: When a chunk unloads or the server restarts, minion calculations pause. Upon chunk reload or player interaction, MinionX computes elapsed downtime cycle-by-cycle across fuel boundaries, calculates exact item production, executes Super Compaction batches, and updates minion storage without ticking entities.
 
 ---
 *MinionX — Designed and maintained by AbhinavVanama.*

@@ -9,12 +9,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Ultra-optimized constant-time offline production engine.
- * Computes exact item yields, Super Compaction batches, and XP in checked
+ * Offline production engine.
+ * Computes item yields, Super Compaction batches, and XP in checked
  * 64-bit integer arithmetic with cycle-by-cycle precision and paused-time advancement.
- * Strictly enforces Decision 6:
- * - Each cycle is an all-or-nothing accounting unit across fuel boundaries.
- * - Saturation state stops simulation and marks FULL without deleting unpriced items.
+ * Invariants:
+ * - Downtime is segmented across fuel expiration boundaries.
+ * - Each cycle executes as an all-or-nothing accounting unit.
+ * - Inventory/storage saturation stops simulation without dropping or deleting unpriced items.
  */
 public class OfflineCalculator {
 
@@ -47,7 +48,7 @@ public class OfflineCalculator {
             elapsedMillis = maxOfflineMillis;
         }
 
-        // 3. Segment downtime across fuel expiration boundaries (Decision 6)
+        // 3. Segment downtime across fuel expiration boundaries to apply appropriate speed multipliers
         long fuelEnd = minion.getFuelEndTime();
         if (fuelEnd > 0 && fuelEnd > lastAction && fuelEnd < now && minion.isFuelActive()) {
             // Segment 1: from lastAction to fuelEnd with fuel speed boost
@@ -116,7 +117,7 @@ public class OfflineCalculator {
         int actualAdded = 0;
 
         for (long cycle = 0; cycle < harvestActions; cycle++) {
-            // Snapshot working lists for this individual cycle (Decision 6 all-or-nothing accounting unit)
+            // Snapshot working lists for this individual cycle (all-or-nothing accounting unit)
             List<ItemStack> invCycleSnap = cloneItemList(minion.getInventory());
             List<ItemStack> storeCycleSnap = cloneItemList(minion.getStorageContents());
             double coinsCycleSnap = minion.getShippingCoins();

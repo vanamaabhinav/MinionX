@@ -19,7 +19,8 @@ settings:
   destroy-temporary-fuel-on-removal: true
   # Geyser / Bedrock edition touch friendly menu mode
   geyser-touch-friendly: true
-  # Tick interval for the minion AI task (1 tick = sub-second distributed spread)
+  # Tick interval for the minion AI task.
+  # Minion actions are scheduled via a bounded generational priority queue.
   tick-interval: 1
   # Periodic auto-save interval in ticks (6000 ticks = 5 minutes)
   auto-save-interval: 6000
@@ -60,7 +61,7 @@ settings:
 
     # Control natural mob wandering AI:
     #   true  - Disables mob AI wandering. Mobs stand still until slain by minion.
-    #           Recommended for massive server performance and zero entity pathfinding lag.
+    #           Recommended for performance in dense minion setups by reducing entity pathfinding overhead.
     #   false - Mobs wander naturally inside their enclosed 5x5 platform.
     disable-mob-wandering: false
 
@@ -76,8 +77,10 @@ settings:
 #            Provides ACID compliance, corruption resistance, and fast async queries.
 #            Recommended for medium-to-large single servers.
 #
-#   MYSQL  - Enterprise relational database for multi-server networks and Bungee/Velocity.
-#            Allows cross-server minion synchronization and network-wide data centralization.
+#   MYSQL  - External relational database for production servers.
+#            Provides high-performance persistent storage across server restarts.
+#            NOTE: Each server instance must use an isolated database schema.
+#            Cross-server proxy synchronization across multiple live servers is not supported.
 #            Tables and schemas are automatically created on first startup.
 # ==============================================================================
 storage:
@@ -102,7 +105,7 @@ nametags:
   # Display mode:
   # ALWAYS    - Hologram is always visible floating above the minion.
   # TARGETED  - Nametag only shows when looking/pointing directly at the minion (reduces visual clutter).
-  # DISABLED  - Disables nametags completely (eliminates all hologram entities, zero lag).
+  # DISABLED  - Disables nametags completely (eliminates all hologram entities, minimizing entity overhead).
   mode: ALWAYS
 
   # Nametag format. Supported Placeholders:
@@ -362,25 +365,6 @@ storage-layouts:
   #   9: [10, 11, 12, 13, 14, 15, 16, 19, 20]
   #   15: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 19]
 
-# ==============================================================================
-# DATABASE & PERSISTENCE STORAGE
-# ==============================================================================
-# MinionX works completely out-of-the-box with ZERO database setup required!
-# Supported storage backends:
-#   - YAML   : (Default) Ultra-fast, self-contained flat file (plugins/MinionX/data/minions.yml).
-#              Requires zero setup, zero drivers, and features atomic writes to prevent corruption.
-#   - SQLITE : Local zero-configuration embedded database (plugins/MinionX/data/minions.db).
-#   - MYSQL  : External relational database for multi-server networks.
-# ==============================================================================
-storage:
-  # Storage type: YAML (Recommended default), SQLITE, or MYSQL
-  type: "YAML"
-  mysql:
-    host: "localhost"
-    port: 3306
-    database: "minions"
-    username: "root"
-    password: ""
 
 # ==============================================================================
 # UPDATES & METRICS
