@@ -2717,7 +2717,38 @@ public class PhaseOneHardeningTest {
         assertEquals(beforeMicros, afterMicros, "Overflowing credit must be rejected without mutating balance");
         assertNotEquals(Long.MAX_VALUE, minion.getShippingCoinsMicros(), "Must NEVER manufacture Long.MAX_VALUE balance on overflow");
     }
+
+    // --- 76. Pickup Leftover Persistence Failure And Fallback Verification ---
+    @Test
+    public void testPickupLeftoversPersistenceFailureAndFallbackCheck() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "pickup-fallback-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        // 1. Operation recorded under DELIVERY_ATTEMPTED during pickup
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "DELIVERY_ATTEMPTED", System.currentTimeMillis(), "initial-payload"));
+
+        // 2. Simulate primary leftover update failure (e.g. simulated connection glitch or constraint)
+        boolean updated = false;
+
+        // 3. Fallback write is executed and captured
+        boolean fallbackPersisted = false;
+        if (!updated) {
+            String auditLedger = "XP:25;;;PAYLOAD:::DELIVERED:::del_item;;;LEFTOVER:::leftover_item";
+            fallbackPersisted = storage.updatePendingOperationState(opId, "AMBIGUOUS_PARTIAL_DELIVERY", auditLedger);
+        }
+
+        assertTrue(fallbackPersisted, "Emergency fallback write return value must be checked and evaluated as true when persisted");
+
+        com.minionx.storage.PendingOperation op = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(op);
+        assertEquals("AMBIGUOUS_PARTIAL_DELIVERY", op.state());
+        assertTrue(op.payload().contains("DELIVERED:::del_item"));
+        assertTrue(op.payload().contains("LEFTOVER:::leftover_item"));
+    }
 }
-
-
-

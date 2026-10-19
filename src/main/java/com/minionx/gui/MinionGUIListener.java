@@ -818,22 +818,23 @@ public class MinionGUIListener implements Listener {
                                         storage.getPersistenceExecutor().submit(() -> {
                                             boolean updated = false;
                                             try {
-                                                storage.updatePendingOperationState(
+                                                updated = storage.updatePendingOperationState(
                                                         operationId, "QUARANTINED_LEFTOVERS", leftoverPayloadWithXp);
-                                                updated = true;
                                             } catch (Throwable t) {
                                                 updated = false;
                                             }
                                             boolean finalUpdated = updated;
+                                            boolean fallbackPersisted = false;
                                             if (!finalUpdated) {
                                                 // Failed to record leftovers: mark AMBIGUOUS_PARTIAL_DELIVERY with full ledger + XP!
                                                 try {
                                                     String auditLedger = (storedXp > 0 ? "XP:" + storedXp + ";;;PAYLOAD:::" : "") +
                                                             "DELIVERED:::" + deliveredStr + ";;;LEFTOVER:::" + leftoversStr;
-                                                    storage.updatePendingOperationState(
+                                                    fallbackPersisted = storage.updatePendingOperationState(
                                                             operationId, "AMBIGUOUS_PARTIAL_DELIVERY", auditLedger);
                                                 } catch (Exception ignored) {}
                                             }
+                                            boolean finalFallbackPersisted = fallbackPersisted;
                                             Runnable onLeftoverResult = () -> {
                                                 storage.quarantineMinion(minionId);
                                                 if (finalUpdated) {
@@ -841,9 +842,16 @@ public class MinionGUIListener implements Listener {
                                                         player.sendMessage(ColorUtil.color("&eMinion picked up! Some items did not fit in your inventory and are safely held in escrow (Operation: " + operationId + ")."));
                                                         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
                                                     }
-                                                } else {
+                                                } else if (finalFallbackPersisted) {
                                                     if (player.isOnline()) {
                                                         player.sendMessage(ColorUtil.color("&cCRITICAL: Some items did not fit and saving to escrow failed! Operation " + operationId + " is quarantined as AMBIGUOUS_PARTIAL_DELIVERY for administrator audit."));
+                                                    }
+                                                } else {
+                                                    if (player.isOnline()) {
+                                                        player.sendMessage(ColorUtil.color("&cCRITICAL: Some items did not fit, saving to escrow failed, and emergency fallback write could not be confirmed! Operation " + operationId + " remains in unconfirmed ambiguous state with delivery blocked."));
+                                                    }
+                                                    if (MinionX.getInstance() != null) {
+                                                        MinionX.getInstance().getLogger().severe("[MinionX Escrow Audit] CRITICAL: Pickup leftover persistence AND emergency fallback write both failed for op " + operationId);
                                                     }
                                                 }
                                             };
