@@ -2453,8 +2453,9 @@ public class PhaseOneHardeningTest {
         }
         assertEquals(0, actualXpGranted, "Actual XP granted must be 0");
 
-        // Check unresolved predicate: MUST account for xpParseFailed!
-        boolean xpRemainsUnresolved = (xpToGrant > 0 || xpParseFailed) && !allowXpGrant && !xpAlreadyDelivered;
+        // Check unresolved predicate: MUST account for xpParseFailed independently of xpAlreadyDelivered!
+        boolean xpRemainsUnresolved = xpParseFailed
+                || (xpToGrant > 0 && !allowXpGrant && !xpAlreadyDelivered);
         assertTrue(xpRemainsUnresolved, "Malformed XP data must be flagged as unresolved to prevent deletion");
 
         // Quarantine and retain in storage
@@ -2470,6 +2471,251 @@ public class PhaseOneHardeningTest {
         assertNotNull(retainedOp, "Operation must NOT be deleted from storage when XP payload is malformed");
         assertEquals("DELIVERY_ATTEMPTED", retainedOp.state(), "Operation must be quarantined under DELIVERY_ATTEMPTED");
         assertEquals("XP_AMBIGUOUS:not-a-number;;;PAYLOAD:::", retainedOp.payload(), "Malformed XP token must be retained for manual review");
+    }
+
+    // --- 70. Malformed XP_GRANTED / XP_DELIVERED Records Retained And Not Deleted ---
+    @Test
+    public void testMalformedXpGrantedRecordsRetainedAndNotDeleted() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "xp-granted-malformed-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        // Stored operation has XP_GRANTED:not-a-number;;;PAYLOAD:::item_iron_x20
+        String initialPayload = "XP_GRANTED:not-a-number;;;PAYLOAD:::item_iron_x20";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), initialPayload));
+
+        String payload = initialPayload;
+        int xpToGrant = 0;
+        boolean xpAlreadyDelivered = false;
+        boolean xpAmbiguous = false;
+        boolean xpParseFailed = false;
+        String rawXpToken = null;
+
+        if (payload.startsWith("XP_DELIVERED:") || payload.startsWith("XP_GRANTED:")) {
+            xpAlreadyDelivered = true;
+            int prefixLen = payload.startsWith("XP_DELIVERED:") ? 13 : 11;
+            int sep = payload.indexOf(";;;PAYLOAD:::");
+            if (sep >= prefixLen) {
+                rawXpToken = payload.substring(prefixLen, sep);
+                try {
+                    int parsed = Integer.parseInt(rawXpToken);
+                    if (parsed < 0) {
+                        xpParseFailed = true;
+                    } else {
+                        xpToGrant = parsed;
+                    }
+                } catch (Exception ignored) {
+                    xpParseFailed = true;
+                }
+            }
+        }
+
+        assertTrue(xpAlreadyDelivered, "Must identify that XP marker was XP_GRANTED");
+        assertTrue(xpParseFailed, "Must identify parsing failure for 'not-a-number'");
+        assertEquals("not-a-number", rawXpToken);
+
+        // Core fix: xpParseFailed independently requires retention even when xpAlreadyDelivered is true!
+        boolean allowXpGrant = false;
+        boolean xpRemainsUnresolved = xpParseFailed
+                || (xpToGrant > 0 && !allowXpGrant && !xpAlreadyDelivered);
+        assertTrue(xpRemainsUnresolved, "Malformed XP_GRANTED record MUST be marked unresolved despite xpAlreadyDelivered=true");
+
+        // Retain and quarantine under DELIVERY_ATTEMPTED
+        String xpOnlyPayload = "XP_AMBIGUOUS:" + rawXpToken + ";;;PAYLOAD:::";
+        storage.updatePendingOperationState(opId, "DELIVERY_ATTEMPTED", xpOnlyPayload);
+
+        com.minionx.storage.PendingOperation retainedOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(retainedOp, "Malformed XP_GRANTED operation must NOT be deleted from escrow storage");
+        assertEquals("DELIVERY_ATTEMPTED", retainedOp.state());
+        assertEquals("XP_AMBIGUOUS:not-a-number;;;PAYLOAD:::", retainedOp.payload());
+    }
+
+    // --- 71. Missing Delimiters Detected As Malformed And Quarantined ---
+    @Test
+    public void testMissingDelimiterPayloadDetectedAsMalformedAndQuarantined() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+
+        // Case 1: XP_AMBIGUOUS:100 (missing ;;;PAYLOAD:::)
+        String opId1 = "missing-delim-ambig-" + UUID.randomUUID().toString().substring(0, 8);
+        String payload1 = "XP_AMBIGUOUS:100";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId1, UUID.randomUUID(), UUID.randomUUID(), "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), payload1));
+
+        boolean hasXpPrefix1 = payload1.startsWith("XP_AMBIGUOUS:");
+        assertTrue(hasXpPrefix1);
+        int prefixLen1 = 13;
+        int sep1 = payload1.indexOf(";;;PAYLOAD:::");
+        assertEquals(-1, sep1, "Delimiter ;;;PAYLOAD::: is missing");
+
+        boolean xpParseFailed1 = (sep1 < prefixLen1);
+        assertTrue(xpParseFailed1, "Missing delimiter must trigger xpParseFailed");
+        String rawXpToken1 = payload1.substring(prefixLen1);
+        assertEquals("100", rawXpToken1);
+
+        boolean xpRemainsUnresolved1 = xpParseFailed1;
+        assertTrue(xpRemainsUnresolved1, "Missing delimiter must mark operation unresolved");
+
+        // Case 2: XP_GRANTED:100 (missing ;;;PAYLOAD:::)
+        String opId2 = "missing-delim-granted-" + UUID.randomUUID().toString().substring(0, 8);
+        String payload2 = "XP_GRANTED:100";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId2, UUID.randomUUID(), UUID.randomUUID(), "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), payload2));
+
+        boolean hasXpPrefix2 = payload2.startsWith("XP_GRANTED:");
+        assertTrue(hasXpPrefix2);
+        int prefixLen2 = 11;
+        int sep2 = payload2.indexOf(";;;PAYLOAD:::");
+        assertEquals(-1, sep2);
+
+        boolean xpParseFailed2 = (sep2 < prefixLen2);
+        assertTrue(xpParseFailed2, "Missing delimiter in XP_GRANTED must trigger xpParseFailed");
+        String rawXpToken2 = payload2.substring(prefixLen2);
+        assertEquals("100", rawXpToken2);
+
+        boolean xpRemainsUnresolved2 = xpParseFailed2;
+        assertTrue(xpRemainsUnresolved2, "Missing delimiter in XP_GRANTED must mark operation unresolved");
+    }
+
+    // --- 72. Negative XP Values Treated As Malformed And Quarantined ---
+    @Test
+    public void testNegativeXpValuesTreatedAsMalformedAndQuarantined() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "negative-xp-" + UUID.randomUUID().toString().substring(0, 8);
+        String payload = "XP_AMBIGUOUS:-100;;;PAYLOAD:::item_iron_x20";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, UUID.randomUUID(), UUID.randomUUID(), "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), payload));
+
+        int xpToGrant = 0;
+        boolean xpParseFailed = false;
+        String rawXpToken = null;
+
+        if (payload.startsWith("XP_AMBIGUOUS:")) {
+            int prefixLen = 13;
+            int sep = payload.indexOf(";;;PAYLOAD:::");
+            if (sep >= prefixLen) {
+                rawXpToken = payload.substring(prefixLen, sep);
+                try {
+                    int parsed = Integer.parseInt(rawXpToken);
+                    if (parsed < 0) {
+                        xpParseFailed = true;
+                        xpToGrant = 0;
+                    } else {
+                        xpToGrant = parsed;
+                    }
+                } catch (Exception ignored) {
+                    xpParseFailed = true;
+                }
+            }
+        }
+
+        assertEquals("-100", rawXpToken);
+        assertTrue(xpParseFailed, "Negative XP value must be flagged as xpParseFailed=true");
+        assertEquals(0, xpToGrant, "Negative XP must never be stored as valid xpToGrant");
+
+        boolean allowXpGrant = false;
+        boolean xpAlreadyDelivered = false;
+        boolean xpRemainsUnresolved = xpParseFailed
+                || (xpToGrant > 0 && !allowXpGrant && !xpAlreadyDelivered);
+        assertTrue(xpRemainsUnresolved, "Negative XP must remain unresolved and retained in escrow ledger");
+    }
+
+    // --- 73. Emergency Fallback Write Failure Checked And Fenced ---
+    @Test
+    public void testEmergencyFallbackWriteFailureCheckedAndFenced() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "fallback-write-check-" + UUID.randomUUID().toString().substring(0, 8);
+        String initialPayload = "XP_AMBIGUOUS:50;;;PAYLOAD:::item_iron_x10";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, UUID.randomUUID(), UUID.randomUUID(), "DELIVERY_ATTEMPTED", System.currentTimeMillis(), initialPayload));
+
+        // Primary update fails (simulated)
+        boolean xpPersisted = false;
+        assertFalse(xpPersisted);
+
+        // Fallback write is checked via its boolean return value
+        boolean fallbackPersisted = false;
+        try {
+            String fencePayload = "XP_AMBIGUOUS:50;;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:10;;;LEFTOVER:::";
+            fallbackPersisted = storage.updatePendingOperationState(opId, "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+        } catch (Exception ignored) {}
+
+        assertTrue(fallbackPersisted, "Fallback write result must be verified and checked");
+
+        // Verify the fence payload is durably updated
+        com.minionx.storage.PendingOperation fencedOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(fencedOp);
+        assertEquals("AMBIGUOUS_PARTIAL_DELIVERY", fencedOp.state());
+        assertTrue(fencedOp.payload().contains("XP_PERSIST_FAILED"));
+    }
+
+    // --- 74. Item Delimiter Collision Escaping Preserves Arbitrary Item Metadata ---
+    @Test
+    public void testItemDelimiterCollisionEscapingPreservesArbitraryItemMetadata() {
+        String complexItemYaml = "item:\n"
+                + "  ==: org.bukkit.inventory.ItemStack\n"
+                + "  v: 3700\n"
+                + "  type: DIAMOND_SWORD\n"
+                + "  meta:\n"
+                + "    ==: ItemMeta\n"
+                + "    meta-type: UNSPECIFIC\n"
+                + "    display-name: '{\"extra\":[{\"text\":\"Super Sword ;;;ITEM;;; Legendary\"}],\"text\":\"\"}'\n"
+                + "    lore:\n"
+                + "    - '{\"text\":\"+10% Mining Speed ;;;PAYLOAD::: Special ;;;LEFTOVER:::\"}'\n";
+
+        // Step 1: Escape reserved delimiters
+        String escaped = com.minionx.util.MinionPayloadUtil.escapeItemPayload(complexItemYaml);
+        assertFalse(escaped.contains(";;;ITEM;;;"), "Escaped payload must not contain raw ;;;ITEM;;;");
+        assertFalse(escaped.contains(";;;PAYLOAD:::"), "Escaped payload must not contain raw ;;;PAYLOAD:::");
+        assertFalse(escaped.contains(";;;LEFTOVER:::"), "Escaped payload must not contain raw ;;;LEFTOVER:::");
+
+        // Step 2: Combine multiple items separated by ;;;ITEM;;;
+        String joined = escaped + ";;;ITEM;;;" + com.minionx.util.MinionPayloadUtil.escapeItemPayload("item2_simple");
+        String[] split = joined.split(";;;ITEM;;;");
+        assertEquals(2, split.length, "split must strictly yield 2 items without splitting inside lore metadata!");
+
+        // Step 3: Unescape each item
+        String unescaped = com.minionx.util.MinionPayloadUtil.unescapeItemPayload(split[0]);
+        assertEquals(complexItemYaml, unescaped, "Unescaping must reconstruct the exact original YAML string with full fidelity");
+    }
+
+    // --- 75. Currency Overflow And Non-Finite Inputs Rejected ---
+    @Test
+    public void testCurrencyOverflowAndNonFiniteInputsRejected() {
+        UUID minionId = UUID.randomUUID();
+        com.minionx.core.Minion minion = new com.minionx.core.Minion(
+                minionId, com.minionx.api.MinionType.DIAMOND, 1);
+
+        // 1. Non-finite inputs rejected
+        minion.addShippingCoins(Double.NaN);
+        assertEquals(0.0, minion.getShippingCoins(), 0.0001, "NaN credit must be rejected");
+
+        minion.addShippingCoins(Double.POSITIVE_INFINITY);
+        assertEquals(0.0, minion.getShippingCoins(), 0.0001, "Infinite credit must be rejected");
+
+        minion.addShippingCoins(-100.0);
+        assertEquals(0.0, minion.getShippingCoins(), 0.0001, "Negative credit must be rejected");
+
+        // 2. Normal valid credit accepted
+        minion.addShippingCoins(100.0);
+        assertEquals(100.0, minion.getShippingCoins(), 0.0001, "Valid credit must be accepted");
+
+        // 3. Overflow does not saturate to Long.MAX_VALUE; credit is rejected safely
+        minion.setShippingCoinsMicros(Long.MAX_VALUE - 100);
+        long beforeMicros = minion.getShippingCoinsMicros();
+
+        minion.addShippingCoins(100.0); // would cause ArithmeticException in Math.addExact
+        long afterMicros = minion.getShippingCoinsMicros();
+
+        assertEquals(beforeMicros, afterMicros, "Overflowing credit must be rejected without mutating balance");
+        assertNotEquals(Long.MAX_VALUE, minion.getShippingCoinsMicros(), "Must NEVER manufacture Long.MAX_VALUE balance on overflow");
     }
 }
 

@@ -638,7 +638,7 @@ public class MinionGUIListener implements Listener {
         for (ItemStack stack : itemsToTransfer) {
             YamlConfiguration yc = new YamlConfiguration();
             yc.set("item", stack);
-            serializedPayload.add(yc.saveToString());
+            serializedPayload.add(com.minionx.util.MinionPayloadUtil.escapeItemPayload(yc.saveToString()));
         }
         int storedXp = minion.getStoredXp();
         String rawPayloadStr = String.join(";;;ITEM;;;", serializedPayload);
@@ -802,7 +802,7 @@ public class MinionGUIListener implements Listener {
                                         for (ItemStack rem : leftoverItems) {
                                             YamlConfiguration yc = new YamlConfiguration();
                                             yc.set("item", rem);
-                                            remPayload.add(yc.saveToString());
+                                            remPayload.add(com.minionx.util.MinionPayloadUtil.escapeItemPayload(yc.saveToString()));
                                         }
                                         String leftoversStr = String.join(";;;ITEM;;;", remPayload);
 
@@ -810,7 +810,7 @@ public class MinionGUIListener implements Listener {
                                         for (ItemStack del : deliveredItems) {
                                             YamlConfiguration yc = new YamlConfiguration();
                                             yc.set("item", del);
-                                            delPayload.add(yc.saveToString());
+                                            delPayload.add(com.minionx.util.MinionPayloadUtil.escapeItemPayload(yc.saveToString()));
                                         }
                                         String deliveredStr = String.join(";;;ITEM;;;", delPayload);
 

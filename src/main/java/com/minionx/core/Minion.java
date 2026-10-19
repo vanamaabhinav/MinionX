@@ -438,16 +438,23 @@ public class Minion {
     }
 
     public void addShippingCoins(double coins) {
-        if (coins > 0) {
-            double normalized = java.math.BigDecimal.valueOf(coins).setScale(4, java.math.RoundingMode.HALF_UP).doubleValue();
-            long addMicros = Math.round(normalized * 1_000_000.0);
-            try {
-                this.shippingCoinsMicros = Math.addExact(this.shippingCoinsMicros, addMicros);
-            } catch (ArithmeticException e) {
-                this.shippingCoinsMicros = Long.MAX_VALUE;
-            }
+        if (!Double.isFinite(coins) || coins < 0.0001) {
+            return;
+        }
+        double normalized = java.math.BigDecimal.valueOf(coins).setScale(4, java.math.RoundingMode.HALF_UP).doubleValue();
+        if (normalized < 0.0001) {
+            return;
+        }
+        long addMicros = Math.round(normalized * 1_000_000.0);
+        try {
+            this.shippingCoinsMicros = Math.addExact(this.shippingCoinsMicros, addMicros);
             this.shippingCoins = this.shippingCoinsMicros / 1_000_000.0;
             advanceStateRevision();
+        } catch (ArithmeticException e) {
+            // Reject credit on arithmetic overflow; never manufacture Long.MAX_VALUE balance!
+            if (org.bukkit.Bukkit.getServer() != null) {
+                org.bukkit.Bukkit.getLogger().warning("[MinionX] Overflow detected in addShippingCoins for minion " + minionId + "! Rejected credit: " + coins);
+            }
         }
     }
 
