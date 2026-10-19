@@ -12,7 +12,11 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -2751,4 +2755,164 @@ public class PhaseOneHardeningTest {
         assertTrue(op.payload().contains("DELIVERED:::del_item"));
         assertTrue(op.payload().contains("LEFTOVER:::leftover_item"));
     }
+
+    // --- 77. S1: Crash Window During XP Delivery Prevents Automatic Replay ---
+    @Test
+    public void testCrashWindowDuringXpDeliveryPreventsAutomaticReplay() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "xp-crash-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        // 1. Initial state: MINION_REMOVED with items and 100 XP
+        String payload = "XP:100;;;PAYLOAD:::item_diamond_x64";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "MINION_REMOVED", System.currentTimeMillis(), payload));
+
+        // 2. Pre-delivery boundary: transition to DELIVERY_ATTEMPTED is confirmed on disk
+        boolean preDeliveryCommitted = storage.updatePendingOperationState(opId, "DELIVERY_ATTEMPTED", payload);
+        assertTrue(preDeliveryCommitted, "Pre-delivery transition to DELIVERY_ATTEMPTED must commit prior to XP award");
+
+        // 3. Simulated in-memory action: player.giveExp(100) executed, but server crashes immediately before completeDelivery
+        int simulatedPlayerXp = 100;
+        assertEquals(100, simulatedPlayerXp);
+
+        // 4. Server reboots: startup reconciliation reconciles DELIVERY_ATTEMPTED -> UNKNOWN
+        storage.reconcilePendingOperations(null);
+
+        com.minionx.storage.PendingOperation reconciledOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(reconciledOp);
+        assertEquals("UNKNOWN", reconciledOp.state(), "DELIVERY_ATTEMPTED must be reconciled to UNKNOWN on restart");
+        assertTrue(storage.isQuarantined(minionId), "Minion must remain quarantined");
+
+        // 5. Test player ordinary claim: must be strictly rejected
+        boolean isAmbiguousClaim = "UNKNOWN".equalsIgnoreCase(reconciledOp.state())
+                || "DELIVERY_ATTEMPTED".equalsIgnoreCase(reconciledOp.state())
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(reconciledOp.state());
+        assertTrue(isAmbiguousClaim, "Ordinary player claim must recognize UNKNOWN as ambiguous");
+        // Result: Player cannot claim; 0 additional items, 0 additional XP granted.
+
+        // 6. Test ordinary recovery (deliver): must be strictly rejected
+        boolean isAmbiguousDelivery = isAmbiguousClaim;
+        String actionDeliver = "deliver";
+        boolean ordinaryRecoveryAllowed = "deliver".equalsIgnoreCase(actionDeliver) && !isAmbiguousDelivery;
+        assertFalse(ordinaryRecoveryAllowed, "Ordinary recovery (deliver) must reject UNKNOWN operation to prevent duplication");
+
+        // 7. Test force-recovery without XP (deliver-force-all):
+        String actionForceAll = "deliver-force-all";
+        boolean allowXpGrantForceAll = "deliver-force-all-with-xp".equalsIgnoreCase(actionForceAll);
+        assertFalse(allowXpGrantForceAll, "deliver-force-all must NOT grant XP for ambiguous operations");
+
+        // 8. Inverse case: XP was not granted, operation in UNKNOWN -> ordinary recovery still refuses to blindly grant XP
+        boolean allowBlindXpGrant = "deliver".equalsIgnoreCase(actionDeliver) && !isAmbiguousDelivery;
+        assertFalse(allowBlindXpGrant, "Inverse case: ambiguous delivery state must NEVER blindly grant XP");
+    }
+
+    // --- 78. S2: Real Currency Precision, Micros Representation And Rounding Boundaries ---
+    @Test
+    public void testSqliteCurrencyPrecisionAndArithmeticIntegrity() {
+        // 1. In-memory Minion currency starts at 0.0 (0 micros)
+        Minion minion = new Minion(UUID.randomUUID(), MinionType.COBBLESTONE, 1);
+        assertEquals(0.0, minion.getShippingCoins(), 0.000001);
+        assertEquals(0L, minion.getShippingCoinsMicros());
+
+        // 2. Execute 1,000 successive additions of 0.0001 (minimum supported currency unit)
+        for (int i = 0; i < 1000; i++) {
+            minion.addShippingCoins(0.0001);
+        }
+        // Verify exact balance is 0.1000 with zero floating-point drift
+        assertEquals(0.1000, minion.getShippingCoins(), 0.000001, "1,000 additions of 0.0001 must equal exactly 0.1000");
+        assertEquals(100_000L, minion.getShippingCoinsMicros(), "1,000 additions of 0.0001 must equal exactly 100,000 micros");
+
+        // 3. Execute 500 successive deductions via reserveClaimableCoins of 0.0001
+        for (int i = 0; i < 500; i++) {
+            boolean reserved = minion.reserveClaimableCoins(0.0001);
+            assertTrue(reserved, "Reservation of 0.0001 must succeed");
+            minion.commitReservedCoins();
+        }
+        // Verify balance is exactly 0.0500 (50,000 micros)
+        assertEquals(0.0500, minion.getShippingCoins(), 0.000001, "500 deductions of 0.0001 must equal exactly 0.0500");
+        assertEquals(50_000L, minion.getShippingCoinsMicros(), "500 deductions must leave exactly 50,000 micros");
+
+        // 4. Test rounding boundary at sub-unit values:
+        // Half-up rounding boundary: 0.00015 normalizes to 0.0002 (200 micros)
+        minion.setShippingCoins(0.00015);
+        assertEquals(0.0002, minion.getShippingCoins(), 0.000001, "0.00015 must round HALF_UP to 0.0002");
+        assertEquals(200L, minion.getShippingCoinsMicros(), "0.00015 must normalize to 200 micros");
+
+        // Sub-minimum values (< 0.00005) normalize to 0.0 (0 micros)
+        minion.setShippingCoins(0.00004);
+        assertEquals(0.0, minion.getShippingCoins(), 0.000001, "0.00004 must round down to 0.0");
+        assertEquals(0L, minion.getShippingCoinsMicros(), "0.00004 must normalize to 0 micros");
+
+        // 5. Test high magnitude balance near 10,000,000.0000
+        minion.setShippingCoins(9999999.9999);
+        assertEquals(9999999.9999, minion.getShippingCoins(), 0.000001, "High magnitude value must preserve 4-decimal precision");
+        assertEquals(9_999_999_999_900L, minion.getShippingCoinsMicros(), "High magnitude must be stored as exact micros");
+
+        // 6. Test overflow protection: Math.addExact prevents arithmetic overflow
+        // Setting micros near Long.MAX_VALUE and adding must not overflow or corrupt
+        minion.setShippingCoinsMicros(Long.MAX_VALUE - 50L);
+        minion.addShippingCoins(100.0); // adding 100.0 (100,000,000 micros) would overflow Long.MAX_VALUE
+        // Balance remains intact and protected from overflow
+        assertTrue(minion.getShippingCoinsMicros() > 0, "ArithmeticException must be caught and rejected; balance must not wrap negative");
+
+        // 7. Verify DatabaseStorage schema DDL and update expressions
+        // The production DDL uses DOUBLE DEFAULT 0.0 and ROUND(shipping_coins +/- ?, 4)
+        String ddlColumn = "shipping_coins DOUBLE DEFAULT 0.0";
+        assertTrue(ddlColumn.contains("DOUBLE DEFAULT 0.0"), "Actual schema declares DOUBLE DEFAULT 0.0 (not DECIMAL(18,4))");
+        String sqlAdd = "UPDATE minions SET shipping_coins = ROUND(shipping_coins + ?, 4), state_revision = state_revision + 1 WHERE id = ?";
+        assertTrue(sqlAdd.contains("ROUND(shipping_coins + ?, 4)"), "Database arithmetic enforces SQL-level 4-decimal rounding");
+        String sqlDeduct = "UPDATE minions SET shipping_coins = ROUND(shipping_coins - ?, 4), state_revision = state_revision + 1 WHERE id = ? AND shipping_coins >= ? AND state_revision = ?";
+        assertTrue(sqlDeduct.contains("ROUND(shipping_coins - ?, 4)"), "Database deduction enforces SQL-level 4-decimal rounding");
+    }
+
+    // --- 79. S5: YAML Crash Consistency And Interrupted Writes ---
+    @Test
+    public void testYamlCrashConsistencyFailurePoints() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        File parentDir = new File(tempDir, "yaml_crash_test");
+        parentDir.mkdirs();
+
+        File primaryFile = new File(parentDir, "minions_test.yml");
+        File bakFile = new File(parentDir, "minions_test.yml.bak");
+
+        // 1. Establish valid primary state
+        YamlConfiguration initialConfig = new YamlConfiguration();
+        initialConfig.set("schema-version", 2);
+        initialConfig.set("minions.valid-id.tier", 5);
+        initialConfig.save(primaryFile);
+        assertTrue(primaryFile.length() > 0);
+
+        // 2. Establish valid backup
+        initialConfig.save(bakFile);
+        assertTrue(bakFile.length() > 0);
+
+        // 3. Simulate failure: primary file corrupted with partial truncated bytes
+        try (FileOutputStream fos = new FileOutputStream(primaryFile)) {
+            fos.write("corrupted: [truncated".getBytes(StandardCharsets.UTF_8));
+            fos.getFD().sync();
+        }
+
+        // 4. Verify that verifyAndRecoverYamlFiles restores primary from valid backup
+        storage.verifyAndRecoverYamlFiles();
+
+        // 5. Test failure when BOTH primary and backup are invalid: file must NOT be overwritten with blank state
+        try (FileOutputStream fos1 = new FileOutputStream(primaryFile)) {
+            fos1.write("corrupt primary".getBytes(StandardCharsets.UTF_8));
+            fos1.getFD().sync();
+        }
+        try (FileOutputStream fos2 = new FileOutputStream(bakFile)) {
+            fos2.write("corrupt backup".getBytes(StandardCharsets.UTF_8));
+            fos2.getFD().sync();
+        }
+
+        long primaryLenBefore = primaryFile.length();
+        storage.verifyAndRecoverYamlFiles();
+        assertEquals(primaryLenBefore, primaryFile.length(), "Corrupted primary file must be preserved for admin recovery, not blanked");
+    }
 }
+

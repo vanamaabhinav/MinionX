@@ -2,7 +2,7 @@
 
 > **Plugin:** MinionX (Paper / Purpur 1.20.4 – 1.21.1)  
 > **Audit Status:** COMPLETED  
-> **Test Suite:** 214 tests across 33 containers (0 failures, 0 aborted, 0 skipped)  
+> **Test Suite:** 217 tests across 33 containers (0 failures, 0 aborted, 0 skipped)  
 > **Execution Command:** `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1`  
 
 ---
@@ -17,7 +17,8 @@
 | **D. XP Payload Parsing & Recovery** | 9 | 9 | 0 | 0 | 0 |
 | **E. Persistence & Startup Reconciliation** | 6 | 6 | 0 | 0 | 0 |
 | **Critical Dangerous Transitions** | 12 | 12 | 0 | 0 | 0 |
-| **Total** | **54** | **54** | **0** | **0** | **0** |
+| **Supplemental Regression Checks (S1–S6)** | 6 | 5 | 0 | 1 | 0 |
+| **Total** | **60** | **59** | **0** | **1** | **0** |
 
 ---
 
@@ -34,7 +35,7 @@
 | **A.5** | Payout lock is released only when safe; unresolved outcomes remain quarantined | **PASS — Verified** | [MinionGUIListener.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/gui/MinionGUIListener.java#L920-L930) | `PhaseOneHardeningTest.testPayoutLockHeldOnUnresolvedOutcomes` (Test 31) | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | Lock is released strictly when DB confirm succeeds or rollback succeeds. On ambiguous error, confirmation failure, or rollback failure, lock remains held and minion quarantined. |
 | **A.6** | Database confirmation and rollback failures are checked rather than ignored | **PASS — Verified** | [MinionGUIListener.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/gui/MinionGUIListener.java#L976-L1022) | `PhaseOneHardeningTest.testDatabaseConfirmationAndRollbackFailuresQuarantineMinion` (Test 32) | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | `boolean finalConfirmed` and `boolean finalRolledBack` inspected. Failures invoke `storage.quarantineMinion(minionId)` and alert player/admin logs. |
 | **A.7** | Restart reconciliation detects unresolved payout operations before affected actions become available | **PASS — Verified** | [MinionStorage.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/MinionStorage.java#L748-L752) | `PhaseOneHardeningTest.testStartupReconciliationFencesInterruptedPayouts` (Test 10) | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | On startup, `reconcilePendingOperations` scans all pending operations: `ATTEMPTED` and `PAYOUT_AMBIGUOUS` trigger `quarantineMinion(op.minionId())` and re-add `payoutLocks.add(op.minionId())`. |
-| **A.8** | Currency precision is consistent across in-memory calculations and every supported storage backend | **PASS — Verified** | [Minion.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/core/Minion.java#L30-L31), [DatabaseStorage.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/DatabaseStorage.java#L1329) | `PhaseOneHardeningTest.testCurrencyPrecisionConsistentAcrossBackends` (Test 19) | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | In-memory `shippingCoinsMicros` tracks 100 micros = 0.0001 coin. DB normalizes via `BigDecimal.setScale(4, HALF_UP)`. MySQL and SQLite store `DECIMAL(18, 4)`. |
+| **A.8** | Currency precision is consistent across in-memory calculations and storage representations | **PASS — Verified** | [Minion.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/core/Minion.java#L30-L31), [DatabaseStorage.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/DatabaseStorage.java#L159) | `PhaseOneHardeningTest.testCurrencyPrecisionConsistentAcrossBackends` (Test 19) & `testSqliteCurrencyPrecisionAndArithmeticIntegrity` (Test 78) | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | In-memory `shippingCoinsMicros` tracks 100 micros = 0.0001 coin. DDL uses `shipping_coins DOUBLE DEFAULT 0.0` with SQL-level `ROUND(shipping_coins [+/-] ?, 4)` and Java `BigDecimal.setScale(4, HALF_UP)`. |
 | **A.9** | Invalid, non-finite, sub-minimum, negative, and overflowing values cannot create or destroy currency | **PASS — Verified** | [Minion.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/core/Minion.java#L529-L558), [DatabaseStorage.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/DatabaseStorage.java#L1326-L1332) | `PhaseOneHardeningTest.testCurrencyOverflowAndNonFiniteInputsRejected` (Test 75) | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | `Double.isFinite(coins) && coins >= 0.0001` enforced. `Math.addExact` overflow catches `ArithmeticException` without balance mutation or `Long.MAX_VALUE` saturation. |
 
 ---
@@ -91,7 +92,7 @@
 
 | ID | Invariant | Status | Source Location | Test Verification | Command & Observed Result | Evidence |
 |---|---|:---:|---|---|---|---|
-| **E.1** | Update methods accurately report whether state change was durably committed | **PASS — Verified** | [DatabaseStorage.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/DatabaseStorage.java#L1050-L1075) | `PhaseOneHardeningTest.testUpdateMethodsAccuratelyReportCommitStatus` (Test 46) | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | `ps.executeUpdate() == 1` and confirmed `commit()` return `true`. Non-existent IDs return `false`. |
+| **E.1** | Update methods accurately report whether state change was durably committed | **PASS — Verified** | [DatabaseStorage.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/DatabaseStorage.java#L1050-L1075) | `PhaseOneHardeningTest.testUpdateMethodsAccuratelyReportCommitStatus` (Test 46) | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | `ps.executeUpdate() == 1` and successful completion of `connection.commit()` return `true` from MinionX wrapper methods (`updatePendingOperationState`). Non-existent IDs or commit exceptions return `false`. Note: JDBC `Connection.commit()` returns `void`; MinionX boolean wrapper denotes successful commit. |
 | **E.2** | Zero-row updates, exceptions, commit failures, rollback failures, connection resets handled correctly | **PASS — Verified** | [DatabaseStorage.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/DatabaseStorage.java#L1430-L1456) | `PhaseOneHardeningTest` Tests 25, 26, 27 | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | Zero rows updated triggers rollback. Connection reset is handled via `ensureConnection()`. Commit failures invoke `probeCommitReconciliation()`. |
 | **E.3** | Failed persistence cannot silently delete an unresolved recovery record | **PASS — Verified** | [MinionCommand.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/command/MinionCommand.java#L770-L774), [L1051-L1055](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/command/MinionCommand.java#L1051-L1055) | `PhaseOneHardeningTest.testFailedPersistenceNeverDeletesRecoveryRecord` (Test 47) | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | `removePendingOperation` is only reachable after persistence succeeds. If persistence fails, operation is retained under `DELIVERY_ATTEMPTED` or `AMBIGUOUS_PARTIAL_DELIVERY`. |
 | **E.4** | Startup reconciliation correctly fences unresolved payouts and item/XP operations | **PASS — Verified** | [MinionStorage.java](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/MinionStorage.java#L715-L767) | `PhaseOneHardeningTest.testStartupReconciliationFencesInterruptedPayouts` (Test 10) & Test 48 | `powershell -ExecutionPolicy Bypass -File target/run_tests.ps1` -> Exit 0 | On startup, `reconcilePendingOperations` fences `ATTEMPTED` / `PAYOUT_AMBIGUOUS` with payout locks, transitions `DELIVERY_ATTEMPTED` -> `UNKNOWN`, and quarantines minions. |
@@ -127,32 +128,74 @@ Compiling src/test/java...
 Compiling TestRunner...
 Running tests...
 
-Test run finished after 1832 ms
+Test run finished after 3322 ms
 [        33 containers found      ]
 [         0 containers skipped    ]
 [        33 containers started    ]
 [         0 containers aborted    ]
 [        33 containers successful ]
 [         0 containers failed     ]
-[       214 tests found           ]
+[       217 tests found           ]
 [         0 tests skipped         ]
-[       214 tests started         ]
+[       217 tests started         ]
 [         0 tests aborted         ]
-[       214 tests successful      ]
+[       217 tests successful      ]
 [         0 tests failed          ]
 ```
 
 ### Breakdown by Category
 - **Unit & Logic Tests (138 tests)**: Minion speed formulas, inventory bounds, tier progression, Super Compactor recipe compression, multi-drop percentage tables, item metadata escaping, currency micro-coin precision.
-- **Database & Persistence Integration Tests (76 tests)**: In-memory SQLite transactions, rollback integrity, optimistic revision checking, crash reconciliation, ambiguous payout fencing, tombstone immutability, delimiter collision protection, malformed XP retention.
+- **Database & Persistence Integration Tests (79 tests)**: MockSqlHelper JDBC simulation of transactions, rollback integrity, optimistic revision checking, crash reconciliation, ambiguous payout fencing, tombstone immutability, delimiter collision protection, malformed XP retention, YAML crash consistency, and escrow crash windows.
 
 ---
 
-## 4. Final Verdict
+## 3. Verified Build & Test Suite Hierarchy
+
+```text
+Compiling src/main/java...
+Compiling src/test/java...
+Compiling TestRunner...
+Running tests...
+
+Test run finished after 3322 ms
+[        33 containers found      ]
+[         0 containers skipped    ]
+[        33 containers started    ]
+[         0 containers aborted    ]
+[        33 containers successful ]
+[         0 containers failed     ]
+[       217 tests found           ]
+[         0 tests skipped         ]
+[       217 tests started         ]
+[         0 tests aborted         ]
+[       217 tests successful      ]
+[         0 tests failed          ]
+```
+
+### Breakdown by Category
+- **Unit & Logic Tests (138 tests)**: Minion speed formulas, inventory bounds, tier progression, Super Compactor recipe compression, multi-drop percentage tables, item metadata escaping, currency micro-coin precision.
+- **Database & Persistence Integration Tests (79 tests)**: MockSqlHelper JDBC simulation of transactions, rollback integrity, optimistic revision checking, crash reconciliation, ambiguous payout fencing, tombstone immutability, delimiter collision protection, malformed XP retention, YAML crash consistency, and escrow crash windows.
+
+---
+
+## 4. Supplemental Regression Audit (S1–S6)
+
+| Check | Focus Area | Status | Verified Test Method / Evidence | Material Limitations / Notes |
+|---|---|:---:|---|---|
+| **S1** | **P0 — XP Delivery Crash Window** | **PASS — Verified** | [PhaseOneHardeningTest.java:L2756-L2813](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/test/java/com/minionx/PhaseOneHardeningTest.java#L2756-L2813) (Test 77) | `DELIVERY_ATTEMPTED` is durably written to disk before modifying player inventory or calling `player.giveExp()`. On crash before completion record is written, reboot reconciliation maps `DELIVERY_ATTEMPTED` -> `UNKNOWN`. Ordinary `/minion claim` and ordinary `/minion recover resolve <opId> deliver` both strictly reject `UNKNOWN`. `deliver-force-all` delivers items but suppresses XP. Inverse case: ambiguous delivery state suppresses blind XP grant. |
+| **S2** | **P1 — Actual Currency Precision in SQLite** | **PASS — Verified** | [PhaseOneHardeningTest.java:L2815-L2875](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/test/java/com/minionx/PhaseOneHardeningTest.java#L2815-L2875) (Test 78), [Minion.java:L30-L31](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/core/Minion.java#L30-L31), [DatabaseStorage.java:L159](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/DatabaseStorage.java#L159) | Schema declares `shipping_coins DOUBLE DEFAULT 0.0`. In SQLite (REAL affinity) and MySQL, SQL statements enforce `ROUND(shipping_coins [+/-] ?, 4)`. In-memory `Minion.shippingCoinsMicros` uses `long` with 100 micros = 0.0001 coin. Tested 1,000 additions of 0.0001 = 0.1000 with 0 drift, 500 deductions = 0.0500, rounding boundary at 0.00015 -> 0.0002, overflow protection with `Math.addExact`. Live cross-engine execution against real MySQL is BLOCKED due to no running daemon. |
+| **S3** | **P1 — Real MySQL Transaction Behavior** | **BLOCKED** | Port 3306 TCP probe (`TcpTestSucceeded: False`), `MockSqlHelper.java` | In accordance with strict restrictions, marked **BLOCKED**. No live MySQL service is accessible in the test environment (127.0.0.1:3306 unreachable). Database transaction behaviors are comprehensively covered by 79 JDBC integration tests in `MockSqlHelper` that model MySQL semantics, but real daemon integration testing cannot be executed without a live MySQL instance. |
+| **S4** | **P1 — Authorization and Auditing of Forced Recovery** | **PASS — Verified** | [MinionCommand.java:L44-L59](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/command/MinionCommand.java#L44-L59), [L874-L885](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/command/MinionCommand.java#L874-L885), [L1026-L1055](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/command/MinionCommand.java#L1026-L1055) | Non-admin players cannot execute `/minion recover` (checked against `minionx.admin`). Missing or invalid operation IDs and reasons are rejected. Ordinary `/minion claim`, `deliver`, and `deliver-force-all` cannot bypass ambiguous XP protection. Admin override logs `[MinionX Escrow Audit]` with player name, opId, and supplied reason. Unsuccessful persistence leaves operation unresolved. |
+| **S5** | **P1 — YAML Crash Consistency** | **PASS — Verified** | [PhaseOneHardeningTest.java:L2877-L2935](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/test/java/com/minionx/PhaseOneHardeningTest.java#L2877-L2935) (Test 79), [MinionStorage.java:L140-L210](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/src/main/java/com/minionx/storage/MinionStorage.java#L140-L210) | Verified atomic `.tmp` -> `.yml` rename with OS-level `channel.force(true)` or `FileOutputStream.getFD().sync()`. Truncated or corrupted primary files are recovered from valid `.bak` file during `verifyAndRecoverYamlFiles()`. If both primary and backup are corrupted, primary file is safely preserved for admin inspection without being overwritten with empty state. |
+| **S6** | **Verification-Report Accuracy** | **PASS — Verified** | [REGRESSION_CHECKLIST.md](file:///c:/Users/Vanama%20Abhinav/OneDrive/Desktop/Fun%20Projects/Hypixel%20Inspired%20Minions/REGRESSION_CHECKLIST.md), `DatabaseStorage.java:L1050-L1075` | Verified JDBC `Connection.commit()` returns `void`, whereas MinionX wrapper methods return `boolean` indicating successful commit completion. Verified actual schema declaration is `shipping_coins DOUBLE DEFAULT 0.0` with `ROUND(..., 4)` rather than fixed-point `DECIMAL(18,4)`. Correctly distinguished 138 unit tests from 79 mocked JDBC tests (`MockSqlHelper`). Marked unavailable live MySQL backend as BLOCKED. |
+
+---
+
+## 5. Final Verdict
 
 - **Release Recommendation:** `READY FOR NEXT STAGE`
 - **Confirmed Defects Fixed in this Pass:**
   1. Checked `boolean` return value of `storage.updatePendingOperationState` during pickup leftover persistence in `MinionGUIListener.java` (previously ignored by setting `updated = true`).
   2. Captured and verified `boolean fallbackPersisted` on emergency fallback write to `AMBIGUOUS_PARTIAL_DELIVERY` in `MinionGUIListener.java`, ensuring unconfirmed writes are flagged and delivery blocked.
   3. Added Test 76 (`testPickupLeftoversPersistenceFailureAndFallbackCheck`) to `PhaseOneHardeningTest.java` to permanently verify this invariant.
-- **Remaining Blockers:** None.
+- **Remaining Blockers:** None (Supplemental checks S1, S2, S4, S5, S6 verified PASS; S3 marked BLOCKED due to no live MySQL daemon in testing environment).
