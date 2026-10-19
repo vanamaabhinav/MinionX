@@ -722,7 +722,12 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 java.util.HashMap<Integer, ItemStack> left = player.getInventory().addItem(itemClone);
                 if (!left.isEmpty()) {
                     leftovers.addAll(left.values());
-                    int leftoverAmount = left.values().stream().mapToInt(ItemStack::getAmount).sum();
+                    int leftoverAmount = 0;
+                    for (ItemStack stack : left.values()) {
+                        if (stack != null) {
+                            leftoverAmount += stack.getAmount();
+                        }
+                    }
                     totalItemsRestored += (origAmount - leftoverAmount);
                 } else {
                     totalItemsRestored += origAmount;
@@ -979,8 +984,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                 // 3. Extract leftover items only if AMBIGUOUS_PARTIAL_DELIVERY
                 if ("AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(targetOp.state())) {
-                    int leftoverIndex = (payload != null) ? payload.indexOf(";;;LEFTOVER:::") : -1;
-                    if (leftoverIndex >= 0) {
+                    if (payload != null && payload.contains(";;;LEFTOVER:::")) {
+                        int leftoverIndex = payload.indexOf(";;;LEFTOVER:::");
                         payload = payload.substring(leftoverIndex + 14);
                     } else {
                         sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId + " is AMBIGUOUS_PARTIAL_DELIVERY but leftover section is missing. Cannot deliver safely."));
@@ -1063,7 +1068,12 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         java.util.HashMap<Integer, ItemStack> left = targetPlayer.getInventory().addItem(clone);
                         if (!left.isEmpty()) {
                             leftoverItems.addAll(left.values());
-                            int leftoverAmount = left.values().stream().mapToInt(ItemStack::getAmount).sum();
+                            int leftoverAmount = 0;
+                            for (ItemStack rem : left.values()) {
+                                if (rem != null) {
+                                    leftoverAmount += rem.getAmount();
+                                }
+                            }
                             itemsDelivered += (origAmount - leftoverAmount);
                         } else {
                             itemsDelivered += origAmount;

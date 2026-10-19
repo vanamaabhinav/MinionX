@@ -747,7 +747,12 @@ public class MinionGUIListener implements Listener {
                                         HashMap<Integer, ItemStack> left = player.getInventory().addItem(itemClone);
                                         if (!left.isEmpty()) {
                                             leftoverItems.addAll(left.values());
-                                            int leftoverCount = left.values().stream().mapToInt(ItemStack::getAmount).sum();
+                                            int leftoverCount = 0;
+                                            for (ItemStack stack : left.values()) {
+                                                if (stack != null) {
+                                                    leftoverCount += stack.getAmount();
+                                                }
+                                            }
                                             int deliveredCount = origCount - leftoverCount;
                                             if (deliveredCount > 0) {
                                                 ItemStack d = item.clone();

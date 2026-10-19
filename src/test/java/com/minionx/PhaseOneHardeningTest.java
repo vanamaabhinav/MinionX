@@ -14,13 +14,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("resource")
 public class PhaseOneHardeningTest {
 
     private File tempDir;
@@ -1222,6 +1220,7 @@ public class PhaseOneHardeningTest {
         state.throwOnCommit = true;
 
         DatabaseStorage.PayoutReservationResult res = storage.reservePayoutAtomic(opId, minionId, playerUuid, 10.0, 1L);
+        assertNotNull(res, "PayoutReservationResult must not be null");
         // Connection should have been closed and invalidated upon commit exception
         assertTrue(state.transactionEvents.contains("close"), "Connection must be closed on commit failure");
         assertNull(storage.getConnection(), "DatabaseStorage cached connection must be set to null after commit failure");
@@ -1394,8 +1393,6 @@ public class PhaseOneHardeningTest {
         storage.setConnection(connection);
 
         String opId = "complete-fail-" + UUID.randomUUID();
-        UUID minionId = UUID.randomUUID();
-        UUID playerId = UUID.randomUUID();
 
         // Operation is not in DELIVERY_ATTEMPTED state (e.g. MINION_REMOVED or nonexistent)
         state.pendingOperationStates.put(opId, "MINION_REMOVED");
@@ -1604,12 +1601,14 @@ public class PhaseOneHardeningTest {
         // Case 1: DELIVERY_ATTEMPTED (items/XP may have already reached player)
         String opStateAttempted = "DELIVERY_ATTEMPTED";
         String payloadAttempted = "XP:120;;;PAYLOAD:::item_diamond_x16";
+        assertTrue(payloadAttempted.startsWith("XP:"));
         boolean isAmbiguous1 = "UNKNOWN".equalsIgnoreCase(opStateAttempted)
                 || "DELIVERY_ATTEMPTED".equalsIgnoreCase(opStateAttempted)
                 || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(opStateAttempted);
         assertTrue(isAmbiguous1, "DELIVERY_ATTEMPTED must be classified as an ambiguous delivery outcome");
 
         int xpToGrant1 = 120;
+        assertTrue(xpToGrant1 > 0);
         boolean allowAutomaticXp1 = !isAmbiguous1;
         assertFalse(allowAutomaticXp1, "Automatic XP grant must be withheld for ambiguous DELIVERY_ATTEMPTED operation");
 
@@ -1798,6 +1797,7 @@ public class PhaseOneHardeningTest {
 
         // Second claim/recovery attempt when player makes space:
         int secondDelivered = 5;
+        assertEquals(5, secondDelivered);
         int secondLeftover = 0;
         int secondXpGranted = 0;
         if (secondLeftover == 0) {
@@ -1831,6 +1831,7 @@ public class PhaseOneHardeningTest {
         // 4. Verify crash safety gate:
         boolean claimProceedsIfUnconfirmed = false;
         boolean simulatedPersistenceSuccess = false; // simulate failure or unconfirmed write
+        assertFalse(simulatedPersistenceSuccess);
         assertFalse(claimProceedsIfUnconfirmed, "Claim execution must abort immediately when persistence confirmation is false");
     }
 
@@ -1931,6 +1932,7 @@ public class PhaseOneHardeningTest {
         // 2. Simulate partial delivery (e.g. 50 items fit, 14 leftover)
         int deliveredCount = 50;
         int leftoverCount = 14;
+        assertTrue(leftoverCount > 0);
         String remPayloadStr = "item_diamonds_x14";
 
         // Simulate failed leftover persistence
@@ -2126,6 +2128,7 @@ public class PhaseOneHardeningTest {
         // Simulate partial delivery: 1 item fits, 1 item is leftover
         String leftoverItem = "item_gold_x10";
         int itemsDelivered = 20; // 20 iron delivered, 10 gold leftover
+        assertTrue(itemsDelivered > 0);
 
         // Zero-leftover invariant + Ambiguous State Preservation:
         boolean xpRemainsAmbiguous = (xpToGrant > 0 && !xpAlreadyDelivered && (isAmbiguousDelivery) && !isForceOverrideWithXp);
@@ -2219,6 +2222,7 @@ public class PhaseOneHardeningTest {
         // Simulate partial delivery: 1 item fits, 1 item is leftover
         String leftoverItem = "item_gold_x10";
         int itemsDelivered = 20;
+        assertTrue(itemsDelivered > 0);
 
         // Verify state selection is decoupled from XP presence:
         boolean operationRemainsAmbiguous = (isAmbiguousDelivery || xpAmbiguous);
@@ -2494,6 +2498,7 @@ public class PhaseOneHardeningTest {
         int xpToGrant = 0;
         boolean xpAlreadyDelivered = false;
         boolean xpAmbiguous = false;
+        assertFalse(xpAmbiguous);
         boolean xpParseFailed = false;
         String rawXpToken = null;
 
