@@ -912,7 +912,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                 // 4. Delivery logic & Zero-Leftover XP Invariant
                 boolean isForceOverrideWithXp = "deliver-force-all-with-xp".equals(action);
-                boolean allowXpGrant = isForceOverrideWithXp || (!isAmbiguousDelivery && !xpAlreadyDelivered);
+                boolean allowXpGrant = isForceOverrideWithXp || (!isAmbiguousDelivery && !xpAmbiguous && !xpAlreadyDelivered);
 
                 int itemsDelivered = 0;
                 int actualXpGranted = 0;
