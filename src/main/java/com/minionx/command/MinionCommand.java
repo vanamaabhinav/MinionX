@@ -611,14 +611,19 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             int xpToGrant = 0;
             boolean xpAlreadyDelivered = false;
             boolean xpAmbiguous = false;
+            boolean xpParseFailed = false;
+            String rawXpToken = null;
             if (payload.startsWith("XP_DELIVERED:") || payload.startsWith("XP_GRANTED:")) {
                 xpAlreadyDelivered = true;
                 int prefixLen = payload.startsWith("XP_DELIVERED:") ? 13 : 11;
                 int sep = payload.indexOf(";;;PAYLOAD:::");
                 if (sep >= prefixLen) {
+                    rawXpToken = payload.substring(prefixLen, sep);
                     try {
-                        xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
-                    } catch (Exception ignored) {}
+                        xpToGrant = Integer.parseInt(rawXpToken);
+                    } catch (Exception ignored) {
+                        xpParseFailed = true;
+                    }
                     payload = payload.substring(sep + 13);
                 }
             } else if (payload.startsWith("XP_AMBIGUOUS:") && payload.contains(";;;PAYLOAD:::")) {
@@ -626,18 +631,24 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 int prefixLen = 13;
                 int sep = payload.indexOf(";;;PAYLOAD:::");
                 if (sep >= prefixLen) {
+                    rawXpToken = payload.substring(prefixLen, sep);
                     try {
-                        xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
-                    } catch (Exception ignored) {}
+                        xpToGrant = Integer.parseInt(rawXpToken);
+                    } catch (Exception ignored) {
+                        xpParseFailed = true;
+                    }
                     payload = payload.substring(sep + 13);
                 }
             } else if ((payload.startsWith("XP:") || payload.startsWith("XP_PENDING:")) && payload.contains(";;;PAYLOAD:::")) {
                 int prefixLen = payload.startsWith("XP_PENDING:") ? 11 : 3;
                 int sep = payload.indexOf(";;;PAYLOAD:::");
                 if (sep >= prefixLen) {
+                    rawXpToken = payload.substring(prefixLen, sep);
                     try {
-                        xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
-                    } catch (Exception ignored) {}
+                        xpToGrant = Integer.parseInt(rawXpToken);
+                    } catch (Exception ignored) {
+                        xpParseFailed = true;
+                    }
                     payload = payload.substring(sep + 13);
                 }
             }
@@ -655,12 +666,13 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             }
 
             if (toDeliver.isEmpty()) {
-                if (xpToGrant > 0 && !xpAlreadyDelivered && !xpAmbiguous) {
+                if (xpToGrant > 0 && !xpAlreadyDelivered && !xpAmbiguous && !xpParseFailed) {
                     player.giveExp(xpToGrant);
                     player.sendMessage(ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
                 }
-                if (xpAmbiguous) {
-                    player.sendMessage(ColorUtil.color("&cOperation " + op.operationId() + " contains ambiguous XP (" + xpToGrant + " XP) requiring administrator audit. Claim is withheld."));
+                if (xpAmbiguous || xpParseFailed) {
+                    String displayToken = xpParseFailed ? rawXpToken : String.valueOf(xpToGrant);
+                    player.sendMessage(ColorUtil.color("&cOperation " + op.operationId() + " contains ambiguous/malformed XP (" + displayToken + ") requiring administrator audit. Claim is withheld."));
                     continue;
                 }
                 try {
@@ -698,29 +710,30 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             }
 
             if (leftovers.isEmpty()) {
-                if (xpToGrant > 0 && !xpAlreadyDelivered && !xpAmbiguous) {
+                if (xpToGrant > 0 && !xpAlreadyDelivered && !xpAmbiguous && !xpParseFailed) {
                     player.giveExp(xpToGrant);
                     player.sendMessage(ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
                 }
-                if (xpAmbiguous) {
+                if (xpAmbiguous || xpParseFailed) {
+                    String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID") : String.valueOf(xpToGrant);
                     boolean xpPersisted = false;
                     try {
-                        xpPersisted = storage.updatePendingOperationState(op.operationId(), "DELIVERY_ATTEMPTED", "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::");
+                        xpPersisted = storage.updatePendingOperationState(op.operationId(), "DELIVERY_ATTEMPTED", "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::");
                     } catch (Throwable t) {
                         xpPersisted = false;
                     }
 
                     if (!xpPersisted) {
                         try {
-                            String fencePayload = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::";
+                            String fencePayload = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::";
                             storage.updatePendingOperationState(op.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
                         } catch (Exception ignored) {}
-                        player.sendMessage(ColorUtil.color("&cCRITICAL: Items were claimed (" + totalItemsRestored + "), but persisting unresolved XP ledger (" + xpToGrant + " XP) failed! Operation " + op.operationId() + " is fenced to prevent duplicate item replay."));
+                        player.sendMessage(ColorUtil.color("&cCRITICAL: Items were claimed (" + totalItemsRestored + "), but persisting unresolved XP ledger (" + xpToken + ") failed! Operation " + op.operationId() + " is fenced to prevent duplicate item replay."));
                         if (plugin != null) {
                             plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: /minion claim delivered items for op " + op.operationId() + " but XP-only persistence failed. Fenced to AMBIGUOUS_PARTIAL_DELIVERY.");
                         }
                     } else {
-                        player.sendMessage(ColorUtil.color("&eItems were claimed, but stored " + xpToGrant + " XP requires administrator audit and remains withheld."));
+                        player.sendMessage(ColorUtil.color("&eItems were claimed, but stored " + xpToken + " XP requires administrator audit and remains withheld."));
                     }
                     continue;
                 }
@@ -736,14 +749,15 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     remSerialized.add(yc.saveToString());
                 }
                 String pureLeftoversStr = String.join(";;;ITEM;;;", remSerialized);
+                String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID") : String.valueOf(xpToGrant);
                 String remPayloadStr;
-                if (xpAmbiguous) {
-                    remPayloadStr = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr;
+                if (xpAmbiguous || xpParseFailed) {
+                    remPayloadStr = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::" + pureLeftoversStr;
                 } else {
                     remPayloadStr = (xpToGrant > 0 && !xpAlreadyDelivered) ? "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr : pureLeftoversStr;
                 }
 
-                String targetState = xpAmbiguous ? "DELIVERY_ATTEMPTED" : "QUARANTINED_LEFTOVERS";
+                String targetState = (xpAmbiguous || xpParseFailed) ? "DELIVERY_ATTEMPTED" : "QUARANTINED_LEFTOVERS";
                 boolean leftoverPersisted = false;
                 try {
                     leftoverPersisted = storage.updatePendingOperationState(op.operationId(), targetState, remPayloadStr);
@@ -757,7 +771,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     // Attempt to update state to AMBIGUOUS_PARTIAL_DELIVERY with emergency audit ledger to ensure it remains fenced.
                     // Use pureLeftoversStr so the payload contains exactly one canonical XP prefix!
                     try {
-                        String xpPrefix = xpAmbiguous ? "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::" : (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "");
+                        String xpPrefix = (xpAmbiguous || xpParseFailed) ? "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::" : (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "");
                         String fencePayload = xpPrefix
                                 + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::" + pureLeftoversStr;
                         storage.updatePendingOperationState(op.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
@@ -864,14 +878,19 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 int xpToGrant = 0;
                 boolean xpAlreadyDelivered = false;
                 boolean xpAmbiguous = false;
+                boolean xpParseFailed = false;
+                String rawXpToken = null;
                 if (payload != null && (payload.startsWith("XP_DELIVERED:") || payload.startsWith("XP_GRANTED:"))) {
                     xpAlreadyDelivered = true;
                     int prefixLen = payload.startsWith("XP_DELIVERED:") ? 13 : 11;
                     int sep = payload.indexOf(";;;PAYLOAD:::");
                     if (sep >= prefixLen) {
+                        rawXpToken = payload.substring(prefixLen, sep);
                         try {
-                            xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
-                        } catch (Exception ignored) {}
+                            xpToGrant = Integer.parseInt(rawXpToken);
+                        } catch (Exception ignored) {
+                            xpParseFailed = true;
+                        }
                         payload = payload.substring(sep + 13);
                     }
                 } else if (payload != null && payload.startsWith("XP_AMBIGUOUS:") && payload.contains(";;;PAYLOAD:::")) {
@@ -879,23 +898,29 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     int prefixLen = 13;
                     int sep = payload.indexOf(";;;PAYLOAD:::");
                     if (sep >= prefixLen) {
+                        rawXpToken = payload.substring(prefixLen, sep);
                         try {
-                            xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
-                        } catch (Exception ignored) {}
+                            xpToGrant = Integer.parseInt(rawXpToken);
+                        } catch (Exception ignored) {
+                            xpParseFailed = true;
+                        }
                         payload = payload.substring(sep + 13);
                     }
                 } else if (payload != null && (payload.startsWith("XP:") || payload.startsWith("XP_PENDING:")) && payload.contains(";;;PAYLOAD:::")) {
                     int prefixLen = payload.startsWith("XP_PENDING:") ? 11 : 3;
                     int sep = payload.indexOf(";;;PAYLOAD:::");
                     if (sep >= prefixLen) {
+                        rawXpToken = payload.substring(prefixLen, sep);
                         try {
-                            xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
-                        } catch (Exception ignored) {}
+                            xpToGrant = Integer.parseInt(rawXpToken);
+                        } catch (Exception ignored) {
+                            xpParseFailed = true;
+                        }
                         payload = payload.substring(sep + 13);
                     }
                 }
 
-                if (xpAmbiguous) {
+                if (xpAmbiguous || xpParseFailed) {
                     isAmbiguousDelivery = true;
                 }
 
@@ -912,7 +937,9 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                 // 4. Delivery logic & Zero-Leftover XP Invariant
                 boolean isForceOverrideWithXp = "deliver-force-all-with-xp".equals(action);
-                boolean allowXpGrant = isForceOverrideWithXp || (!isAmbiguousDelivery && !xpAmbiguous && !xpAlreadyDelivered);
+                boolean allowXpGrant = isForceOverrideWithXp
+                        ? (!xpParseFailed && xpToGrant > 0)
+                        : (!isAmbiguousDelivery && !xpAmbiguous && !xpParseFailed && !xpAlreadyDelivered);
 
                 int itemsDelivered = 0;
                 int actualXpGranted = 0;
@@ -945,7 +972,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                 if (isForceOverrideWithXp) {
                     // Explicit administrative override: force-deliver all items (drop overflow) and force-grant XP
-                    if (xpToGrant > 0) {
+                    if (xpToGrant > 0 && !xpParseFailed) {
                         targetPlayer.giveExp(xpToGrant);
                         actualXpGranted = xpToGrant;
                     }
@@ -958,10 +985,20 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         }
                         itemsDelivered += origAmount;
                     }
-                    try {
-                        storage.removePendingOperation(targetOp.operationId());
-                        operationResolved = true;
-                    } catch (Exception ignored) {}
+                    if (xpParseFailed) {
+                        String xpToken = (rawXpToken != null) ? rawXpToken : "INVALID";
+                        String xpOnlyPayload = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::";
+                        try {
+                            storage.updatePendingOperationState(targetOp.operationId(), "DELIVERY_ATTEMPTED", xpOnlyPayload);
+                        } catch (Exception ignored) {}
+                        operationResolved = false;
+                        sender.sendMessage(ColorUtil.color("&c[Warning] Items delivered, but operation " + opId + " has malformed XP ('" + xpToken + "'). Retained in escrow ledger under DELIVERY_ATTEMPTED."));
+                    } else {
+                        try {
+                            storage.removePendingOperation(targetOp.operationId());
+                            operationResolved = true;
+                        } catch (Exception ignored) {}
+                    }
                 } else {
                     // Ordinary recovery (deliver or deliver-force-all):
                     // Enforce the Zero-Leftover XP Invariant!
@@ -981,9 +1018,11 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                     if (leftoverItems.isEmpty()) {
                         // All items fit: zero leftovers! Now grant XP safely
-                        if (xpToGrant > 0 && allowXpGrant) {
+                        if (xpToGrant > 0 && !xpParseFailed && allowXpGrant) {
                             targetPlayer.giveExp(xpToGrant);
                             actualXpGranted = xpToGrant;
+                        } else if (xpParseFailed) {
+                            sender.sendMessage(ColorUtil.color("&c[Warning] Operation " + opId + " has malformed XP data ('" + rawXpToken + "'). XP withheld and operation quarantined in escrow ledger."));
                         } else if (xpToGrant > 0) {
                             if (xpAlreadyDelivered) {
                                 sender.sendMessage(ColorUtil.color("&e[Notice] Operation " + opId + " was marked as XP_GRANTED (" + xpToGrant + " XP). Stored XP was already delivered previously."));
@@ -992,11 +1031,12 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             }
                         }
 
-                        boolean xpRemainsUnresolved = (xpToGrant > 0) && !allowXpGrant && !xpAlreadyDelivered;
+                        boolean xpRemainsUnresolved = (xpToGrant > 0 || xpParseFailed) && !allowXpGrant && !xpAlreadyDelivered;
                         if (xpRemainsUnresolved) {
-                            // Items were delivered, but XP was withheld due to ambiguous delivery state!
+                            // Items were delivered, but XP was withheld due to ambiguous delivery state or malformed XP!
                             // DO NOT delete the operation! Retain pending XP and recovery record until delivery outcome is established.
-                            String xpOnlyPayload = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::";
+                            String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID") : String.valueOf(xpToGrant);
+                            String xpOnlyPayload = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::";
                             boolean xpPersisted = false;
                             try {
                                 xpPersisted = storage.updatePendingOperationState(targetOp.operationId(), "DELIVERY_ATTEMPTED", xpOnlyPayload);
@@ -1006,15 +1046,19 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                             if (!xpPersisted) {
                                 try {
-                                    String fencePayload = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::";
+                                    String fencePayload = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::";
                                     storage.updatePendingOperationState(targetOp.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
                                 } catch (Exception ignored) {}
-                                sender.sendMessage(ColorUtil.color("&cCRITICAL: All " + itemsDelivered + " items were delivered, but persisting unresolved XP (" + xpToGrant + " XP) failed! Operation " + opId + " is fenced to prevent duplicate item replay."));
+                                sender.sendMessage(ColorUtil.color("&cCRITICAL: All " + itemsDelivered + " items were delivered, but persisting unresolved XP (" + xpToken + ") failed! Operation " + opId + " is fenced to prevent duplicate item replay."));
                                 if (plugin != null) {
                                     plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: Items delivered for op " + opId + " but XP-only persistence failed. Fenced to prevent item replay.");
                                 }
                             } else {
-                                sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered (" + itemsDelivered + "), but " + xpToGrant + " XP remains unresolved and withheld. Operation " + opId + " is retained in escrow ledger until administrator audits XP delivery."));
+                                if (xpParseFailed) {
+                                    sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered (" + itemsDelivered + "), but malformed XP data ('" + xpToken + "') remains unresolved. Operation " + opId + " is retained in escrow ledger."));
+                                } else {
+                                    sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered (" + itemsDelivered + "), but " + xpToGrant + " XP remains unresolved and withheld. Operation " + opId + " is retained in escrow ledger until administrator audits XP delivery."));
+                                }
                             }
                             operationResolved = false;
                         } else {
@@ -1033,11 +1077,12 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             remSerialized.add(yc.saveToString());
                         }
                         String pureLeftoversStr = String.join(";;;ITEM;;;", remSerialized);
-                        boolean operationRemainsAmbiguous = (isAmbiguousDelivery || xpAmbiguous);
-                        boolean xpRemainsAmbiguous = (xpToGrant > 0 && !xpAlreadyDelivered && operationRemainsAmbiguous && !isForceOverrideWithXp);
+                        boolean operationRemainsAmbiguous = (isAmbiguousDelivery || xpAmbiguous || xpParseFailed);
+                        boolean xpRemainsAmbiguous = ((xpToGrant > 0 || xpParseFailed) && !xpAlreadyDelivered && operationRemainsAmbiguous && !isForceOverrideWithXp);
+                        String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID") : String.valueOf(xpToGrant);
                         String remPayloadStr;
                         if (xpRemainsAmbiguous) {
-                            remPayloadStr = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr;
+                            remPayloadStr = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::" + pureLeftoversStr;
                         } else if (xpToGrant > 0 && !xpAlreadyDelivered) {
                             remPayloadStr = "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr;
                         } else if (xpToGrant > 0 && xpAlreadyDelivered) {
@@ -1060,7 +1105,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             // Use pureLeftoversStr so the payload contains exactly one canonical XP prefix!
                             try {
                                 String xpPrefix = xpRemainsAmbiguous
-                                        ? "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::"
+                                        ? "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::"
                                         : (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : (xpToGrant > 0 && xpAlreadyDelivered ? "XP_GRANTED:" + xpToGrant + ";;;PAYLOAD:::" : ""));
                                 String fencePayload = xpPrefix
                                         + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::" + pureLeftoversStr;

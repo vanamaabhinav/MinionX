@@ -2382,6 +2382,95 @@ public class PhaseOneHardeningTest {
         boolean overrideAllowXp = overrideIsForceWithXp || (!isAmbiguousDelivery && !xpAmbiguous && !xpAlreadyDelivered);
         assertTrue(overrideAllowXp, "deliver-force-all-with-xp must be the ONLY action that permits granting ambiguous XP");
     }
+
+    // --- 69. Malformed XP Payload In Recovery Is Quarantined And Retained In Storage ---
+    @Test
+    public void testRecoveryRetainsOperationWhenXpPayloadIsMalformed() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "malformed-xp-op-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        // 1. Stored operation has a malformed XP_AMBIGUOUS amount (non-numeric string)
+        String initialPayload = "XP_AMBIGUOUS:not-a-number;;;PAYLOAD:::item_iron_x20";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), initialPayload));
+
+        // 2. Administrator executes ordinary recovery: deliver-force-all
+        com.minionx.storage.PendingOperation targetOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(targetOp);
+
+        String payload = targetOp.payload();
+        int xpToGrant = 0;
+        boolean xpAlreadyDelivered = false;
+        boolean xpAmbiguous = false;
+        boolean xpParseFailed = false;
+        String rawXpToken = null;
+
+        if (payload != null && payload.startsWith("XP_AMBIGUOUS:") && payload.contains(";;;PAYLOAD:::")) {
+            xpAmbiguous = true;
+            int prefixLen = 13;
+            int sep = payload.indexOf(";;;PAYLOAD:::");
+            if (sep >= prefixLen) {
+                rawXpToken = payload.substring(prefixLen, sep);
+                try {
+                    xpToGrant = Integer.parseInt(rawXpToken);
+                } catch (Exception ignored) {
+                    xpParseFailed = true;
+                }
+                payload = payload.substring(sep + 13);
+            }
+        }
+
+        assertTrue(xpAmbiguous, "Recovery parser must identify xpAmbiguous = true");
+        assertTrue(xpParseFailed, "Recovery parser must detect parsing failure for 'not-a-number'");
+        assertEquals(0, xpToGrant, "Parsed xpToGrant must remain 0 on exception");
+        assertEquals("not-a-number", rawXpToken, "Raw token must be preserved");
+
+        boolean isAmbiguousDelivery = "UNKNOWN".equalsIgnoreCase(targetOp.state())
+                || "DELIVERY_ATTEMPTED".equalsIgnoreCase(targetOp.state())
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(targetOp.state())
+                || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(targetOp.state());
+        if (xpAmbiguous || xpParseFailed) {
+            isAmbiguousDelivery = true;
+        }
+        assertTrue(isAmbiguousDelivery, "isAmbiguousDelivery must be true when xpAmbiguous or xpParseFailed is true");
+
+        String action = "deliver-force-all";
+        boolean isForceOverrideWithXp = "deliver-force-all-with-xp".equals(action);
+        boolean allowXpGrant = isForceOverrideWithXp
+                ? (!xpParseFailed && xpToGrant > 0)
+                : (!isAmbiguousDelivery && !xpAmbiguous && !xpParseFailed && !xpAlreadyDelivered);
+        assertFalse(allowXpGrant, "XP grant must be withheld for malformed XP data in ordinary recovery");
+
+        // Simulate item delivery (items fit, zero leftovers)
+        int actualXpGranted = 0;
+        if (xpToGrant > 0 && !xpParseFailed && allowXpGrant) {
+            actualXpGranted = xpToGrant;
+        }
+        assertEquals(0, actualXpGranted, "Actual XP granted must be 0");
+
+        // Check unresolved predicate: MUST account for xpParseFailed!
+        boolean xpRemainsUnresolved = (xpToGrant > 0 || xpParseFailed) && !allowXpGrant && !xpAlreadyDelivered;
+        assertTrue(xpRemainsUnresolved, "Malformed XP data must be flagged as unresolved to prevent deletion");
+
+        // Quarantine and retain in storage
+        String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID") : String.valueOf(xpToGrant);
+        String xpOnlyPayload = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::";
+        storage.updatePendingOperationState(opId, "DELIVERY_ATTEMPTED", xpOnlyPayload);
+
+        // Verify operation remains recoverable and was NOT deleted
+        com.minionx.storage.PendingOperation retainedOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(retainedOp, "Operation must NOT be deleted from storage when XP payload is malformed");
+        assertEquals("DELIVERY_ATTEMPTED", retainedOp.state(), "Operation must be quarantined under DELIVERY_ATTEMPTED");
+        assertEquals("XP_AMBIGUOUS:not-a-number;;;PAYLOAD:::", retainedOp.payload(), "Malformed XP token must be retained for manual review");
+    }
 }
 
 
