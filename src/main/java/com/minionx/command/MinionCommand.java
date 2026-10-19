@@ -702,10 +702,30 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 if (xpToGrant > 0 && !xpAlreadyDelivered) {
                     remPayloadStr = "XP:" + xpToGrant + ";;;PAYLOAD:::" + remPayloadStr;
                 }
+
+                boolean leftoverPersisted = false;
                 try {
-                    storage.updatePendingOperationState(op.operationId(), "QUARANTINED_LEFTOVERS", remPayloadStr);
-                } catch (Exception ignored) {}
-                player.sendMessage(ColorUtil.color("&eYour inventory became full! Some items remain in your escrow claim. Make space and run /minion claim again."));
+                    leftoverPersisted = storage.updatePendingOperationState(op.operationId(), "QUARANTINED_LEFTOVERS", remPayloadStr);
+                } catch (Throwable t) {
+                    leftoverPersisted = false;
+                }
+
+                if (!leftoverPersisted) {
+                    // Leftover persistence unconfirmed in /minion claim!
+                    // The operation was already transitioned to DELIVERY_ATTEMPTED before delivery started.
+                    // Attempt to update state to AMBIGUOUS_PARTIAL_DELIVERY with emergency audit ledger to ensure it remains fenced.
+                    try {
+                        String fencePayload = (xpToGrant > 0 ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "")
+                                + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::" + remPayloadStr;
+                        storage.updatePendingOperationState(op.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+                    } catch (Exception ignored) {}
+                    player.sendMessage(ColorUtil.color("&cCRITICAL: Your inventory was full and saving remaining items failed! Operation " + op.operationId() + " is fenced to prevent duplicate items. Please contact an administrator."));
+                    if (plugin != null) {
+                        plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: /minion claim failed to persist leftovers for op " + op.operationId() + ". Operation fenced to prevent replay.");
+                    }
+                } else {
+                    player.sendMessage(ColorUtil.color("&eYour inventory became full! Some items remain in your escrow claim. Make space and run /minion claim again."));
+                }
                 break;
             }
         }
@@ -770,9 +790,21 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             long now = System.currentTimeMillis();
 
             if ("deliver".equals(action) || "deliver-force-all".equals(action) || "deliver-force-all-with-xp".equals(action)) {
-                if (("UNKNOWN".equalsIgnoreCase(targetOp.state()) || "DELIVERY_ATTEMPTED".equalsIgnoreCase(targetOp.state())) && !"deliver-force-all".equals(action) && !"deliver-force-all-with-xp".equals(action)) {
-                    sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId + " has state '" + targetOp.state() + "'. Delivery may have partially succeeded before interruption! Plain 'deliver' is prohibited to prevent duplicate items."));
-                    sender.sendMessage(ColorUtil.color("&cIf you have verified the player received 0 items, use: /minion recover resolve " + opId + " deliver-force-all [reason] (items only) or deliver-force-all-with-xp [reason]"));
+                // 1. Whitelist safe unambiguous states for ordinary recovery ('deliver')
+                boolean isKnownSafeState = "QUARANTINED_LEFTOVERS".equalsIgnoreCase(targetOp.state())
+                        || "MINION_REMOVED".equalsIgnoreCase(targetOp.state())
+                        || "PREPARED".equalsIgnoreCase(targetOp.state())
+                        || "DELIVERY_FAILED_OFFLINE".equalsIgnoreCase(targetOp.state())
+                        || "DELIVERY_CLAIM_FAILED".equalsIgnoreCase(targetOp.state());
+
+                boolean isAmbiguousDelivery = "UNKNOWN".equalsIgnoreCase(targetOp.state())
+                        || "DELIVERY_ATTEMPTED".equalsIgnoreCase(targetOp.state())
+                        || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(targetOp.state())
+                        || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(targetOp.state());
+
+                if ("deliver".equals(action) && (!isKnownSafeState || isAmbiguousDelivery)) {
+                    sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId + " has ambiguous or unverified state '" + targetOp.state() + "'. Delivery may have partially succeeded before interruption! Plain 'deliver' is prohibited to prevent duplicate items."));
+                    sender.sendMessage(ColorUtil.color("&cIf you have verified from logs that the player received 0 items, use: /minion recover resolve " + opId + " deliver-force-all [reason] (items only) or deliver-force-all-with-xp [reason]"));
                     sender.sendMessage(ColorUtil.color("&cOtherwise, use /minion recover resolve " + opId + " complete <reason> to clear."));
                     return;
                 }
@@ -785,7 +817,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                 String payload = targetOp.payload();
 
-                // 1. Extract XP if present (must occur BEFORE leftover extraction to avoid stripping prefix)
+                // 2. Extract XP if present (must occur BEFORE leftover extraction to avoid stripping prefix)
                 int xpToGrant = 0;
                 boolean xpAlreadyDelivered = false;
                 if (payload != null && (payload.startsWith("XP_DELIVERED:") || payload.startsWith("XP_GRANTED:"))) {
@@ -809,11 +841,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     }
                 }
 
-                boolean isAmbiguousDelivery = "UNKNOWN".equalsIgnoreCase(targetOp.state())
-                        || "DELIVERY_ATTEMPTED".equalsIgnoreCase(targetOp.state())
-                        || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(targetOp.state());
-
-                // 2. Extract leftover items only if AMBIGUOUS_PARTIAL_DELIVERY
+                // 3. Extract leftover items only if AMBIGUOUS_PARTIAL_DELIVERY
                 if ("AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(targetOp.state())) {
                     int leftoverIndex = (payload != null) ? payload.indexOf(";;;LEFTOVER:::") : -1;
                     if (leftoverIndex >= 0) {
@@ -824,7 +852,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     }
                 }
 
-                // 3. Delivery logic & Zero-Leftover XP Invariant
+                // 4. Delivery logic & Zero-Leftover XP Invariant
                 boolean isForceOverrideWithXp = "deliver-force-all-with-xp".equals(action);
                 boolean allowXpGrant = isForceOverrideWithXp || (!isAmbiguousDelivery && !xpAlreadyDelivered);
 
@@ -832,9 +860,9 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 int actualXpGranted = 0;
                 boolean operationResolved = false;
 
+                List<ItemStack> toDeliver = new ArrayList<>();
                 if (payload != null && !payload.isBlank()) {
                     String[] rawItems = payload.split(";;;ITEM;;;");
-                    List<ItemStack> toDeliver = new ArrayList<>();
                     for (String raw : rawItems) {
                         try {
                             org.bukkit.configuration.file.YamlConfiguration yc = new org.bukkit.configuration.file.YamlConfiguration();
@@ -843,78 +871,113 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             if (stack != null) toDeliver.add(stack);
                         } catch (Exception ignored) {}
                     }
+                }
 
-                    if (isForceOverrideWithXp) {
-                        // Explicit administrative override: force-deliver all items (drop overflow) and force-grant XP
-                        if (xpToGrant > 0) {
-                            targetPlayer.giveExp(xpToGrant);
-                            actualXpGranted = xpToGrant;
+                if (isForceOverrideWithXp) {
+                    // Explicit administrative override: force-deliver all items (drop overflow) and force-grant XP
+                    if (xpToGrant > 0) {
+                        targetPlayer.giveExp(xpToGrant);
+                        actualXpGranted = xpToGrant;
+                    }
+                    for (ItemStack stack : toDeliver) {
+                        int origAmount = stack.getAmount();
+                        ItemStack clone = stack.clone();
+                        java.util.HashMap<Integer, ItemStack> left = targetPlayer.getInventory().addItem(clone);
+                        for (ItemStack rem : left.values()) {
+                            targetPlayer.getWorld().dropItemNaturally(targetPlayer.getLocation(), rem);
                         }
-                        for (ItemStack stack : toDeliver) {
-                            int origAmount = stack.getAmount();
-                            ItemStack clone = stack.clone();
-                            java.util.HashMap<Integer, ItemStack> left = targetPlayer.getInventory().addItem(clone);
-                            for (ItemStack rem : left.values()) {
-                                targetPlayer.getWorld().dropItemNaturally(targetPlayer.getLocation(), rem);
-                            }
+                        itemsDelivered += origAmount;
+                    }
+                    try {
+                        storage.removePendingOperation(targetOp.operationId());
+                        operationResolved = true;
+                    } catch (Exception ignored) {}
+                } else {
+                    // Ordinary recovery (deliver or deliver-force-all):
+                    // Enforce the Zero-Leftover XP Invariant!
+                    List<ItemStack> leftoverItems = new ArrayList<>();
+                    for (ItemStack stack : toDeliver) {
+                        int origAmount = stack.getAmount();
+                        ItemStack clone = stack.clone();
+                        java.util.HashMap<Integer, ItemStack> left = targetPlayer.getInventory().addItem(clone);
+                        if (!left.isEmpty()) {
+                            leftoverItems.addAll(left.values());
+                            int leftoverAmount = left.values().stream().mapToInt(ItemStack::getAmount).sum();
+                            itemsDelivered += (origAmount - leftoverAmount);
+                        } else {
                             itemsDelivered += origAmount;
                         }
-                        try {
-                            storage.removePendingOperation(targetOp.operationId());
-                            operationResolved = true;
-                        } catch (Exception ignored) {}
-                    } else {
-                        // Ordinary recovery (deliver or deliver-force-all):
-                        // Enforce the Zero-Leftover XP Invariant!
-                        List<ItemStack> leftoverItems = new ArrayList<>();
-                        for (ItemStack stack : toDeliver) {
-                            int origAmount = stack.getAmount();
-                            ItemStack clone = stack.clone();
-                            java.util.HashMap<Integer, ItemStack> left = targetPlayer.getInventory().addItem(clone);
-                            if (!left.isEmpty()) {
-                                leftoverItems.addAll(left.values());
-                                int leftoverAmount = left.values().stream().mapToInt(ItemStack::getAmount).sum();
-                                itemsDelivered += (origAmount - leftoverAmount);
+                    }
+
+                    if (leftoverItems.isEmpty()) {
+                        // All items fit: zero leftovers! Now grant XP safely
+                        if (xpToGrant > 0 && allowXpGrant) {
+                            targetPlayer.giveExp(xpToGrant);
+                            actualXpGranted = xpToGrant;
+                        } else if (xpToGrant > 0) {
+                            if (xpAlreadyDelivered) {
+                                sender.sendMessage(ColorUtil.color("&e[Notice] Operation " + opId + " was marked as XP_GRANTED (" + xpToGrant + " XP). Stored XP was already delivered previously."));
                             } else {
-                                itemsDelivered += origAmount;
+                                sender.sendMessage(ColorUtil.color("&e[Notice] Operation " + opId + " has ambiguous delivery state (" + targetOp.state() + "). Stored " + xpToGrant + " XP withheld to prevent duplicate granting."));
                             }
                         }
 
-                        if (leftoverItems.isEmpty()) {
-                            // All items fit: zero leftovers! Now grant XP safely
-                            if (xpToGrant > 0 && allowXpGrant) {
-                                targetPlayer.giveExp(xpToGrant);
-                                actualXpGranted = xpToGrant;
-                            } else if (xpToGrant > 0) {
-                                if (xpAlreadyDelivered) {
-                                    sender.sendMessage(ColorUtil.color("&e[Notice] Operation " + opId + " was marked as XP_GRANTED (" + xpToGrant + " XP). Stored XP was already delivered previously."));
-                                } else {
-                                    sender.sendMessage(ColorUtil.color("&e[Notice] Operation " + opId + " has ambiguous delivery state (" + targetOp.state() + "). Stored " + xpToGrant + " XP withheld to prevent duplicate granting."));
-                                }
-                            }
+                        boolean xpRemainsUnresolved = (xpToGrant > 0) && !allowXpGrant && !xpAlreadyDelivered;
+                        if (xpRemainsUnresolved) {
+                            // Items were delivered, but XP was withheld due to ambiguous delivery state!
+                            // DO NOT delete the operation! Retain pending XP and recovery record until delivery outcome is established.
+                            String xpOnlyPayload = "XP:" + xpToGrant + ";;;PAYLOAD:::";
+                            try {
+                                storage.updatePendingOperationState(targetOp.operationId(), targetOp.state(), xpOnlyPayload);
+                            } catch (Exception ignored) {}
+                            operationResolved = false;
+                            sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered (" + itemsDelivered + "), but " + xpToGrant + " XP remains unresolved and withheld. Operation " + opId + " is retained in escrow ledger until administrator audits XP delivery."));
+                        } else {
                             try {
                                 storage.removePendingOperation(targetOp.operationId());
                                 operationResolved = true;
                             } catch (Exception ignored) {}
-                        } else {
-                            // Inventory became full: items remain in leftovers!
-                            // Zero-leftover invariant: DO NOT grant pending XP!
-                            List<String> remSerialized = new ArrayList<>();
-                            for (ItemStack rem : leftoverItems) {
-                                org.bukkit.configuration.file.YamlConfiguration yc = new org.bukkit.configuration.file.YamlConfiguration();
-                                yc.set("item", rem);
-                                remSerialized.add(yc.saveToString());
-                            }
-                            String remPayloadStr = String.join(";;;ITEM;;;", remSerialized);
-                            if (xpToGrant > 0 && !xpAlreadyDelivered) {
-                                remPayloadStr = "XP:" + xpToGrant + ";;;PAYLOAD:::" + remPayloadStr;
-                            }
+                        }
+                    } else {
+                        // Inventory became full: items remain in leftovers!
+                        // Zero-leftover invariant: DO NOT grant pending XP!
+                        List<String> remSerialized = new ArrayList<>();
+                        for (ItemStack rem : leftoverItems) {
+                            org.bukkit.configuration.file.YamlConfiguration yc = new org.bukkit.configuration.file.YamlConfiguration();
+                            yc.set("item", rem);
+                            remSerialized.add(yc.saveToString());
+                        }
+                        String remPayloadStr = String.join(";;;ITEM;;;", remSerialized);
+                        if (xpToGrant > 0 && !xpAlreadyDelivered) {
+                            remPayloadStr = "XP:" + xpToGrant + ";;;PAYLOAD:::" + remPayloadStr;
+                        }
+
+                        boolean leftoverPersisted = false;
+                        try {
+                            leftoverPersisted = storage.updatePendingOperationState(targetOp.operationId(), "QUARANTINED_LEFTOVERS", remPayloadStr);
+                        } catch (Throwable t) {
+                            leftoverPersisted = false;
+                        }
+
+                        if (!leftoverPersisted) {
+                            // Leftover persistence unconfirmed! To prevent the original payload from replaying:
+                            // Fence operation to AMBIGUOUS_PARTIAL_DELIVERY with emergency audit ledger
                             try {
-                                storage.updatePendingOperationState(targetOp.operationId(), "QUARANTINED_LEFTOVERS", remPayloadStr);
+                                String fencePayload = (xpToGrant > 0 ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "")
+                                        + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::" + remPayloadStr;
+                                storage.updatePendingOperationState(targetOp.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
                             } catch (Exception ignored) {}
+                            sender.sendMessage(ColorUtil.color("&cCRITICAL: Failed to confirm durable persistence of leftover items for operation " + opId + "! Operation has been fenced as AMBIGUOUS_PARTIAL_DELIVERY to prevent duplicate replay."));
+                            if (plugin != null) {
+                                plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: Failed to persist leftovers for op " + opId + " (" + itemsDelivered + " items delivered, " + leftoverItems.size() + " leftover stacks). Fenced to AMBIGUOUS_PARTIAL_DELIVERY.");
+                            }
+                        } else {
                             sender.sendMessage(ColorUtil.color("&e[Warning] Target player's inventory became full (" + leftoverItems.size() + " leftover stacks). Remaining items and ungranted XP (" + xpToGrant + " XP) preserved in QUARANTINED_LEFTOVERS."));
                         }
                     }
+                }
+
+                if (itemsDelivered > 0 || actualXpGranted > 0) {
                     targetPlayer.sendMessage(ColorUtil.color("&aAn administrator resolved and delivered your quarantined minion items!"));
                 }
 
@@ -924,7 +987,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 if (operationResolved) {
                     sender.sendMessage(ColorUtil.color("&aOperation &e" + opId + " &aresolved and delivered (" + itemsDelivered + " items, " + actualXpGranted + " XP). Audit logged."));
                 } else {
-                    sender.sendMessage(ColorUtil.color("&eOperation &e" + opId + " &apartially delivered (" + itemsDelivered + " items, " + actualXpGranted + " XP granted). Leftovers retained in ledger. Audit logged."));
+                    sender.sendMessage(ColorUtil.color("&eOperation &e" + opId + " &apartially delivered (" + itemsDelivered + " items, " + actualXpGranted + " XP granted). Unresolved state retained in ledger. Audit logged."));
                 }
             } else if ("complete".equals(action)) {
                 try {

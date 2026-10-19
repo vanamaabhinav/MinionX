@@ -322,6 +322,9 @@ MinionX includes safety controls designed to protect player data, prevent item/X
   * `/minion claim` transitions operations to `DELIVERY_ATTEMPTED` on disk before modifying player inventory.
   * If a server crashes or halts mid-claim, the operation reboots in `DELIVERY_ATTEMPTED` (or `UNKNOWN`), strictly blocking automatic player re-claims.
   * Stored XP is **only** awarded when inventory delivery has **zero leftovers**. If inventory fills up, unclaimed XP is safely preserved alongside leftover items.
+  * If persisting leftovers fails in `/minion claim` or `/minion recover`, the operation is fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with an emergency audit ledger to prevent duplicate replay.
+  * Ordinary recovery (`/minion recover resolve <opId> deliver`) strictly rejects ambiguous operations (`DELIVERY_ATTEMPTED`, `UNKNOWN`, `AMBIGUOUS_PARTIAL_DELIVERY`, `COMPLETION_UNCONFIRMED`).
+  * If items are delivered under `deliver-force-all` while XP remains unresolved, the operation is retained in the ledger with its pending XP until explicitly audited (`deliver-force-all-with-xp` or `complete`).
 * **Unresolved Payout Quarantine Fencing**:
   * Any automated shipping payout with an uncertain or interrupted outcome (`ATTEMPTED` or `PAYOUT_AMBIGUOUS`) is quarantined across restarts. Payout locks are automatically re-established in memory, and automatic Vault retries or rollbacks are forbidden.
 * **Emergency Quarantine Mode (`/minion quarantine on`)**:
@@ -346,8 +349,8 @@ MinionX includes safety controls designed to protect player data, prevent item/X
 | `/minion claim` | `minionx.use` | Recovers verified escrow items and stored XP if the player's inventory was full during a previous pickup. Blocks ambiguous operations. |
 | `/minion recover list` | `minionx.admin` | Lists all pending, quarantined, or ambiguous operations in the escrow ledger. |
 | `/minion recover resolve <opId> complete [reason]` | `minionx.admin` | Marks an operation as COMPLETE and clears it from the ledger with an audit entry. |
-| `/minion recover resolve <opId> deliver [reason]` | `minionx.admin` | Delivers escrow items and safe XP to an online player. Strictly withholds XP if state is ambiguous or marked `XP_GRANTED`. |
-| `/minion recover resolve <opId> deliver-force-all [reason]` | `minionx.admin` | Force-delivers all items from an ambiguous operation (withholding ambiguous XP). |
+| `/minion recover resolve <opId> deliver [reason]` | `minionx.admin` | Delivers verified escrow items and safe XP for unambiguous operations (rejects ambiguous operations to prevent duplication). |
+| `/minion recover resolve <opId> deliver-force-all [reason]` | `minionx.admin` | Force-delivers items from an ambiguous operation (withholding unresolved XP in ledger until audited). |
 | `/minion recover resolve <opId> deliver-force-all-with-xp [reason]` | `minionx.admin` | Audited administrative override that forces delivery of both items and stored XP after manual log verification. |
 | `/minion killall` | `minionx.admin` | Removes all active minion entities across the world. |
 | `/minion reload` | `minionx.admin` | Reloads all configuration files and item registries. |

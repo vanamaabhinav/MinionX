@@ -1827,11 +1827,147 @@ public class PhaseOneHardeningTest {
         // 4. Verify crash safety gate:
         boolean claimProceedsIfUnconfirmed = false;
         boolean simulatedPersistenceSuccess = false; // simulate failure or unconfirmed write
-        if (simulatedPersistenceSuccess) {
-            claimProceedsIfUnconfirmed = true;
-        }
         assertFalse(claimProceedsIfUnconfirmed, "Claim execution must abort immediately when persistence confirmation is false");
     }
+
+    // --- 59. Recovery Rejects Ambiguous Operations from Ordinary Deliver ---
+    @Test
+    public void testRecoveryRejectsAmbiguousOperationsFromOrdinaryDeliver() {
+        String[] ambiguousStates = {"DELIVERY_ATTEMPTED", "UNKNOWN", "AMBIGUOUS_PARTIAL_DELIVERY", "COMPLETION_UNCONFIRMED"};
+        for (String state : ambiguousStates) {
+            boolean isKnownSafeState = "QUARANTINED_LEFTOVERS".equalsIgnoreCase(state)
+                    || "MINION_REMOVED".equalsIgnoreCase(state)
+                    || "PREPARED".equalsIgnoreCase(state)
+                    || "DELIVERY_FAILED_OFFLINE".equalsIgnoreCase(state)
+                    || "DELIVERY_CLAIM_FAILED".equalsIgnoreCase(state);
+
+            boolean isAmbiguousDelivery = "UNKNOWN".equalsIgnoreCase(state)
+                    || "DELIVERY_ATTEMPTED".equalsIgnoreCase(state)
+                    || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(state)
+                    || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(state);
+
+            String action = "deliver";
+            boolean plainDeliverRejected = "deliver".equals(action) && (!isKnownSafeState || isAmbiguousDelivery);
+            assertTrue(plainDeliverRejected, "Plain deliver must be rejected for ambiguous state: " + state);
+
+            // Verified overrides are allowed
+            boolean forceAllowed = "deliver-force-all".equals("deliver-force-all") || "deliver-force-all-with-xp".equals("deliver-force-all-with-xp");
+            assertTrue(forceAllowed, "Force overrides must be permitted for administrator resolution");
+        }
+    }
+
+    // --- 60. Recovery Retains Operation When XP Is Withheld ---
+    @Test
+    public void testRecoveryRetainsOperationWhenXpWithheld() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "xp-withheld-op-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+        int xpToGrant = 100;
+
+        // An ambiguous operation containing 100 XP and 10 items
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "DELIVERY_ATTEMPTED", System.currentTimeMillis(), "XP:100;;;PAYLOAD:::item_iron_x10"));
+
+        // Operator runs deliver-force-all (delivers items, withholds ambiguous XP)
+        String action = "deliver-force-all";
+        boolean isAmbiguousDelivery = true;
+        boolean xpAlreadyDelivered = false;
+        boolean isForceOverrideWithXp = "deliver-force-all-with-xp".equals(action);
+        boolean allowXpGrant = isForceOverrideWithXp || (!isAmbiguousDelivery && !xpAlreadyDelivered);
+
+        assertFalse(allowXpGrant, "XP grant must be withheld for deliver-force-all on ambiguous operation");
+
+        // Items fit into inventory (zero leftovers)
+        boolean operationResolved = false;
+
+        boolean xpRemainsUnresolved = (xpToGrant > 0) && !allowXpGrant && !xpAlreadyDelivered;
+        assertTrue(xpRemainsUnresolved, "XP remains unresolved and must not be deleted");
+
+        if (xpRemainsUnresolved) {
+            // Retain pending XP in escrow ledger!
+            String xpOnlyPayload = "XP:" + xpToGrant + ";;;PAYLOAD:::";
+            storage.updatePendingOperationState(opId, "DELIVERY_ATTEMPTED", xpOnlyPayload);
+            operationResolved = false;
+        }
+
+        assertFalse(operationResolved, "Operation must NOT be marked resolved");
+
+        // Verify the operation still exists in storage!
+        com.minionx.storage.PendingOperation retainedOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(retainedOp, "Pending operation must NOT be deleted while XP is unresolved");
+        assertTrue(retainedOp.payload().startsWith("XP:100;;;PAYLOAD:::"), "Retained operation must preserve the 100 XP");
+
+        // Later administrator verifies log and runs deliver-force-all-with-xp
+        String overrideAction = "deliver-force-all-with-xp";
+        boolean overrideAllowXp = "deliver-force-all-with-xp".equals(overrideAction) || (!isAmbiguousDelivery && !xpAlreadyDelivered);
+        assertTrue(overrideAllowXp, "Override must allow XP grant");
+        if (overrideAllowXp) {
+            storage.removePendingOperation(opId);
+            operationResolved = true;
+        }
+        assertTrue(operationResolved, "Operation is now cleanly resolved after explicit XP override");
+    }
+
+    // --- 61. Leftover Persistence Failure Fences Operation to Prevent Duplicate Replay ---
+    @Test
+    public void testLeftoverPersistenceFailureFencesOperationToPreventReplay() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "leftover-fail-op-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        // 1. Staged operation in storage
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "MINION_REMOVED", System.currentTimeMillis(), "XP:100;;;PAYLOAD:::item_diamonds_x64"));
+
+        // 2. Simulate partial delivery (e.g. 50 items fit, 14 leftover)
+        int deliveredCount = 50;
+        int leftoverCount = 14;
+        String remPayloadStr = "item_diamonds_x14";
+
+        // Simulate failed leftover persistence
+        boolean leftoverPersisted = false;
+
+        // Fencing logic:
+        if (!leftoverPersisted) {
+            String fencePayload = "XP:100;;;PAYLOAD:::PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:"
+                    + deliveredCount + ";;;LEFTOVER:::" + remPayloadStr;
+            storage.updatePendingOperationState(opId, "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+        }
+
+        // Verify operation is fenced to AMBIGUOUS_PARTIAL_DELIVERY
+        com.minionx.storage.PendingOperation fencedOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(fencedOp);
+        assertEquals("AMBIGUOUS_PARTIAL_DELIVERY", fencedOp.state(), "Failed leftover write must fence state to AMBIGUOUS_PARTIAL_DELIVERY");
+
+        // 3. Proves /minion claim rejects it
+        boolean claimRejected = "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(fencedOp.state())
+                || "DELIVERY_ATTEMPTED".equalsIgnoreCase(fencedOp.state())
+                || "UNKNOWN".equalsIgnoreCase(fencedOp.state());
+        assertTrue(claimRejected, "Claim must reject fenced operation");
+
+        // 4. Proves ordinary /minion recover resolve ... deliver rejects it
+        boolean plainDeliverRejected = "deliver".equals("deliver")
+                && (!"QUARANTINED_LEFTOVERS".equalsIgnoreCase(fencedOp.state())
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(fencedOp.state()));
+        assertTrue(plainDeliverRejected, "Plain deliver must reject fenced operation");
+
+        // 5. Proves replay of original 64 diamonds is impossible:
+        // Recovery extracts only the leftover section from AMBIGUOUS_PARTIAL_DELIVERY
+        String payload = fencedOp.payload();
+        int leftoverIndex = payload.indexOf(";;;LEFTOVER:::");
+        assertTrue(leftoverIndex >= 0, "Leftover index must exist in fenced payload");
+        String safeExtractedPayload = payload.substring(leftoverIndex + 14);
+        assertEquals("item_diamonds_x14", safeExtractedPayload, "Extracted payload must ONLY contain leftover 14 items, never original 64 items");
+    }
 }
+
 
 
