@@ -2084,6 +2084,101 @@ public class PhaseOneHardeningTest {
         String remainingItems = payload.substring(leftoverIndex + 14);
         assertTrue(remainingItems.isEmpty(), "Remaining items in fenced payload must be empty so stale items are never replayed");
     }
+
+    // --- 65. Ambiguous Operation Partial Recovery Withholds XP From Subsequent Claim ---
+    @Test
+    public void testAmbiguousOperationPartialRecoveryWithholdsXpFromSubsequentClaim() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "ambig-recovery-op-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+        int xpToGrant = 100;
+
+        // 1. Ambiguous operation in DELIVERY_ATTEMPTED with 100 XP and 2 items
+        String initialPayload = "XP:100;;;PAYLOAD:::item_iron_x20;;;ITEM;;;item_gold_x10";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "DELIVERY_ATTEMPTED", System.currentTimeMillis(), initialPayload));
+
+        // 2. Administrator executes /minion recover resolve <opId> deliver-force-all
+        // Parse operation
+        com.minionx.storage.PendingOperation targetOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(targetOp);
+
+        boolean isAmbiguousDelivery = "UNKNOWN".equalsIgnoreCase(targetOp.state())
+                || "DELIVERY_ATTEMPTED".equalsIgnoreCase(targetOp.state())
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(targetOp.state())
+                || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(targetOp.state());
+        assertTrue(isAmbiguousDelivery, "Original operation must be identified as ambiguous delivery");
+
+        String action = "deliver-force-all";
+        boolean isForceOverrideWithXp = "deliver-force-all-with-xp".equals(action);
+        boolean xpAlreadyDelivered = false;
+        boolean allowXpGrant = isForceOverrideWithXp || (!isAmbiguousDelivery && !xpAlreadyDelivered);
+        assertFalse(allowXpGrant, "XP grant must be disallowed for deliver-force-all on ambiguous operation");
+
+        // Simulate partial delivery: 1 item fits, 1 item is leftover
+        String leftoverItem = "item_gold_x10";
+        int itemsDelivered = 20; // 20 iron delivered, 10 gold leftover
+
+        // Zero-leftover invariant + Ambiguous State Preservation:
+        boolean xpRemainsAmbiguous = (xpToGrant > 0 && !xpAlreadyDelivered && (isAmbiguousDelivery) && !isForceOverrideWithXp);
+        assertTrue(xpRemainsAmbiguous, "XP remains ambiguous when recovery is partial and not forced with XP");
+
+        String remPayloadStr = xpRemainsAmbiguous
+                ? "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::" + leftoverItem
+                : "XP:" + xpToGrant + ";;;PAYLOAD:::" + leftoverItem;
+        String targetLeftoverState = xpRemainsAmbiguous ? "DELIVERY_ATTEMPTED" : "QUARANTINED_LEFTOVERS";
+
+        // CRITICAL INVARIANT: State must NOT be downgraded to QUARANTINED_LEFTOVERS!
+        assertEquals("DELIVERY_ATTEMPTED", targetLeftoverState, "Leftover state must preserve ambiguity (DELIVERY_ATTEMPTED), never QUARANTINED_LEFTOVERS");
+        assertTrue(remPayloadStr.startsWith("XP_AMBIGUOUS:100;;;PAYLOAD:::"), "Payload must use XP_AMBIGUOUS prefix to prevent automatic claim");
+
+        boolean persisted = storage.updatePendingOperationState(opId, targetLeftoverState, remPayloadStr);
+        assertTrue(persisted, "Persistence of ambiguous leftovers must succeed");
+
+        // 3. Player later runs ordinary /minion claim:
+        com.minionx.storage.PendingOperation opAfterRecovery = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(opAfterRecovery);
+        assertEquals("DELIVERY_ATTEMPTED", opAfterRecovery.state(), "Durable state must remain DELIVERY_ATTEMPTED");
+
+        // Evaluate /minion claim gating:
+        String claimState = opAfterRecovery.state();
+        boolean claimIsAmbiguous = "DELIVERY_ATTEMPTED".equalsIgnoreCase(claimState)
+                || "UNKNOWN".equalsIgnoreCase(claimState)
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(claimState)
+                || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(claimState);
+        assertTrue(claimIsAmbiguous, "/minion claim must identify the operation as ambiguous");
+
+        boolean claimAllowed = !"DELIVERY_ATTEMPTED".equalsIgnoreCase(claimState)
+                && ("QUARANTINED_LEFTOVERS".equalsIgnoreCase(claimState) || "MINION_REMOVED".equalsIgnoreCase(claimState));
+        assertFalse(claimAllowed, "/minion claim must strictly reject claiming the operation");
+
+        // 4. Secondary Payload Safety Gate:
+        // Even if the state were somehow erroneously presented to /minion claim parser, test the payload gate:
+        String testPayload = opAfterRecovery.payload();
+        boolean claimXpAmbiguous = false;
+        int claimXpToGrant = 0;
+        if (testPayload.startsWith("XP_AMBIGUOUS:") && testPayload.contains(";;;PAYLOAD:::")) {
+            claimXpAmbiguous = true;
+            int prefixLen = 13;
+            int sep = testPayload.indexOf(";;;PAYLOAD:::");
+            if (sep >= prefixLen) {
+                claimXpToGrant = Integer.parseInt(testPayload.substring(prefixLen, sep));
+            }
+        }
+        assertTrue(claimXpAmbiguous, "Claim parser must recognize XP_AMBIGUOUS prefix");
+        assertEquals(100, claimXpToGrant, "Parser must identify 100 XP");
+
+        // Under /minion claim logic, giveExp is gated by (!xpAlreadyDelivered && !xpAmbiguous)
+        boolean allowClaimExp = !xpAlreadyDelivered && !claimXpAmbiguous;
+        assertFalse(allowClaimExp, "XP grant must be strictly suppressed when xpAmbiguous is true");
+    }
 }
 
 

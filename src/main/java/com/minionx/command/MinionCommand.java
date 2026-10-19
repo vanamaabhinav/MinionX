@@ -610,9 +610,20 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
             int xpToGrant = 0;
             boolean xpAlreadyDelivered = false;
+            boolean xpAmbiguous = false;
             if (payload.startsWith("XP_DELIVERED:") || payload.startsWith("XP_GRANTED:")) {
                 xpAlreadyDelivered = true;
                 int prefixLen = payload.startsWith("XP_DELIVERED:") ? 13 : 11;
+                int sep = payload.indexOf(";;;PAYLOAD:::");
+                if (sep >= prefixLen) {
+                    try {
+                        xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
+                    } catch (Exception ignored) {}
+                    payload = payload.substring(sep + 13);
+                }
+            } else if (payload.startsWith("XP_AMBIGUOUS:") && payload.contains(";;;PAYLOAD:::")) {
+                xpAmbiguous = true;
+                int prefixLen = 13;
                 int sep = payload.indexOf(";;;PAYLOAD:::");
                 if (sep >= prefixLen) {
                     try {
@@ -644,9 +655,13 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             }
 
             if (toDeliver.isEmpty()) {
-                if (xpToGrant > 0 && !xpAlreadyDelivered) {
+                if (xpToGrant > 0 && !xpAlreadyDelivered && !xpAmbiguous) {
                     player.giveExp(xpToGrant);
                     player.sendMessage(ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
+                }
+                if (xpAmbiguous) {
+                    player.sendMessage(ColorUtil.color("&cOperation " + op.operationId() + " contains ambiguous XP (" + xpToGrant + " XP) requiring administrator audit. Claim is withheld."));
+                    continue;
                 }
                 try {
                     storage.removePendingOperation(op.operationId());
@@ -683,9 +698,16 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             }
 
             if (leftovers.isEmpty()) {
-                if (xpToGrant > 0 && !xpAlreadyDelivered) {
+                if (xpToGrant > 0 && !xpAlreadyDelivered && !xpAmbiguous) {
                     player.giveExp(xpToGrant);
                     player.sendMessage(ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
+                }
+                if (xpAmbiguous) {
+                    player.sendMessage(ColorUtil.color("&eItems were claimed, but stored " + xpToGrant + " XP requires administrator audit and remains withheld."));
+                    try {
+                        storage.updatePendingOperationState(op.operationId(), "DELIVERY_ATTEMPTED", "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::");
+                    } catch (Exception ignored) {}
+                    continue;
                 }
                 try {
                     storage.removePendingOperation(op.operationId());
@@ -699,11 +721,17 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     remSerialized.add(yc.saveToString());
                 }
                 String pureLeftoversStr = String.join(";;;ITEM;;;", remSerialized);
-                String remPayloadStr = (xpToGrant > 0 && !xpAlreadyDelivered) ? "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr : pureLeftoversStr;
+                String remPayloadStr;
+                if (xpAmbiguous) {
+                    remPayloadStr = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr;
+                } else {
+                    remPayloadStr = (xpToGrant > 0 && !xpAlreadyDelivered) ? "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr : pureLeftoversStr;
+                }
 
+                String targetState = xpAmbiguous ? "DELIVERY_ATTEMPTED" : "QUARANTINED_LEFTOVERS";
                 boolean leftoverPersisted = false;
                 try {
-                    leftoverPersisted = storage.updatePendingOperationState(op.operationId(), "QUARANTINED_LEFTOVERS", remPayloadStr);
+                    leftoverPersisted = storage.updatePendingOperationState(op.operationId(), targetState, remPayloadStr);
                 } catch (Throwable t) {
                     leftoverPersisted = false;
                 }
@@ -714,7 +742,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     // Attempt to update state to AMBIGUOUS_PARTIAL_DELIVERY with emergency audit ledger to ensure it remains fenced.
                     // Use pureLeftoversStr so the payload contains exactly one canonical XP prefix!
                     try {
-                        String fencePayload = (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "")
+                        String xpPrefix = xpAmbiguous ? "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::" : (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "");
+                        String fencePayload = xpPrefix
                                 + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::" + pureLeftoversStr;
                         storage.updatePendingOperationState(op.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
                     } catch (Exception ignored) {}
@@ -819,9 +848,20 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 // 2. Extract XP if present (must occur BEFORE leftover extraction to avoid stripping prefix)
                 int xpToGrant = 0;
                 boolean xpAlreadyDelivered = false;
+                boolean xpAmbiguous = false;
                 if (payload != null && (payload.startsWith("XP_DELIVERED:") || payload.startsWith("XP_GRANTED:"))) {
                     xpAlreadyDelivered = true;
                     int prefixLen = payload.startsWith("XP_DELIVERED:") ? 13 : 11;
+                    int sep = payload.indexOf(";;;PAYLOAD:::");
+                    if (sep >= prefixLen) {
+                        try {
+                            xpToGrant = Integer.parseInt(payload.substring(prefixLen, sep));
+                        } catch (Exception ignored) {}
+                        payload = payload.substring(sep + 13);
+                    }
+                } else if (payload != null && payload.startsWith("XP_AMBIGUOUS:") && payload.contains(";;;PAYLOAD:::")) {
+                    xpAmbiguous = true;
+                    int prefixLen = 13;
                     int sep = payload.indexOf(";;;PAYLOAD:::");
                     if (sep >= prefixLen) {
                         try {
@@ -838,6 +878,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         } catch (Exception ignored) {}
                         payload = payload.substring(sep + 13);
                     }
+                }
+
+                if (xpAmbiguous) {
+                    isAmbiguousDelivery = true;
                 }
 
                 // 3. Extract leftover items only if AMBIGUOUS_PARTIAL_DELIVERY
@@ -937,7 +981,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         if (xpRemainsUnresolved) {
                             // Items were delivered, but XP was withheld due to ambiguous delivery state!
                             // DO NOT delete the operation! Retain pending XP and recovery record until delivery outcome is established.
-                            String xpOnlyPayload = "XP:" + xpToGrant + ";;;PAYLOAD:::";
+                            String xpOnlyPayload = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::";
                             boolean xpPersisted = false;
                             try {
                                 xpPersisted = storage.updatePendingOperationState(targetOp.operationId(), "DELIVERY_ATTEMPTED", xpOnlyPayload);
@@ -947,7 +991,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                             if (!xpPersisted) {
                                 try {
-                                    String fencePayload = "XP:" + xpToGrant + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::";
+                                    String fencePayload = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::";
                                     storage.updatePendingOperationState(targetOp.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
                                 } catch (Exception ignored) {}
                                 sender.sendMessage(ColorUtil.color("&cCRITICAL: All " + itemsDelivered + " items were delivered, but persisting unresolved XP (" + xpToGrant + " XP) failed! Operation " + opId + " is fenced to prevent duplicate item replay."));
@@ -974,11 +1018,20 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             remSerialized.add(yc.saveToString());
                         }
                         String pureLeftoversStr = String.join(";;;ITEM;;;", remSerialized);
-                        String remPayloadStr = (xpToGrant > 0 && !xpAlreadyDelivered) ? "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr : pureLeftoversStr;
+                        boolean xpRemainsAmbiguous = (xpToGrant > 0 && !xpAlreadyDelivered && (isAmbiguousDelivery || xpAmbiguous) && !isForceOverrideWithXp);
+                        String remPayloadStr;
+                        if (xpRemainsAmbiguous) {
+                            remPayloadStr = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr;
+                        } else if (xpToGrant > 0 && !xpAlreadyDelivered) {
+                            remPayloadStr = "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr;
+                        } else {
+                            remPayloadStr = pureLeftoversStr;
+                        }
 
+                        String targetLeftoverState = xpRemainsAmbiguous ? "DELIVERY_ATTEMPTED" : "QUARANTINED_LEFTOVERS";
                         boolean leftoverPersisted = false;
                         try {
-                            leftoverPersisted = storage.updatePendingOperationState(targetOp.operationId(), "QUARANTINED_LEFTOVERS", remPayloadStr);
+                            leftoverPersisted = storage.updatePendingOperationState(targetOp.operationId(), targetLeftoverState, remPayloadStr);
                         } catch (Throwable t) {
                             leftoverPersisted = false;
                         }
@@ -988,7 +1041,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             // Fence operation to AMBIGUOUS_PARTIAL_DELIVERY with emergency audit ledger.
                             // Use pureLeftoversStr so the payload contains exactly one canonical XP prefix!
                             try {
-                                String fencePayload = (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "")
+                                String xpPrefix = xpRemainsAmbiguous
+                                        ? "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::"
+                                        : (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "");
+                                String fencePayload = xpPrefix
                                         + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::" + pureLeftoversStr;
                                 storage.updatePendingOperationState(targetOp.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
                             } catch (Exception ignored) {}
@@ -997,7 +1053,11 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                                 plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: Failed to persist leftovers for op " + opId + " (" + itemsDelivered + " items delivered, " + leftoverItems.size() + " leftover stacks). Fenced to AMBIGUOUS_PARTIAL_DELIVERY.");
                             }
                         } else {
-                            sender.sendMessage(ColorUtil.color("&e[Warning] Target player's inventory became full (" + leftoverItems.size() + " leftover stacks). Remaining items and ungranted XP (" + xpToGrant + " XP) preserved in QUARANTINED_LEFTOVERS."));
+                            if (xpRemainsAmbiguous) {
+                                sender.sendMessage(ColorUtil.color("&e[Warning] Target player's inventory became full (" + leftoverItems.size() + " leftover stacks). Remaining items and ambiguous XP (" + xpToGrant + " XP) preserved in DELIVERY_ATTEMPTED (retained in audit ledger; ordinary claim prohibited)."));
+                            } else {
+                                sender.sendMessage(ColorUtil.color("&e[Warning] Target player's inventory became full (" + leftoverItems.size() + " leftover stacks). Remaining items and ungranted XP (" + xpToGrant + " XP) preserved in QUARANTINED_LEFTOVERS."));
+                            }
                         }
                     }
                 }
