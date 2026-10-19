@@ -326,8 +326,9 @@ MinionX includes safety controls designed to protect player data, prevent item/X
   * Ordinary recovery (`/minion recover resolve <opId> deliver`) strictly rejects ambiguous operations (`DELIVERY_ATTEMPTED`, `UNKNOWN`, `AMBIGUOUS_PARTIAL_DELIVERY`, `COMPLETION_UNCONFIRMED`).
   * If items are delivered under `deliver-force-all` while XP remains unresolved, the XP-only ledger update is verified durably, retaining pending XP until explicitly audited (`deliver-force-all-with-xp` or `complete`), and fencing on persistence failure to prevent stale item replay.
   * **Ambiguous Leftover State Preservation & `XP_AMBIGUOUS` Defense**:
-    * If an administrator uses `deliver-force-all` on an ambiguous operation and inventory fills up, leftover items and unresolved XP are persisted in `DELIVERY_ATTEMPTED` (never downgraded to `QUARANTINED_LEFTOVERS`) with `XP_AMBIGUOUS:<xp>;;;PAYLOAD:::`.
+    * If an administrator uses `deliver-force-all` on an ambiguous operation and inventory fills up, leftover state selection is strictly decoupled from XP presence: any operation with ambiguous delivery history preserves `DELIVERY_ATTEMPTED` (never downgraded to `QUARANTINED_LEFTOVERS`), even if the operation has no XP or its XP was already delivered.
     * Ordinary `/minion claim` strictly rejects ambiguous states, and upon payload inspection, parses `XP_AMBIGUOUS:` to strictly withhold unresolved XP from automatic claims until explicitly audited by an administrator.
+    * When items are claimed under `/minion claim` while XP remains ambiguous, updating the durable ledger to the XP-only payload is strictly verified; on persistence failure, the operation is immediately fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with empty leftovers (`LEFTOVER:::`) to prevent stale item replay.
 * **Unresolved Payout Quarantine Fencing**:
   * Any automated shipping payout with an uncertain or interrupted outcome (`ATTEMPTED` or `PAYOUT_AMBIGUOUS`) is quarantined across restarts. Payout locks are automatically re-established in memory, and automatic Vault retries or rollbacks are forbidden.
 * **Emergency Quarantine Mode (`/minion quarantine on`)**:

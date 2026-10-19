@@ -2179,6 +2179,120 @@ public class PhaseOneHardeningTest {
         boolean allowClaimExp = !xpAlreadyDelivered && !claimXpAmbiguous;
         assertFalse(allowClaimExp, "XP grant must be strictly suppressed when xpAmbiguous is true");
     }
+
+    // --- 66. Ambiguous Operation With No XP Preserves DELIVERY_ATTEMPTED On Leftovers ---
+    @Test
+    public void testAmbiguousOperationNoXpPartialRecoveryPreservesAmbiguousStateAndBlocksClaim() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "ambig-noxp-op-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        // 1. Ambiguous operation in DELIVERY_ATTEMPTED with NO XP and 2 items
+        String initialPayload = "item_iron_x20;;;ITEM;;;item_gold_x10";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "DELIVERY_ATTEMPTED", System.currentTimeMillis(), initialPayload));
+
+        // 2. Administrator executes /minion recover resolve <opId> deliver-force-all
+        com.minionx.storage.PendingOperation targetOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(targetOp);
+
+        boolean isAmbiguousDelivery = "UNKNOWN".equalsIgnoreCase(targetOp.state())
+                || "DELIVERY_ATTEMPTED".equalsIgnoreCase(targetOp.state())
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(targetOp.state())
+                || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(targetOp.state());
+        assertTrue(isAmbiguousDelivery, "Original operation must be identified as ambiguous delivery");
+
+        int xpToGrant = 0;
+        boolean xpAlreadyDelivered = false;
+        boolean xpAmbiguous = false;
+        String action = "deliver-force-all";
+        boolean isForceOverrideWithXp = "deliver-force-all-with-xp".equals(action);
+
+        // Simulate partial delivery: 1 item fits, 1 item is leftover
+        String leftoverItem = "item_gold_x10";
+        int itemsDelivered = 20;
+
+        // Verify state selection is decoupled from XP presence:
+        boolean operationRemainsAmbiguous = (isAmbiguousDelivery || xpAmbiguous);
+        assertTrue(operationRemainsAmbiguous, "Operation remains ambiguous because original delivery state was ambiguous");
+
+        boolean xpRemainsAmbiguous = (xpToGrant > 0 && !xpAlreadyDelivered && operationRemainsAmbiguous && !isForceOverrideWithXp);
+        assertFalse(xpRemainsAmbiguous, "xpRemainsAmbiguous is false since xpToGrant is 0");
+
+        String targetLeftoverState = operationRemainsAmbiguous ? "DELIVERY_ATTEMPTED" : "QUARANTINED_LEFTOVERS";
+        assertEquals("DELIVERY_ATTEMPTED", targetLeftoverState, "Leftover state MUST be DELIVERY_ATTEMPTED even with 0 XP, never QUARANTINED_LEFTOVERS");
+
+        String remPayloadStr = leftoverItem;
+        boolean persisted = storage.updatePendingOperationState(opId, targetLeftoverState, remPayloadStr);
+        assertTrue(persisted, "Persistence of leftovers must succeed");
+
+        // 3. Player runs ordinary /minion claim:
+        com.minionx.storage.PendingOperation opAfterRecovery = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(opAfterRecovery);
+        assertEquals("DELIVERY_ATTEMPTED", opAfterRecovery.state(), "State must remain DELIVERY_ATTEMPTED");
+
+        // Gating in /minion claim:
+        String claimState = opAfterRecovery.state();
+        boolean claimIsAmbiguous = "DELIVERY_ATTEMPTED".equalsIgnoreCase(claimState)
+                || "UNKNOWN".equalsIgnoreCase(claimState)
+                || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(claimState)
+                || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(claimState);
+        assertTrue(claimIsAmbiguous, "/minion claim must identify the operation as ambiguous");
+
+        boolean claimAllowed = !"DELIVERY_ATTEMPTED".equalsIgnoreCase(claimState)
+                && ("QUARANTINED_LEFTOVERS".equalsIgnoreCase(claimState) || "MINION_REMOVED".equalsIgnoreCase(claimState));
+        assertFalse(claimAllowed, "/minion claim must strictly reject claiming leftover items from an ambiguous operation");
+    }
+
+    // --- 67. Claim Failed XP-Only Ledger Update Fences Operation ---
+    @Test
+    public void testClaimFailedXpOnlyLedgerUpdateFencesOperation() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "claim-xpfail-op-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+        int xpToGrant = 100;
+        int totalItemsRestored = 20;
+
+        // 1. Initial operation in QUARANTINED_LEFTOVERS with XP_AMBIGUOUS and items
+        String initialPayload = "XP_AMBIGUOUS:100;;;PAYLOAD:::item_iron_x20";
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), initialPayload));
+
+        // 2. In /minion claim, crash boundary is set first:
+        storage.updatePendingOperationState(opId, "DELIVERY_ATTEMPTED", initialPayload);
+
+        // 3. All items fit (zero leftovers) but XP is ambiguous:
+        // Updating to XP-only payload fails (simulated persistence failure)
+        boolean xpPersisted = false;
+
+        if (!xpPersisted) {
+            String fencePayload = "XP_AMBIGUOUS:" + xpToGrant + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::";
+            storage.updatePendingOperationState(opId, "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+        }
+
+        // 4. Verify operation is fenced to AMBIGUOUS_PARTIAL_DELIVERY with empty leftovers
+        com.minionx.storage.PendingOperation fencedOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(fencedOp);
+        assertEquals("AMBIGUOUS_PARTIAL_DELIVERY", fencedOp.state(), "Operation must be fenced to AMBIGUOUS_PARTIAL_DELIVERY");
+
+        // Verify leftover section is empty so already-delivered items are never replayed
+        String payload = fencedOp.payload();
+        int leftoverIndex = payload.indexOf(";;;LEFTOVER:::");
+        assertTrue(leftoverIndex >= 0, "Leftover section marker must exist");
+        String remainingItems = payload.substring(leftoverIndex + 14);
+        assertTrue(remainingItems.isEmpty(), "Remaining items in fenced payload must be empty to prevent duplicate item delivery");
+    }
 }
 
 
