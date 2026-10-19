@@ -329,11 +329,11 @@ MinionX implements robust protection against duplication, inventory desync, and 
   * Minions are unregistered before dropping.
   * Pickups are staged in durable operation records (`minion_pending_operations`) embedding stored XP (`XP:<xp>;;;PAYLOAD:::...`) before deletion.
 * **Crash-Safety Boundary & Zero-Leftover XP Invariant:**
-  * `/minion claim` writes `DELIVERY_ATTEMPTED` to disk before modifying player inventory. If a server stops mid-claim, reboot reconciliation marks it `UNKNOWN` and quarantines the minion.
+  * Both `/minion claim` and `/minion recover` write and positively confirm `DELIVERY_ATTEMPTED` on disk before modifying player inventory or granting XP. If a server stops mid-delivery, reboot reconciliation marks it `UNKNOWN` / `DELIVERY_ATTEMPTED` and quarantines the minion.
   * Stored XP is **only** awarded when inventory delivery has **zero leftovers**. If inventory fills up, unclaimed XP is preserved with remaining leftovers.
-  * If persisting leftovers fails in `/minion claim` or `/minion recover`, the operation is fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with an emergency audit ledger to prevent duplicate replay.
+  * If persisting leftovers fails in `/minion claim` or `/minion recover`, the operation is fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with a canonical single-XP emergency audit ledger to prevent duplicate replay.
   * Ordinary recovery (`/minion recover resolve <opId> deliver`) strictly rejects ambiguous operations (`DELIVERY_ATTEMPTED`, `UNKNOWN`, `AMBIGUOUS_PARTIAL_DELIVERY`, `COMPLETION_UNCONFIRMED`).
-  * If items are delivered under `deliver-force-all` while XP remains unresolved, the operation is retained in the ledger with its pending XP until explicitly audited (`deliver-force-all-with-xp` or `complete`).
+  * If items are delivered under `deliver-force-all` while XP remains unresolved, the XP-only ledger update is verified durably, retaining pending XP until explicitly audited (`deliver-force-all-with-xp` or `complete`), and fencing on persistence failure to prevent stale item replay.
 * **Unresolved Payout Quarantine Fencing:**
   * Payouts interrupted during Vault calls (`ATTEMPTED` or `PAYOUT_AMBIGUOUS`) are quarantined on startup. Automatic Vault retries and rollbacks are prohibited.
 * **Emergency Quarantine Mode (`/minion quarantine on`):**

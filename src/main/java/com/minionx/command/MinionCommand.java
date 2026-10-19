@@ -698,10 +698,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     yc.set("item", rem);
                     remSerialized.add(yc.saveToString());
                 }
-                String remPayloadStr = String.join(";;;ITEM;;;", remSerialized);
-                if (xpToGrant > 0 && !xpAlreadyDelivered) {
-                    remPayloadStr = "XP:" + xpToGrant + ";;;PAYLOAD:::" + remPayloadStr;
-                }
+                String pureLeftoversStr = String.join(";;;ITEM;;;", remSerialized);
+                String remPayloadStr = (xpToGrant > 0 && !xpAlreadyDelivered) ? "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr : pureLeftoversStr;
 
                 boolean leftoverPersisted = false;
                 try {
@@ -714,9 +712,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     // Leftover persistence unconfirmed in /minion claim!
                     // The operation was already transitioned to DELIVERY_ATTEMPTED before delivery started.
                     // Attempt to update state to AMBIGUOUS_PARTIAL_DELIVERY with emergency audit ledger to ensure it remains fenced.
+                    // Use pureLeftoversStr so the payload contains exactly one canonical XP prefix!
                     try {
-                        String fencePayload = (xpToGrant > 0 ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "")
-                                + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::" + remPayloadStr;
+                        String fencePayload = (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "")
+                                + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::" + pureLeftoversStr;
                         storage.updatePendingOperationState(op.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
                     } catch (Exception ignored) {}
                     player.sendMessage(ColorUtil.color("&cCRITICAL: Your inventory was full and saving remaining items failed! Operation " + op.operationId() + " is fenced to prevent duplicate items. Please contact an administrator."));
@@ -873,6 +872,18 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     }
                 }
 
+                // 4. Crash-Safety Boundary: Transition operation to DELIVERY_ATTEMPTED before modifying player inventory or granting XP!
+                boolean recoveryAttemptPersisted = false;
+                try {
+                    recoveryAttemptPersisted = storage.updatePendingOperationState(targetOp.operationId(), "DELIVERY_ATTEMPTED", targetOp.payload());
+                } catch (Throwable t) {
+                    recoveryAttemptPersisted = false;
+                }
+                if (!recoveryAttemptPersisted) {
+                    sender.sendMessage(ColorUtil.color("&cCRITICAL: Failed to confirm durable state transition for operation " + opId + ". Recovery aborted safely to prevent duplicate items."));
+                    return;
+                }
+
                 if (isForceOverrideWithXp) {
                     // Explicit administrative override: force-deliver all items (drop overflow) and force-grant XP
                     if (xpToGrant > 0) {
@@ -927,11 +938,26 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             // Items were delivered, but XP was withheld due to ambiguous delivery state!
                             // DO NOT delete the operation! Retain pending XP and recovery record until delivery outcome is established.
                             String xpOnlyPayload = "XP:" + xpToGrant + ";;;PAYLOAD:::";
+                            boolean xpPersisted = false;
                             try {
-                                storage.updatePendingOperationState(targetOp.operationId(), targetOp.state(), xpOnlyPayload);
-                            } catch (Exception ignored) {}
+                                xpPersisted = storage.updatePendingOperationState(targetOp.operationId(), "DELIVERY_ATTEMPTED", xpOnlyPayload);
+                            } catch (Throwable t) {
+                                xpPersisted = false;
+                            }
+
+                            if (!xpPersisted) {
+                                try {
+                                    String fencePayload = "XP:" + xpToGrant + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::";
+                                    storage.updatePendingOperationState(targetOp.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+                                } catch (Exception ignored) {}
+                                sender.sendMessage(ColorUtil.color("&cCRITICAL: All " + itemsDelivered + " items were delivered, but persisting unresolved XP (" + xpToGrant + " XP) failed! Operation " + opId + " is fenced to prevent duplicate item replay."));
+                                if (plugin != null) {
+                                    plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: Items delivered for op " + opId + " but XP-only persistence failed. Fenced to prevent item replay.");
+                                }
+                            } else {
+                                sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered (" + itemsDelivered + "), but " + xpToGrant + " XP remains unresolved and withheld. Operation " + opId + " is retained in escrow ledger until administrator audits XP delivery."));
+                            }
                             operationResolved = false;
-                            sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered (" + itemsDelivered + "), but " + xpToGrant + " XP remains unresolved and withheld. Operation " + opId + " is retained in escrow ledger until administrator audits XP delivery."));
                         } else {
                             try {
                                 storage.removePendingOperation(targetOp.operationId());
@@ -947,10 +973,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             yc.set("item", rem);
                             remSerialized.add(yc.saveToString());
                         }
-                        String remPayloadStr = String.join(";;;ITEM;;;", remSerialized);
-                        if (xpToGrant > 0 && !xpAlreadyDelivered) {
-                            remPayloadStr = "XP:" + xpToGrant + ";;;PAYLOAD:::" + remPayloadStr;
-                        }
+                        String pureLeftoversStr = String.join(";;;ITEM;;;", remSerialized);
+                        String remPayloadStr = (xpToGrant > 0 && !xpAlreadyDelivered) ? "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr : pureLeftoversStr;
 
                         boolean leftoverPersisted = false;
                         try {
@@ -961,10 +985,11 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
                         if (!leftoverPersisted) {
                             // Leftover persistence unconfirmed! To prevent the original payload from replaying:
-                            // Fence operation to AMBIGUOUS_PARTIAL_DELIVERY with emergency audit ledger
+                            // Fence operation to AMBIGUOUS_PARTIAL_DELIVERY with emergency audit ledger.
+                            // Use pureLeftoversStr so the payload contains exactly one canonical XP prefix!
                             try {
-                                String fencePayload = (xpToGrant > 0 ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "")
-                                        + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::" + remPayloadStr;
+                                String fencePayload = (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "")
+                                        + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::" + pureLeftoversStr;
                                 storage.updatePendingOperationState(targetOp.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
                             } catch (Exception ignored) {}
                             sender.sendMessage(ColorUtil.color("&cCRITICAL: Failed to confirm durable persistence of leftover items for operation " + opId + "! Operation has been fenced as AMBIGUOUS_PARTIAL_DELIVERY to prevent duplicate replay."));

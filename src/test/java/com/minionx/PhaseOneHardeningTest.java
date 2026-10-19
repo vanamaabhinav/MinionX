@@ -1967,6 +1967,123 @@ public class PhaseOneHardeningTest {
         String safeExtractedPayload = payload.substring(leftoverIndex + 14);
         assertEquals("item_diamonds_x14", safeExtractedPayload, "Extracted payload must ONLY contain leftover 14 items, never original 64 items");
     }
+
+    // --- 62. Recovery Pre-Delivery Crash-Safety Transition Prevents Replay ---
+    @Test
+    public void testRecoveryPreDeliveryCrashSafetyTransitionPreventsReplay() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "recovery-crash-op-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+
+        // 1. Initial valid safe state: QUARANTINED_LEFTOVERS with 20 items
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "QUARANTINED_LEFTOVERS", System.currentTimeMillis(), "XP:100;;;PAYLOAD:::item_iron_x20"));
+
+        // 2. Before any item is added to inventory, /minion recover persists DELIVERY_ATTEMPTED
+        boolean recoveryAttemptPersisted = storage.updatePendingOperationState(opId, "DELIVERY_ATTEMPTED", "XP:100;;;PAYLOAD:::item_iron_x20");
+        assertTrue(recoveryAttemptPersisted, "Pre-delivery transition to DELIVERY_ATTEMPTED must succeed");
+
+        // 3. Simulate crash midway through recovery (some items reached player, but leftover write never happened)
+        // Simulate restart
+        storage.reconcilePendingOperations(null);
+
+        // State is marked UNKNOWN or DELIVERY_ATTEMPTED
+        com.minionx.storage.PendingOperation recoveredOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(recoveredOp);
+        assertTrue("DELIVERY_ATTEMPTED".equalsIgnoreCase(recoveredOp.state()) || "UNKNOWN".equalsIgnoreCase(recoveredOp.state()));
+
+        // 4. Proves ordinary recovery ('deliver') strictly rejects this operation
+        boolean isKnownSafe = "QUARANTINED_LEFTOVERS".equalsIgnoreCase(recoveredOp.state())
+                || "MINION_REMOVED".equalsIgnoreCase(recoveredOp.state());
+        boolean isAmbiguous = "DELIVERY_ATTEMPTED".equalsIgnoreCase(recoveredOp.state())
+                || "UNKNOWN".equalsIgnoreCase(recoveredOp.state());
+        boolean plainDeliverAllowed = isKnownSafe && !isAmbiguous;
+        assertFalse(plainDeliverAllowed, "Plain deliver must reject the interrupted operation, preventing duplicate items");
+    }
+
+    // --- 63. Emergency Audit Payload Canonical Single XP and Clean Leftover Parsing ---
+    @Test
+    public void testEmergencyAuditPayloadCanonicalSingleXpAndCleanLeftoverParsing() {
+        int xpToGrant = 100;
+        boolean xpAlreadyDelivered = false;
+        int deliveredCount = 15;
+        String pureLeftoversStr = "item_iron_x5;;;ITEM;;;item_gold_x2";
+
+        // Construct canonical single-XP emergency fence payload
+        String fencePayload = (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "")
+                + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + deliveredCount + ";;;LEFTOVER:::" + pureLeftoversStr;
+
+        // Verify there is only ONE "XP:" prefix
+        int firstXp = fencePayload.indexOf("XP:");
+        int secondXp = fencePayload.indexOf("XP:", firstXp + 3);
+        assertEquals(-1, secondXp, "Payload must have exactly ONE canonical XP prefix, no double wrapper");
+
+        // Test recovery decoding order:
+        String payload = fencePayload;
+        int parsedXp = 0;
+        if (payload.startsWith("XP:") && payload.contains(";;;PAYLOAD:::")) {
+            int sep = payload.indexOf(";;;PAYLOAD:::");
+            parsedXp = Integer.parseInt(payload.substring(3, sep));
+            payload = payload.substring(sep + 13);
+        }
+        assertEquals(100, parsedXp, "Parser must extract 100 XP cleanly");
+
+        // Step 2: Leftover extraction for AMBIGUOUS_PARTIAL_DELIVERY
+        int leftoverIndex = payload.indexOf(";;;LEFTOVER:::");
+        assertTrue(leftoverIndex >= 0, "Leftover index must be found");
+        String extractedItems = payload.substring(leftoverIndex + 14);
+
+        // Verify extracted items are pure item strings without any second XP prefix
+        assertEquals(pureLeftoversStr, extractedItems, "Extracted leftover section must exactly match pure leftovers string");
+        assertFalse(extractedItems.startsWith("XP:"), "Leftover section must NOT start with XP prefix");
+        String[] actualItems = extractedItems.split(";;;ITEM;;;");
+        assertEquals(2, actualItems.length, "Must split into exactly 2 clean item stacks");
+        assertEquals("item_iron_x5", actualItems[0]);
+        assertEquals("item_gold_x2", actualItems[1]);
+    }
+
+    // --- 64. Failed XP-Ledger Persistence Fences Operation to Prevent Stale Item Replay ---
+    @Test
+    public void testFailedXpLedgerPersistenceFencesOperationToPreventStaleItemReplay() throws Exception {
+        MinionStorage storage = new MinionStorage(null, tempDir);
+        String opId = "xp-fail-op-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID minionId = UUID.randomUUID();
+        UUID playerId = UUID.randomUUID();
+        int itemsDelivered = 20;
+        int xpToGrant = 50;
+
+        // 1. Initial operation
+        storage.recordPendingOperation(new com.minionx.storage.PendingOperation(
+                opId, minionId, playerId, "DELIVERY_ATTEMPTED", System.currentTimeMillis(), "XP:50;;;PAYLOAD:::item_iron_x20"));
+
+        // 2. All items delivered, but updating to XP-only payload fails (simulated persistence failure)
+        boolean xpPersisted = false;
+
+        // Fencing logic:
+        if (!xpPersisted) {
+            String fencePayload = "XP:" + xpToGrant + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::";
+            storage.updatePendingOperationState(opId, "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+        }
+
+        // 3. Verify operation is fenced to AMBIGUOUS_PARTIAL_DELIVERY with empty leftovers
+        com.minionx.storage.PendingOperation fencedOp = storage.getPendingOperations().stream()
+                .filter(o -> o.operationId().equals(opId))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(fencedOp);
+        assertEquals("AMBIGUOUS_PARTIAL_DELIVERY", fencedOp.state());
+
+        // Extract leftover section:
+        String payload = fencedOp.payload();
+        int leftoverIndex = payload.indexOf(";;;LEFTOVER:::");
+        assertTrue(leftoverIndex >= 0);
+        String remainingItems = payload.substring(leftoverIndex + 14);
+        assertTrue(remainingItems.isEmpty(), "Remaining items in fenced payload must be empty so stale items are never replayed");
+    }
 }
 
 

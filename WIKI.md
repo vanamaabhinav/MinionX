@@ -319,12 +319,12 @@ MinionX includes safety controls designed to protect player data, prevent item/X
   * Minion pickup is executed in a multi-phase atomic sequence: the minion and state are committed to a durable escrow operation (`minion_pending_operations`) before world entities are removed.
   * Stored XP is embedded into the durable payload (`XP:<xp>;;;PAYLOAD:::<items>`) from Phase 1.
 * **Crash-Safety Boundary & Zero-Leftover XP Invariant**:
-  * `/minion claim` transitions operations to `DELIVERY_ATTEMPTED` on disk before modifying player inventory.
-  * If a server crashes or halts mid-claim, the operation reboots in `DELIVERY_ATTEMPTED` (or `UNKNOWN`), strictly blocking automatic player re-claims.
+  * Both `/minion claim` and `/minion recover` write and positively confirm `DELIVERY_ATTEMPTED` on disk before modifying player inventory or granting XP.
+  * If a server crashes or halts mid-delivery, the operation reboots in `DELIVERY_ATTEMPTED` (or `UNKNOWN`), strictly blocking automatic player re-claims and ordinary recovery.
   * Stored XP is **only** awarded when inventory delivery has **zero leftovers**. If inventory fills up, unclaimed XP is safely preserved alongside leftover items.
-  * If persisting leftovers fails in `/minion claim` or `/minion recover`, the operation is fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with an emergency audit ledger to prevent duplicate replay.
+  * If persisting leftovers fails in `/minion claim` or `/minion recover`, the operation is fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with a canonical single-XP emergency audit ledger to prevent duplicate replay.
   * Ordinary recovery (`/minion recover resolve <opId> deliver`) strictly rejects ambiguous operations (`DELIVERY_ATTEMPTED`, `UNKNOWN`, `AMBIGUOUS_PARTIAL_DELIVERY`, `COMPLETION_UNCONFIRMED`).
-  * If items are delivered under `deliver-force-all` while XP remains unresolved, the operation is retained in the ledger with its pending XP until explicitly audited (`deliver-force-all-with-xp` or `complete`).
+  * If items are delivered under `deliver-force-all` while XP remains unresolved, the XP-only ledger update is verified durably, retaining pending XP until explicitly audited (`deliver-force-all-with-xp` or `complete`), and fencing on persistence failure to prevent stale item replay.
 * **Unresolved Payout Quarantine Fencing**:
   * Any automated shipping payout with an uncertain or interrupted outcome (`ATTEMPTED` or `PAYOUT_AMBIGUOUS`) is quarantined across restarts. Payout locks are automatically re-established in memory, and automatic Vault retries or rollbacks are forbidden.
 * **Emergency Quarantine Mode (`/minion quarantine on`)**:
