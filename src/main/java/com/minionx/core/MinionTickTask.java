@@ -10,7 +10,7 @@ import com.minionx.visual.MinionAnimation;
 import com.minionx.visual.MinionHologram;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Particle;
+import com.minionx.util.ServerCompatibilityUtil;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -522,7 +522,7 @@ public class MinionTickTask extends BukkitRunnable {
             if (leaf.getType().isAir()) leaf.setType(leafMat);
         }
 
-        base.getWorld().spawnParticle(Particle.VILLAGER_HAPPY, base.getLocation().add(0.5, 1.5, 0.5), 10, 0.4, 0.6, 0.4, 0.1);
+        ServerCompatibilityUtil.spawnHappyParticles(base.getLocation().add(0.5, 1.5, 0.5), 10, 0.4, 0.6, 0.4, 0.1);
         base.getWorld().playSound(base.getLocation(), Sound.BLOCK_GRASS_PLACE, 1.0f, 1.2f);
 
         minion.setLastActionWasPlace(false);
@@ -566,7 +566,7 @@ public class MinionTickTask extends BukkitRunnable {
         // Cut the whole tree at once with the leaves!
         int logsMined = Math.max(1, trunkLogs.size());
         for (Block log : trunkLogs) {
-            log.getWorld().spawnParticle(Particle.BLOCK_CRACK, log.getLocation().add(0.5, 0.5, 0.5), 8, 0.3, 0.3, 0.3, log.getBlockData());
+            ServerCompatibilityUtil.spawnBlockBreakParticles(log.getLocation().add(0.5, 0.5, 0.5), log.getBlockData(), 8, 0.3, 0.3, 0.3);
             log.setType(Material.AIR);
         }
         for (Block leaf : connectedLeaves) {
@@ -711,7 +711,7 @@ public class MinionTickTask extends BukkitRunnable {
         if (target.getBlockData() instanceof Ageable ageable) {
             ageable.setAge(Math.min(ageable.getMaximumAge(), ageable.getAge() + 2));
             target.setBlockData(ageable);
-            target.getWorld().spawnParticle(Particle.VILLAGER_HAPPY, target.getLocation().add(0.5, 0.3, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+            ServerCompatibilityUtil.spawnHappyParticles(target.getLocation().add(0.5, 0.3, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
         }
         minion.setLastActionWasPlace(false);
         minion.setLastActionTime(System.currentTimeMillis());
@@ -818,7 +818,7 @@ public class MinionTickTask extends BukkitRunnable {
             if (target.getBlockData() instanceof Ageable ageable) {
                 ageable.setAge(Math.min(7, ageable.getAge() + 2));
                 target.setBlockData(ageable);
-                target.getWorld().spawnParticle(Particle.VILLAGER_HAPPY, target.getLocation().add(0.5, 0.3, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+                ServerCompatibilityUtil.spawnHappyParticles(target.getLocation().add(0.5, 0.3, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
             }
             minion.setLastActionWasPlace(false);
             minion.setLastActionTime(System.currentTimeMillis());

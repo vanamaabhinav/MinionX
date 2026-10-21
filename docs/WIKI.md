@@ -2,7 +2,7 @@
 
 > **MinionX** is an autonomous minion plugin designed for **Paper, Purpur, and Pufferfish (1.20.4 – 1.21+)**.  
 > **Author:** AbhinavVanama  
-> **Version:** `v0.2.0`  
+> **Version:** `v1.0.0`  
 
 ---
 

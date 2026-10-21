@@ -7,3 +7,7 @@ target/
 .agents
 .agents/
 data/
+
+# Marketing & HTML Screenshot Generator
+marketing/
+*.png.bak

@@ -2,7 +2,7 @@
 
 > **MinionX** - Autonomous Minions Plugin for **Paper / Purpur / Pufferfish 1.20.4 – 1.21+**  
 > **Author:** AbhinavVanama  
-> **Plugin Version:** `v0.2.0` (Pre-Release)  
+> **Plugin Version:** `v1.0.0` (Release)  
 > **Source Repository:** [https://github.com/vanamaabhinav/MinionX](https://github.com/vanamaabhinav/MinionX)
 
 ---
@@ -39,7 +39,7 @@ MinionX is engineered for production Minecraft servers with bounded-budget tick 
 * **Network:** Optional connection for asynchronous GitHub update checks and anonymous bStats metrics.
 
 ### Step-by-Step Installation:
-1. Download the latest `MinionX-0.2.0-SNAPSHOT.jar` build.
+1. Download the latest `MinionX-1.0.0.jar` build.
 2. Drop the jar file into your server's `plugins/` folder.
 3. Start or restart your server.
 4. MinionX will automatically generate its configuration folder: `plugins/MinionX/`.

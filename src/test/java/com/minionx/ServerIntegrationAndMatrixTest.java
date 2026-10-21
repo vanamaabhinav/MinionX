@@ -152,5 +152,13 @@ public class ServerIntegrationAndMatrixTest {
         // Verify ServerCompatibilityUtil null and non-armorstand safety
         ServerCompatibilityUtil.disableEntityTicking(null);
         ServerCompatibilityUtil.setEntityRotation(null, 180.0f, 0.0f, null);
+
+        // Verify cross-version particle resolution
+        assertNotNull(ServerCompatibilityUtil.getBlockParticle(), "Block break particle must resolve on current Paper runtime");
+        assertNotNull(ServerCompatibilityUtil.getHappyParticle(), "Happy particle must resolve on current Paper runtime");
+
+        // Verify particle spawn methods handle nulls without exception
+        ServerCompatibilityUtil.spawnBlockBreakParticles(null, null, 10, 0.1, 0.1, 0.1);
+        ServerCompatibilityUtil.spawnHappyParticles(null, 5, 0.1, 0.1, 0.1, 0.05);
     }
 }

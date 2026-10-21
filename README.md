@@ -8,9 +8,9 @@
 [![Minecraft Version](https://img.shields.io/badge/Minecraft-1.20.4%20%E2%80%93%201.21+-brightgreen?style=for-the-badge&logo=minecraft)](https://www.minecraft.net)
 [![Java Version](https://img.shields.io/badge/Java-21%20LTS-orange?style=for-the-badge&logo=openjdk)](https://adoptium.net)
 [![Performance](https://img.shields.io/badge/Scheduling-Priority%20Queue-success?style=for-the-badge&logo=speedtest)](https://github.com/vanamaabhinav/MinionX)
-[![Status](https://img.shields.io/badge/Release-v0.2.0--Pre--Release-blueviolet?style=for-the-badge)](https://github.com/vanamaabhinav/MinionX)
+[![Status](https://img.shields.io/badge/Release-v1.0.0-blueviolet?style=for-the-badge)](https://github.com/vanamaabhinav/MinionX)
 
-[Explore Full Wiki](https://av-studios-1.gitbook.io/av-studios-minionx-wiki/) • [Administrator Manual](DOCUMENTATION.md) • [Report Issue](https://github.com/vanamaabhinav/MinionX/issues)
+[Explore Full Wiki](docs/WIKI.md) • [Administrator Manual](docs/DOCUMENTATION.md) • [Report Issue](https://github.com/vanamaabhinav/MinionX/issues)
 
 </div>
 
@@ -167,7 +167,7 @@ MinionX integrates out-of-the-box with all leading Minecraft plugins:
 
 ## ⚡ Quick Start Deployment (Under 60 Seconds)
 
-1. **Install**: Drop `MinionX-0.2.0-SNAPSHOT.jar` into your server's `plugins/` folder.
+1. **Install**: Drop `MinionX-1.0.0.jar` into your server's `plugins/` folder.
 2. **Start**: Start your server running Paper / Purpur 1.20.4 or newer (Java 21 required).
 3. **Deploy**:
    ```bash

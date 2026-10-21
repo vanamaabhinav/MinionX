@@ -5,7 +5,6 @@ import com.minionx.core.Minion;
 import com.minionx.util.ServerCompatibilityUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.ArmorStand;
@@ -38,7 +37,7 @@ public class MinionAnimation {
         Location soundLoc = targetBlock.getLocation().add(0.5, 0.5, 0.5);
         if (hasPlayerNearby(soundLoc)) {
             soundLoc.getWorld().playSound(soundLoc, Sound.BLOCK_STONE_PLACE, 0.8f, 1.0f);
-            soundLoc.getWorld().spawnParticle(Particle.BLOCK_CRACK, soundLoc, 8, 0.2, 0.2, 0.2, targetBlock.getBlockData());
+            ServerCompatibilityUtil.spawnBlockBreakParticles(soundLoc, targetBlock.getBlockData(), 8, 0.2, 0.2, 0.2);
         }
     }
 
@@ -56,7 +55,7 @@ public class MinionAnimation {
         Location soundLoc = targetBlock.getLocation().add(0.5, 0.5, 0.5);
         if (hasPlayerNearby(soundLoc)) {
             soundLoc.getWorld().playSound(soundLoc, Sound.BLOCK_STONE_BREAK, 1.0f, 1.0f);
-            soundLoc.getWorld().spawnParticle(Particle.BLOCK_CRACK, soundLoc, 15, 0.3, 0.3, 0.3, targetBlock.getBlockData());
+            ServerCompatibilityUtil.spawnBlockBreakParticles(soundLoc, targetBlock.getBlockData(), 15, 0.3, 0.3, 0.3);
         }
     }
 
