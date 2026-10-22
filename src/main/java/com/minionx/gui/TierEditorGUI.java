@@ -93,8 +93,13 @@ public class TierEditorGUI {
             inv.setItem(49, createItem(Material.ANVIL, ColorUtil.color("&a&l[+] Create Tier " + (maxTier + 1)), addLore));
         }
 
-        // Back / Close at Slot 45
-        inv.setItem(45, createItem(Material.BARRIER, ColorUtil.color("&c&lClose"), List.of(ColorUtil.color("&7Return to game."))));
+        // Universal Back Button at Slot 45
+        String returnTarget = def != null ? "Minion Studio" : "Operator Hub";
+        inv.setItem(45, createItem(Material.ARROW, ColorUtil.color("&e« Back to " + returnTarget),
+                List.of(ColorUtil.color("&7Return to " + returnTarget + "."),
+                        ColorUtil.color("&8Unsaved changes in this studio session will be discarded."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to Return"))));
 
         player.openInventory(inv);
     }
@@ -151,8 +156,12 @@ public class TierEditorGUI {
         );
         inv.setItem(14, createItem(Material.EMERALD, ColorUtil.color("&6&lUpgrade Cost: &a" + cost + " items"), costLore));
 
-        // Back - Slot 18
-        inv.setItem(18, createItem(Material.ARROW, ColorUtil.color("&c« Back to Overview"), List.of(ColorUtil.color("&7Cancel changes and return."))));
+        // Universal Back Button at Slot 18
+        inv.setItem(18, createItem(Material.ARROW, ColorUtil.color("&e« Back to Overview"),
+                List.of(ColorUtil.color("&7Return to Tier Studio overview."),
+                        ColorUtil.color("&8Discard unapplied changes for this tier."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to Return"))));
 
         // Save & Apply - Slot 22
         List<String> saveLore = List.of(

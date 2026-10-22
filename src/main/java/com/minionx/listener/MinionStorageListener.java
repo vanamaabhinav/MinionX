@@ -12,6 +12,7 @@ import com.minionx.item.MinionItemFactory;
 import com.minionx.hook.ProtectionHookManager;
 import com.minionx.quarantine.QuarantineManager;
 import com.minionx.util.ColorUtil;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -245,9 +246,17 @@ public class MinionStorageListener implements Listener {
         Player player = event.getPlayer();
 
         // Check Storage Access on break
-        if (!ProtectionHookManager.canAccessMinion(player, minion)) {
+        boolean allowTeamBreak = MinionX.getInstance() != null && MinionX.getInstance().getConfig().getBoolean("security.allow-team-break-storage", false);
+        boolean canBreak = allowTeamBreak ? ProtectionHookManager.canAccessMinion(player, minion) : ProtectionHookManager.canPickupMinion(player, minion);
+        if (!canBreak) {
             event.setCancelled(true);
-            player.sendMessage(ColorUtil.color("&cYou do not have permission to break this minion storage!"));
+            String ownerName = minion.getOwnerId() != null ? Bukkit.getOfflinePlayer(minion.getOwnerId()).getName() : "Unknown";
+            String msg = MinionX.getInstance() != null && MinionX.getInstance().getConfig() != null
+                    ? MinionX.getInstance().getConfig().getString("messages.cannot-break-chest",
+                    "&cYou cannot break this storage chest! It is linked to %owner%'s minion.")
+                    .replace("%owner%", ownerName != null ? ownerName : "Unknown")
+                    : "&cYou do not have permission to break this minion storage!";
+            player.sendMessage(ColorUtil.color(msg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }

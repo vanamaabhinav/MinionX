@@ -144,8 +144,11 @@ public class FuelCreatorGUI {
         inv.setItem(40, preview);
 
         // Bottom Navigation & Actions (Row 5: slots 45, 49, 53)
-        inv.setItem(45, createNamedItem(Material.ARROW, ColorUtil.color("&cClose Studio"),
-                List.of(ColorUtil.color("&7Discard unsaved changes and close."))));
+        inv.setItem(45, createNamedItem(Material.ARROW, ColorUtil.color("&e« Back to Operator Hub"),
+                List.of(ColorUtil.color("&7Return to the main Operator Hub menu."),
+                        ColorUtil.color("&8Unsaved changes in this fuel session will be discarded."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to Return"))));
 
         inv.setItem(49, createNamedItem(Material.EMERALD_BLOCK, ColorUtil.color("&a&lSAVE & REGISTER FUEL"),
                 List.of(ColorUtil.color("&7Persists to &ffuels.yml&7,"),

@@ -173,7 +173,7 @@ public class MinionCreatorListener implements Listener {
         MinionCreatorSession session = holder.getSession();
         ItemStack cursor = event.getCursor();
 
-        // 1. Minion Identity (Name & ID)
+        // 1. Minion Identity (Name & ID) - Slot 2
         if (slot == 2) {
             promptChat(player, session, "Enter minion ID & Display Name format: 'minion_id &aMy Minion' (or 'cancel'):", input -> {
                 String[] parts = input.trim().split(" ", 2);
@@ -187,8 +187,8 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 2. Archetype Cycle (MINER -> COMBAT -> FORAGING -> FARMING -> MINER)
-        if (slot == 10) {
+        // 2. Archetype Cycle - Slot 6
+        if (slot == 6) {
             MinionArchetype next;
             switch (session.getArchetype()) {
                 case MINER -> {
@@ -235,95 +235,8 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 3. Skull Texture
-        if (slot == 12) {
-            if (cursor != null && cursor.getType() == Material.PLAYER_HEAD) {
-                SkullMeta sMeta = (SkullMeta) cursor.getItemMeta();
-                if (sMeta != null && sMeta.getPlayerProfile() != null) {
-                    for (var prop : sMeta.getPlayerProfile().getProperties()) {
-                        if ("textures".equalsIgnoreCase(prop.getName())) {
-                            session.setSkullTexture(prop.getValue());
-                            break;
-                        }
-                    }
-                }
-                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aCopied skull texture from held head."));
-                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
-                MinionCreatorGUI.open(player, session);
-                return;
-            }
-
-            if (event.isRightClick()) {
-                int current = 0;
-                for (int i = 0; i < SKULL_PRESETS.length; i++) {
-                    if (SKULL_PRESETS[i].equals(session.getSkullTexture())) {
-                        current = i;
-                        break;
-                    }
-                }
-                int next = (current + 1) % SKULL_PRESETS.length;
-                session.setSkullTexture(SKULL_PRESETS[next]);
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
-                MinionCreatorGUI.open(player, session);
-            } else {
-                promptChat(player, session, "Enter Minecraft Player Name or Base64 Skin Texture (or 'cancel'):", input -> {
-                    session.setSkullTexture(input.trim());
-                });
-            }
-            return;
-        }
-
-        // 4. Armor & Color
-        if (slot == 14) {
-            if (cursor != null && cursor.getType() == Material.LEATHER_CHESTPLATE && cursor.getItemMeta() instanceof LeatherArmorMeta lm) {
-                session.setArmorMaterial(Material.LEATHER_CHESTPLATE);
-                session.setArmorColor(lm.getColor());
-                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aApplied custom leather color from cursor."));
-                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1.0f, 1.2f);
-                MinionCreatorGUI.open(player, session);
-                return;
-            }
-
-            if (event.isRightClick()) {
-                int cur = 0;
-                for (int i = 0; i < COLOR_PRESETS.length; i++) {
-                    if (COLOR_PRESETS[i].equals(session.getArmorColor())) {
-                        cur = i;
-                        break;
-                    }
-                }
-                int next = (cur + 1) % COLOR_PRESETS.length;
-                session.setArmorColor(COLOR_PRESETS[next]);
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
-            } else {
-                int cur = 0;
-                for (int i = 0; i < ARMOR_PRESETS.length; i++) {
-                    if (ARMOR_PRESETS[i] == session.getArmorMaterial()) {
-                        cur = i;
-                        break;
-                    }
-                }
-                int next = (cur + 1) % ARMOR_PRESETS.length;
-                session.setArmorMaterial(ARMOR_PRESETS[next]);
-                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_IRON, 1.0f, 1.2f);
-            }
-            MinionCreatorGUI.open(player, session);
-            return;
-        }
-
-        // 5. Hand Item
-        if (slot == 16) {
-            if (cursor != null && cursor.getType() != Material.AIR) {
-                session.setHandItem(cursor.clone());
-                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aEquipped " + cursor.getType().name() + " in minion's hand."));
-                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1.0f, 1.2f);
-                MinionCreatorGUI.open(player, session);
-            }
-            return;
-        }
-
-        // 6. Target (Block, Mob, Wood, Crop, Animal)
-        if (slot == 28) {
+        // 3. Target (Block, Mob, Wood, Crop, Animal) - Slot 10
+        if (slot == 10) {
             if (session.getArchetype() == MinionArchetype.MINER) {
                 if (cursor != null && cursor.getType().isBlock() && cursor.getType().isSolid()) {
                     session.setTargetBlock(cursor.getType());
@@ -474,8 +387,8 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 7. Exact Primary Drop Item
-        if (slot == 30) {
+        // 4. Exact Primary Drop Item - Slot 12
+        if (slot == 12) {
             if (cursor != null && cursor.getType() != Material.AIR) {
                 session.setExactDropItem(cursor.clone());
                 player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSet exact primary drop item clone with all custom attributes!"));
@@ -485,8 +398,8 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 8. Secondary Drop Item & Probability
-        if (slot == 31) {
+        // 5. Secondary Drop Item & Probability - Slot 13
+        if (slot == 13) {
             if (cursor != null && cursor.getType() != Material.AIR) {
                 session.setSecondaryDropItem(cursor.clone());
                 if (session.getSecondaryDropChance() <= 0.0) {
@@ -521,53 +434,188 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 9. Speed, Storage & XP Tuning
-        if (slot == 32) {
-            if (event.isShiftClick()) {
-                if (event.isLeftClick()) {
-                    session.setXpPerHarvest(session.getXpPerHarvest() + 1);
-                } else {
-                    session.setStorageSlots(session.getStorageSlots() >= 15 ? 1 : session.getStorageSlots() + 1);
+        // 6. Skull Texture - Slot 15
+        if (slot == 15) {
+            int targetTier = session.getSelectedTier();
+            if (cursor != null && cursor.getType() == Material.PLAYER_HEAD) {
+                SkullMeta sMeta = (SkullMeta) cursor.getItemMeta();
+                if (sMeta != null && sMeta.getPlayerProfile() != null) {
+                    for (var prop : sMeta.getPlayerProfile().getProperties()) {
+                        if ("textures".equalsIgnoreCase(prop.getName())) {
+                            if (session.isPerTierMode()) {
+                                session.setTierSkullTexture(targetTier, prop.getValue());
+                            } else {
+                                session.setSkullTexture(prop.getValue());
+                            }
+                            break;
+                        }
+                    }
                 }
-            } else {
-                if (event.isLeftClick()) {
-                    session.setActionDelay(Math.max(2.0, session.getActionDelay() - 1.0));
-                } else {
-                    session.setActionDelay(Math.min(60.0, session.getActionDelay() + 1.0));
-                }
+                String tierNote = session.isPerTierMode() ? " for Tier " + targetTier : "";
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aCopied skull texture from held head" + tierNote + "."));
+                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
+                MinionCreatorGUI.open(player, session);
+                return;
             }
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.5f);
-            MinionCreatorGUI.open(player, session);
-            return;
-        }
 
-        // 9.5 Max Tier Cap Tuning (Slot 33)
-        if (slot == 33) {
-            int currentMax = session.getMaxTier();
-            if (event.isLeftClick()) {
-                session.setMaxTier(Math.min(com.minionx.api.MinionTier.getMaxTier(), currentMax + 1));
-            } else if (event.isRightClick()) {
-                session.setMaxTier(Math.max(1, currentMax - 1));
-            }
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.5f);
-            MinionCreatorGUI.open(player, session);
-            return;
-        }
-
-        // 10. Tier Customization Mode
-        if (slot == 34) {
             if (event.isRightClick()) {
-                session.setSelectedTier(session.getSelectedTier() >= 11 ? 1 : session.getSelectedTier() + 1);
+                String curTex = session.isPerTierMode() ? session.getEffectiveSkullTexture(targetTier) : session.getSkullTexture();
+                int current = 0;
+                for (int i = 0; i < SKULL_PRESETS.length; i++) {
+                    if (SKULL_PRESETS[i].equals(curTex)) {
+                        current = i;
+                        break;
+                    }
+                }
+                int next = (current + 1) % SKULL_PRESETS.length;
+                if (session.isPerTierMode()) {
+                    session.setTierSkullTexture(targetTier, SKULL_PRESETS[next]);
+                } else {
+                    session.setSkullTexture(SKULL_PRESETS[next]);
+                }
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
+                MinionCreatorGUI.open(player, session);
             } else {
-                session.setPerTierMode(!session.isPerTierMode());
+                String promptMsg = session.isPerTierMode()
+                        ? "Enter Minecraft Player Name or Base64 Skin Texture for Tier " + targetTier + " (or 'cancel'):"
+                        : "Enter Minecraft Player Name or Base64 Skin Texture (or 'cancel'):";
+                promptChat(player, session, promptMsg, input -> {
+                    if (session.isPerTierMode()) {
+                        session.setTierSkullTexture(targetTier, input.trim());
+                    } else {
+                        session.setSkullTexture(input.trim());
+                    }
+                });
             }
+            return;
+        }
+
+        // 7. Armor & Color - Slot 16
+        if (slot == 16) {
+            int targetTier = session.getSelectedTier();
+            if (cursor != null && cursor.getType() == Material.LEATHER_CHESTPLATE && cursor.getItemMeta() instanceof LeatherArmorMeta lm) {
+                if (session.isPerTierMode()) {
+                    session.setTierArmorMaterial(targetTier, Material.LEATHER_CHESTPLATE);
+                    session.setTierArmorColor(targetTier, lm.getColor());
+                } else {
+                    session.setArmorMaterial(Material.LEATHER_CHESTPLATE);
+                    session.setArmorColor(lm.getColor());
+                }
+                String tierNote = session.isPerTierMode() ? " for Tier " + targetTier : "";
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aApplied custom leather color from cursor" + tierNote + "."));
+                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1.0f, 1.2f);
+                MinionCreatorGUI.open(player, session);
+                return;
+            }
+
+            if (event.isRightClick()) {
+                Color curCol = session.isPerTierMode() ? session.getEffectiveArmorColor(targetTier) : session.getArmorColor();
+                int cur = 0;
+                for (int i = 0; i < COLOR_PRESETS.length; i++) {
+                    if (COLOR_PRESETS[i].equals(curCol)) {
+                        cur = i;
+                        break;
+                    }
+                }
+                int next = (cur + 1) % COLOR_PRESETS.length;
+                if (session.isPerTierMode()) {
+                    session.setTierArmorColor(targetTier, COLOR_PRESETS[next]);
+                } else {
+                    session.setArmorColor(COLOR_PRESETS[next]);
+                }
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
+            } else {
+                Material curMat = session.isPerTierMode() ? session.getEffectiveArmorMaterial(targetTier) : session.getArmorMaterial();
+                int cur = 0;
+                for (int i = 0; i < ARMOR_PRESETS.length; i++) {
+                    if (ARMOR_PRESETS[i] == curMat) {
+                        cur = i;
+                        break;
+                    }
+                }
+                int next = (cur + 1) % ARMOR_PRESETS.length;
+                if (session.isPerTierMode()) {
+                    session.setTierArmorMaterial(targetTier, ARMOR_PRESETS[next]);
+                } else {
+                    session.setArmorMaterial(ARMOR_PRESETS[next]);
+                }
+                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_IRON, 1.0f, 1.2f);
+            }
+            MinionCreatorGUI.open(player, session);
+            return;
+        }
+
+        // 8. Action Delay (Speed) - Slot 19
+        if (slot == 19) {
+            double current = session.getActionDelay();
+            if (event.isShiftClick()) {
+                double delta = event.isLeftClick() ? -0.1 : 0.1;
+                session.setActionDelay(Math.max(1.0, Math.min(60.0, Math.round((current + delta) * 10.0) / 10.0)));
+            } else {
+                double delta = event.isLeftClick() ? -1.0 : 1.0;
+                session.setActionDelay(Math.max(1.0, Math.min(60.0, Math.round((current + delta) * 10.0) / 10.0)));
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.5f);
+            MinionCreatorGUI.open(player, session);
+            return;
+        }
+
+        // 9. Harvest XP Reward - Slot 21
+        if (slot == 21) {
+            int current = session.getXpPerHarvest();
+            if (event.isShiftClick()) {
+                int delta = event.isLeftClick() ? 5 : -5;
+                session.setXpPerHarvest(Math.max(0, current + delta));
+            } else {
+                int delta = event.isLeftClick() ? 1 : -1;
+                session.setXpPerHarvest(Math.max(0, current + delta));
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.5f);
+            MinionCreatorGUI.open(player, session);
+            return;
+        }
+
+        // 10. Storage Capacity - Slot 22
+        if (slot == 22) {
+            if (event.isShiftClick()) {
+                session.setStorageSlots(1);
+            } else if (event.isLeftClick()) {
+                session.setStorageSlots(Math.min(15, session.getStorageSlots() + 1));
+            } else {
+                session.setStorageSlots(Math.max(1, session.getStorageSlots() - 1));
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.5f);
+            MinionCreatorGUI.open(player, session);
+            return;
+        }
+
+        // 11. Hand Tool / Weapon - Slot 24
+        if (slot == 24) {
+            int targetTier = session.getSelectedTier();
+            if (cursor != null && cursor.getType() != Material.AIR) {
+                if (session.isPerTierMode()) {
+                    session.setTierHandItem(targetTier, cursor.clone());
+                } else {
+                    session.setHandItem(cursor.clone());
+                }
+                String tierNote = session.isPerTierMode() ? " for Tier " + targetTier : "";
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aEquipped " + cursor.getType().name() + " in minion's hand" + tierNote + "."));
+                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1.0f, 1.2f);
+                MinionCreatorGUI.open(player, session);
+            }
+            return;
+        }
+
+        // 12. Multi-Tier Style Mode Toggle - Slot 25
+        if (slot == 25) {
+            session.setPerTierMode(!session.isPerTierMode());
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
             MinionCreatorGUI.open(player, session);
             return;
         }
 
-        // 10.5 Open Per-Minion Tier Studio (Slot 35)
-        if (slot == 35) {
+        // 13. Open Per-Minion Tier Studio - Slot 31
+        if (slot == 31) {
             com.minionx.api.MinionDefinition def = com.minionx.api.MinionRegistry.get(session.getId());
             if (def == null) {
                 def = session.buildDefinition();
@@ -578,22 +626,81 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // 11. Cancel & Return
-        if (slot == 48) {
-            player.closeInventory();
-            OperatorGUI.openMain(player);
+        // 14. Selected Tier Carousel - Slot 33
+        if (slot == 33) {
+            int max = session.getMaxTier();
+            int current = session.getSelectedTier();
+            if (event.isRightClick()) {
+                int prev = current - 1;
+                if (prev < 1) prev = max;
+                session.setSelectedTier(prev);
+            } else {
+                int next = current + 1;
+                if (next > max) next = 1;
+                session.setSelectedTier(next);
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
+            MinionCreatorGUI.open(player, session);
             return;
         }
 
-        // 12. Save & Deploy (Tier I)
+        // 15. Max Tier Cap Tuning - Slot 34
+        if (slot == 34) {
+            int currentMax = session.getMaxTier();
+            if (event.isLeftClick()) {
+                session.setMaxTier(Math.min(com.minionx.api.MinionTier.getMaxTier(), currentMax + 1));
+            } else if (event.isRightClick()) {
+                int newMax = Math.max(1, currentMax - 1);
+                session.setMaxTier(newMax);
+                if (session.getSelectedTier() > newMax) {
+                    session.setSelectedTier(newMax);
+                }
+            }
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.5f);
+            MinionCreatorGUI.open(player, session);
+            return;
+        }
+
+        // 16. Universal Back Button - Slot 45
+        if (slot == 45) {
+            player.closeInventory();
+            OperatorGUI.openMain(player);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+            return;
+        }
+
+        // 17. Reset Template - Slot 48
+        if (slot == 48) {
+            MinionCreatorSession reset = new MinionCreatorSession(session.getId());
+            player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&eReset template settings to default values for &f" + session.getId() + "&e."));
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.7f, 1.0f);
+            MinionCreatorGUI.open(player, reset);
+            return;
+        }
+
+        // 18. Save & Deploy (Tier I) - Slot 49
         if (slot == 49) {
             saveAndDeploy(player, session, 1);
             return;
         }
 
-        // 13. Deploy Maxed
+        // 19. Deploy Maxed - Slot 50
         if (slot == 50) {
             saveAndDeploy(player, session, session.getMaxTier());
+            return;
+        }
+
+        // 20. Studio Guide & Shortcuts - Slot 53
+        if (slot == 53) {
+            player.sendMessage(ColorUtil.color("&6&l=========================================="));
+            player.sendMessage(ColorUtil.color("&e&lMinion Creator Studio &7- Quick Controls Guide"));
+            player.sendMessage(ColorUtil.color("&7• &fCursor Equip: &7Click any tool, drop, or head onto its slot to equip."));
+            player.sendMessage(ColorUtil.color("&7• &fMulti-Tier Styles: &7Enable Slot 25, then cycle Slot 33 to configure each tier."));
+            player.sendMessage(ColorUtil.color("&7• &fSpeed & XP Tuning: &7Shift-click Slot 19/21 for decimal and 5x fine-tuning."));
+            player.sendMessage(ColorUtil.color("&7• &fTier Studio: &7Click Slot 31 to edit upgrade costs & delays per tier."));
+            player.sendMessage(ColorUtil.color("&6&l=========================================="));
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.8f);
+            return;
         }
     }
 
@@ -764,6 +871,8 @@ public class MinionCreatorListener implements Listener {
 
         if (slot == 45) {
             player.closeInventory();
+            OperatorGUI.openMain(player);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
             return;
         }
 
@@ -792,6 +901,8 @@ public class MinionCreatorListener implements Listener {
 
         if (slot == 0) {
             player.closeInventory();
+            OperatorGUI.openMain(player);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
             return;
         }
 
@@ -895,6 +1006,8 @@ public class MinionCreatorListener implements Listener {
 
         if (slot == 45) {
             player.closeInventory();
+            OperatorGUI.openMain(player);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
             return;
         }
 
@@ -1062,8 +1175,8 @@ public class MinionCreatorListener implements Listener {
         if (slot < 0 || slot >= 54) return;
         ItemStack cursor = event.getCursor();
 
-        // Slot 48: Cancel & Return
-        if (slot == 48) {
+        // Slot 45 or 48: Cancel & Return
+        if (slot == 45 || slot == 48) {
             OperatorGUI.openUpgradesCatalog(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
             return;

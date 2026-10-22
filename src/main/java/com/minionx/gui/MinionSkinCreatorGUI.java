@@ -89,9 +89,12 @@ public class MinionSkinCreatorGUI {
                         ColorUtil.color("&eClick with item on cursor to set"),
                         ColorUtil.color("&eor click to cycle common weapons/tools"))));
 
-        // Slot 45: Cancel / Close
-        inv.setItem(45, createNamedItem(Material.ARROW, ColorUtil.color("&cClose Studio"),
-                List.of(ColorUtil.color("&7Discard unsaved changes"))));
+        // Slot 45: Universal Back Button
+        inv.setItem(45, createNamedItem(Material.ARROW, ColorUtil.color("&e« Back to Operator Hub"),
+                List.of(ColorUtil.color("&7Return to the main Operator Hub menu."),
+                        ColorUtil.color("&8Unsaved changes in this skin session will be discarded."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to Return"))));
 
         // Slot 49: Save & Register Skin
         inv.setItem(49, createNamedItem(Material.EMERALD_BLOCK, ColorUtil.color("&a&lSAVE & REGISTER SKIN"),

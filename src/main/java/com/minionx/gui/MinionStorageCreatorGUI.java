@@ -81,11 +81,12 @@ public class MinionStorageCreatorGUI {
             }
         }
 
-        // Slot 27 override: Back/Close
-        // We can place Save & Close in bottom corners:
-        // Slot 0 and Slot 8 or Slot 18 / 26
-        inv.setItem(0, createNamedItem(Material.ARROW, ColorUtil.color("&cClose Studio"),
-                List.of(ColorUtil.color("&7Discard unsaved changes"))));
+        // Slot 0: Universal Back Button
+        inv.setItem(0, createNamedItem(Material.ARROW, ColorUtil.color("&e« Back to Operator Hub"),
+                List.of(ColorUtil.color("&7Return to the main Operator Hub menu."),
+                        ColorUtil.color("&8Unsaved changes in this storage session will be discarded."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to Return"))));
 
         inv.setItem(8, createNamedItem(Material.EMERALD_BLOCK, ColorUtil.color("&a&lSAVE & REGISTER STORAGE"),
                 List.of(ColorUtil.color("&7Saves to &fstorages.yml &7and"),

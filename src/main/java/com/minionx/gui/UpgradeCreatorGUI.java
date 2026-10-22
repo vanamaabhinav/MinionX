@@ -119,9 +119,12 @@ public class UpgradeCreatorGUI {
         ItemStack previewItem = MinionItemFactory.createUpgradeItem(previewUpgrade);
         inv.setItem(16, previewItem);
 
-        // Slot 48: Cancel & Return
-        inv.setItem(48, createNamedItem(Material.BARRIER, ColorUtil.color("&cCancel & Return"),
-                List.of(ColorUtil.color("&7Discard changes and return to Upgrades Catalog."))));
+        // Slot 45: Universal Back Button
+        inv.setItem(45, createNamedItem(Material.ARROW, ColorUtil.color("&e« Back to Operator Hub"),
+                List.of(ColorUtil.color("&7Return to Upgrades & Accessories Catalog."),
+                        ColorUtil.color("&8Unsaved changes in this session will be discarded."),
+                        ColorUtil.color("&7"),
+                        ColorUtil.color("&eClick to Return"))));
 
         // Slot 49: Save & Deploy
         inv.setItem(49, createNamedItem(Material.EMERALD_BLOCK, ColorUtil.color("&a&lSave & Deploy Upgrade"),

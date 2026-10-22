@@ -150,12 +150,27 @@ public class MinionRegistry {
                         ConfigurationSection ts = tierSec.getConfigurationSection(tKey);
                         if (ts != null) {
                             String tSkull = ts.getString("skull-texture");
-                            Material tArmor = Material.matchMaterial(ts.getString("armor-material", "LEATHER_CHESTPLATE"));
+                            String aMatStr = ts.getString("armor-material");
+                            Material tArmor = aMatStr != null ? Material.matchMaterial(aMatStr) : armorMat;
+
                             int tr = ts.getInt("armor-color.red", red);
                             int tg = ts.getInt("armor-color.green", green);
                             int tb = ts.getInt("armor-color.blue", blue);
+                            Color tCol = (ts.contains("armor-color") || ts.contains("armor-color.red")) ? Color.fromRGB(tr, tg, tb) : armorColor;
+
                             ItemStack tHand = ts.getItemStack("hand-item");
-                            def.addTierStyle(tier, new MinionDefinition.TierStyle(tSkull, tArmor, Color.fromRGB(tr, tg, tb), tHand));
+                            if (tHand == null) {
+                                String toolStr = ts.getString("hand-item", ts.getString("held-tool"));
+                                if (toolStr != null) {
+                                    Material tm = Material.matchMaterial(toolStr);
+                                    if (tm != null) tHand = new ItemStack(tm);
+                                }
+                            }
+                            if (tHand == null) {
+                                tHand = handItem != null ? handItem.clone() : new ItemStack(Material.STONE_PICKAXE);
+                            }
+
+                            def.addTierStyle(tier, new MinionDefinition.TierStyle(tSkull, tArmor, tCol, tHand));
                         }
                     } catch (NumberFormatException ignored) {}
                 }
@@ -218,6 +233,29 @@ public class MinionRegistry {
                 config.set(tPath + ".action-delay", entry.getValue().getActionDelay());
                 config.set(tPath + ".storage-slots", entry.getValue().getStorageSlots());
                 config.set(tPath + ".upgrade-cost", entry.getValue().getUpgradeCost());
+            }
+        }
+
+        if (def.getTierStyles() != null && !def.getTierStyles().isEmpty()) {
+            for (Map.Entry<Integer, MinionDefinition.TierStyle> entry : def.getTierStyles().entrySet()) {
+                String tsPath = path + ".tier-styles." + entry.getKey();
+                MinionDefinition.TierStyle style = entry.getValue();
+                if (style != null) {
+                    if (style.getSkullTexture() != null) {
+                        config.set(tsPath + ".skull-texture", style.getSkullTexture());
+                    }
+                    if (style.getArmorMaterial() != null) {
+                        config.set(tsPath + ".armor-material", style.getArmorMaterial().name());
+                    }
+                    if (style.getArmorColor() != null) {
+                        config.set(tsPath + ".armor-color.red", style.getArmorColor().getRed());
+                        config.set(tsPath + ".armor-color.green", style.getArmorColor().getGreen());
+                        config.set(tsPath + ".armor-color.blue", style.getArmorColor().getBlue());
+                    }
+                    if (style.getHandItem() != null) {
+                        config.set(tsPath + ".hand-item", style.getHandItem());
+                    }
+                }
             }
         }
 

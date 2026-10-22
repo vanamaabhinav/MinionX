@@ -120,6 +120,78 @@ public class MinionCreatorSession {
 
     public Map<Integer, MinionDefinition.TierStyle> getTierStyles() { return tierStyles; }
 
+    public String getEffectiveSkullTexture(int tier) {
+        if (perTierMode) {
+            MinionDefinition.TierStyle style = tierStyles.get(tier);
+            if (style != null && style.getSkullTexture() != null) {
+                return style.getSkullTexture();
+            }
+        }
+        return skullTexture;
+    }
+
+    public Material getEffectiveArmorMaterial(int tier) {
+        if (perTierMode) {
+            MinionDefinition.TierStyle style = tierStyles.get(tier);
+            if (style != null && style.getArmorMaterial() != null) {
+                return style.getArmorMaterial();
+            }
+        }
+        return armorMaterial;
+    }
+
+    public Color getEffectiveArmorColor(int tier) {
+        if (perTierMode) {
+            MinionDefinition.TierStyle style = tierStyles.get(tier);
+            if (style != null && style.getArmorColor() != null) {
+                return style.getArmorColor();
+            }
+        }
+        return armorColor;
+    }
+
+    public ItemStack getEffectiveHandItem(int tier) {
+        if (perTierMode) {
+            MinionDefinition.TierStyle style = tierStyles.get(tier);
+            if (style != null && style.getHandItem() != null) {
+                return style.getHandItem().clone();
+            }
+        }
+        return handItem != null ? handItem.clone() : new ItemStack(Material.STONE_PICKAXE);
+    }
+
+    public void setTierSkullTexture(int tier, String texture) {
+        MinionDefinition.TierStyle existing = tierStyles.get(tier);
+        Material mat = existing != null ? existing.getArmorMaterial() : armorMaterial;
+        Color col = existing != null ? existing.getArmorColor() : armorColor;
+        ItemStack hand = existing != null ? existing.getHandItem() : handItem;
+        tierStyles.put(tier, new MinionDefinition.TierStyle(texture, mat, col, hand));
+    }
+
+    public void setTierArmorMaterial(int tier, Material mat) {
+        MinionDefinition.TierStyle existing = tierStyles.get(tier);
+        String skull = existing != null ? existing.getSkullTexture() : skullTexture;
+        Color col = existing != null ? existing.getArmorColor() : armorColor;
+        ItemStack hand = existing != null ? existing.getHandItem() : handItem;
+        tierStyles.put(tier, new MinionDefinition.TierStyle(skull, mat, col, hand));
+    }
+
+    public void setTierArmorColor(int tier, Color col) {
+        MinionDefinition.TierStyle existing = tierStyles.get(tier);
+        String skull = existing != null ? existing.getSkullTexture() : skullTexture;
+        Material mat = existing != null ? existing.getArmorMaterial() : armorMaterial;
+        ItemStack hand = existing != null ? existing.getHandItem() : handItem;
+        tierStyles.put(tier, new MinionDefinition.TierStyle(skull, mat, col, hand));
+    }
+
+    public void setTierHandItem(int tier, ItemStack item) {
+        MinionDefinition.TierStyle existing = tierStyles.get(tier);
+        String skull = existing != null ? existing.getSkullTexture() : skullTexture;
+        Material mat = existing != null ? existing.getArmorMaterial() : armorMaterial;
+        Color col = existing != null ? existing.getArmorColor() : armorColor;
+        tierStyles.put(tier, new MinionDefinition.TierStyle(skull, mat, col, item != null ? item.clone() : null));
+    }
+
     public static MinionCreatorSession fromDefinition(MinionDefinition def) {
         if (def == null) return new MinionCreatorSession("custom_minion");
         MinionCreatorSession session = new MinionCreatorSession(def.getId());

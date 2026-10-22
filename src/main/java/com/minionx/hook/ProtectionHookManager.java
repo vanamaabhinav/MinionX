@@ -189,16 +189,33 @@ public class ProtectionHookManager {
     }
 
     /**
-     * Determines whether a player is authorized to access, open GUI, or pick up a minion.
+     * Determines whether a player is authorized to access and open the GUI of a minion.
      */
     public static boolean canAccessMinion(Player player, Minion minion) {
         if (player == null || minion == null) return false;
-        if (minion.getOwnerId() == null) return true;
-        if (player.getUniqueId().equals(minion.getOwnerId())) return true;
         if (player.hasPermission("minionx.admin")) return true;
+
+        // Owner can always access their minion
+        if (minion.getOwnerId() != null && player.getUniqueId().equals(minion.getOwnerId())) {
+            return true;
+        }
+
+        // Check configured access mode
+        String mode = "TEAM_ACCESS";
+        if (MinionX.getInstance() != null) {
+            mode = MinionX.getInstance().getConfig().getString("security.access-mode", "TEAM_ACCESS");
+        }
+        if ("OWNER_ONLY".equalsIgnoreCase(mode)) {
+            return false;
+        }
 
         Location loc = minion.getLocation();
         if (loc == null) return false;
+
+        // If unowned legacy minion, allow access only if player has build rights at that location
+        if (minion.getOwnerId() == null) {
+            return canPlaceMinion(player, loc);
+        }
 
         // 1. GriefPrevention Container check
         if (griefPreventionAvailable && gpDataStore != null && gpGetClaimAt != null && gpAllowContainers != null) {
@@ -230,6 +247,39 @@ public class ProtectionHookManager {
                     return (boolean) landsCanAccess.invoke(area, player, loc);
                 }
             } catch (Throwable ignored) {}
+        }
+
+        return false;
+    }
+
+    /**
+     * Determines whether a player is authorized to pick up / dismantle a minion.
+     * Prevents co-op members, trusted claim guests, or strangers from stealing minions.
+     */
+    public static boolean canPickupMinion(Player player, Minion minion) {
+        if (player == null || minion == null) return false;
+        if (player.hasPermission("minionx.admin")) return true;
+
+        // Owner can always pick up their minion
+        if (minion.getOwnerId() != null && player.getUniqueId().equals(minion.getOwnerId())) {
+            return true;
+        }
+
+        // If unowned legacy minion, allow pickup only if player has build rights at that location
+        if (minion.getOwnerId() == null) {
+            return canPlaceMinion(player, minion.getLocation());
+        }
+
+        // Check if server explicitly enabled team pickups
+        boolean allowTeamPickup = false;
+        String mode = "TEAM_ACCESS";
+        if (MinionX.getInstance() != null) {
+            allowTeamPickup = MinionX.getInstance().getConfig().getBoolean("security.allow-team-pickup", false);
+            mode = MinionX.getInstance().getConfig().getString("security.access-mode", "TEAM_ACCESS");
+        }
+
+        if (allowTeamPickup || "FULL_COOP".equalsIgnoreCase(mode)) {
+            return canAccessMinion(player, minion);
         }
 
         return false;

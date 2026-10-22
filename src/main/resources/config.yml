@@ -367,6 +367,27 @@ storage-layouts:
 
 
 # ==============================================================================
+# MINION ACCESS & CO-OP SECURITY
+# ==============================================================================
+security:
+  # Minion access mode for protected regions, claims, and islands:
+  #   - TEAM_ACCESS (Default): Island/claim co-op members can open GUI, collect
+  #     drops, and insert fuel, but CANNOT pick up or dismantle the minion.
+  #   - OWNER_ONLY: Only the original minion owner or server operators
+  #     (minionx.admin) can open the GUI, withdraw items, or pick it up.
+  #   - FULL_COOP: Island/claim co-op members have complete access including pickup.
+  access-mode: "TEAM_ACCESS"
+
+  # Whether claim/island co-op members can pick up (dismantle) teammates' minions.
+  # Default: false (protects players against co-op theft and griefing).
+  allow-team-pickup: false
+
+  # Whether claim/island co-op members can break storage chests linked to minions.
+  # Default: false (only owner or admins can break linked chests).
+  allow-team-break-storage: false
+
+
+# ==============================================================================
 # UPDATES & METRICS
 # ==============================================================================
 update-checker:

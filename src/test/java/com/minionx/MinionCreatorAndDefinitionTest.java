@@ -79,4 +79,54 @@ public class MinionCreatorAndDefinitionTest {
         assertEquals(MinionArchetype.COMBAT, zombie.getArchetype());
         assertEquals("ZOMBIE", zombie.getTargetMob());
     }
+
+    @Test
+    public void testSessionTierCycleWithinMaxTier() {
+        MinionCreatorSession session = new MinionCreatorSession("custom_test");
+        session.setMaxTier(7);
+        assertEquals(7, session.getMaxTier());
+
+        // Cycle through 1 to 7
+        session.setSelectedTier(7);
+        int next = session.getSelectedTier() + 1;
+        if (next > session.getMaxTier()) next = 1;
+        session.setSelectedTier(next);
+        assertEquals(1, session.getSelectedTier());
+
+        // Previous from 1 wraps to maxTier (7)
+        int prev = session.getSelectedTier() - 1;
+        if (prev < 1) prev = session.getMaxTier();
+        session.setSelectedTier(prev);
+        assertEquals(7, session.getSelectedTier());
+    }
+
+    @Test
+    public void testSessionTierClampingWhenMaxTierLowered() {
+        MinionCreatorSession session = new MinionCreatorSession("custom_clamp");
+        session.setMaxTier(11);
+        session.setSelectedTier(9);
+
+        // Lower max tier to 5
+        int newMax = 5;
+        session.setMaxTier(newMax);
+        if (session.getSelectedTier() > newMax) {
+            session.setSelectedTier(newMax);
+        }
+
+        assertEquals(5, session.getMaxTier());
+        assertEquals(5, session.getSelectedTier());
+    }
+
+    @Test
+    public void testEffectiveSkullTextureInPerTierMode() {
+        MinionCreatorSession session = new MinionCreatorSession("textured_minion");
+        session.setSkullTexture("base_texture");
+        session.setPerTierMode(true);
+        session.setSelectedTier(3);
+        session.setTierSkullTexture(3, "tier_3_texture");
+
+        assertEquals("tier_3_texture", session.getEffectiveSkullTexture(3));
+        // Tier 1 has no override so falls back to base
+        assertEquals("base_texture", session.getEffectiveSkullTexture(1));
+    }
 }

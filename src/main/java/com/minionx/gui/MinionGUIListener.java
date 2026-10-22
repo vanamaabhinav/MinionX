@@ -504,6 +504,18 @@ public class MinionGUIListener implements Listener {
     }
 
     private void handlePickup(Player player, Minion minion) {
+        if (!ProtectionHookManager.canPickupMinion(player, minion)) {
+            String ownerName = minion.getOwnerId() != null ? Bukkit.getOfflinePlayer(minion.getOwnerId()).getName() : "Unknown";
+            String msg = MinionX.getInstance() != null && MinionX.getInstance().getConfig() != null
+                    ? MinionX.getInstance().getConfig().getString("messages.cannot-pickup-coop",
+                    "&cYou cannot pick up this minion! Only the minion owner (%owner%) or an admin can pick it up.")
+                    .replace("%owner%", ownerName != null ? ownerName : "Unknown")
+                    : "&cYou cannot pick up this minion! Only the owner or an admin can pick it up.";
+            player.sendMessage(ColorUtil.color(msg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
         player.closeInventory();
 
         if (!minion.tryAcquireTransaction()) {

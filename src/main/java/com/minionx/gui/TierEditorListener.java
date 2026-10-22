@@ -79,6 +79,12 @@ public class TierEditorListener implements Listener {
             if (slot == 45) {
                 OVERVIEW_SESSIONS.remove(player.getUniqueId());
                 player.closeInventory();
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+                if (minionId != null) {
+                    MinionCreatorGUI.open(player, new MinionCreatorSession(minionId));
+                } else {
+                    OperatorGUI.openMain(player);
+                }
                 return;
             }
 

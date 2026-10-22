@@ -45,10 +45,18 @@
 #   - If defined under a minion, it completely customizes action delays, storage
 #     slots, and upgrade costs specifically for that individual minion type.
 #
-# Equipment & Visuals:
-#   held-tool: DIAMOND_PICKAXE     # Tool or weapon held in the minion's right hand
-#   armor-material: LEATHER        # LEATHER, IRON, GOLD, DIAMOND, NETHERITE
-#   armor-color: "#FF5555"         # Leather dye color: Hex (#RRGGBB) or RGB (255,85,85)
+# Equipment & Visuals (Global Defaults):
+#   skull-texture: "<BASE64_OR_PLAYER_NAME>" # Default head if no tier override is defined
+#   held-tool: DIAMOND_PICKAXE               # Tool or weapon held in the minion's right hand
+#   armor-material: LEATHER                  # LEATHER, IRON, GOLD, DIAMOND, NETHERITE
+#   armor-color: "#FF5555"                   # Leather dye color: Hex (#RRGGBB) or RGB (255,85,85)
+#
+# Per-Tier Visual Styles (`tier-styles:` section):
+#   - Allows assigning distinct custom heads (Base64 texture value or Minecraft player name),
+#     armor materials, leather RGB dye colors, and held weapons/tools to EACH INDIVIDUAL TIER!
+#   - For example, Tier 1 can wear red leather with a simple mining head, Tier 4 can wear
+#     iron armor with an upgraded head, and Tier 7 can wear netherite armor with an elite crown head.
+#   - Supports full Base64 skin value (from minecraft-heads.com) or player names (e.g. MHF_Chest).
 #
 # In-Game Minion Creator Studio:
 #   You can build and test custom minions interactively in-game using `/minion create`!
@@ -105,3 +113,95 @@ custom-minions:
         action-delay: 14.0
         storage-slots: 6
         upgrade-cost: 0
+
+  # ============================================================================
+  # 7-Tier Custom Minion Showcase: Ruby Minion
+  # Features: Custom drops, custom 7-tier stats, and DISTINCT HEADS for every tier!
+  # ============================================================================
+  ruby_minion:
+    display-name: "&cRuby Minion"
+    archetype: MINING
+    target-block: REDSTONE_BLOCK
+    held-tool: IRON_PICKAXE
+    max-tier: 7
+    drops:
+      - material: REDSTONE
+        amount: 2
+        chance: 1.0
+      - material: REDSTONE_BLOCK
+        amount: 1
+        chance: 0.1
+        display-name: "&cCompressed Ruby"
+        glow: true
+    # Per-tier statistics (action delays in seconds, storage capacity in slots, upgrade costs)
+    tiers:
+      1:
+        action-delay: 26.0
+        storage-slots: 2
+        upgrade-cost: 64
+      2:
+        action-delay: 24.0
+        storage-slots: 3
+        upgrade-cost: 128
+      3:
+        action-delay: 22.0
+        storage-slots: 4
+        upgrade-cost: 256
+      4:
+        action-delay: 19.0
+        storage-slots: 5
+        upgrade-cost: 512
+      5:
+        action-delay: 16.0
+        storage-slots: 6
+        upgrade-cost: 1024
+      6:
+        action-delay: 13.0
+        storage-slots: 7
+        upgrade-cost: 2048
+      7:
+        action-delay: 10.0
+        storage-slots: 8
+        upgrade-cost: 0
+    # Per-tier visual styles: Give each tier a unique head texture, armor material, and tool!
+    tier-styles:
+      1:
+        skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTRiZTMzNDc2NmQyZWE2OWQ5NDhhMDM0NmI0NDQyYmU0NDY4YjQ5MmI4MWU2ZmVlMTk0YjVlNDIzYzYyMDJmIn19fQ=="
+        armor-material: LEATHER_CHESTPLATE
+        armor-color:
+          red: 140
+          green: 20
+          blue: 20
+        hand-item: STONE_PICKAXE
+      2:
+        skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDg5YTBmY2NjOTk4MWJiZjIzOWYxNTkxOTU1MjMzZmE5ZjVkMjY0NzZkODhhZmY1MGFhNDc2MzA3NzI4In19fQ=="
+        armor-material: LEATHER_CHESTPLATE
+        armor-color:
+          red: 180
+          green: 25
+          blue: 25
+        hand-item: IRON_PICKAXE
+      3:
+        skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzZhYzE0YmVmYjg0YjYyMDM1ODk4MGRkMTE2NzA0MWVjZThkNGI4ZWYzYmUzZmI3ZDg5MmI1YjFlOTU2ZTUyIn19fQ=="
+        armor-material: LEATHER_CHESTPLATE
+        armor-color:
+          red: 220
+          green: 30
+          blue: 30
+        hand-item: IRON_PICKAXE
+      4:
+        skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmM1ZDg1YTI3ZjM1YTFmNTRkNmFiYjI4NjBhMTYwMzA1Y2VlMmYyZmY1Mzg4ODQ1MTM0NWIyNDMzOTdhIn19fQ=="
+        armor-material: IRON_CHESTPLATE
+        hand-item: GOLDEN_PICKAXE
+      5:
+        skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNzU3Y2Y5MmQ2YjFlMmEyMjBiMTFhOTU5NGY4YzA2NGFkMGM2MTNhY2U2ZGNkZTNhYTFkYTI2NDExNDViYjEzIn19fQ=="
+        armor-material: GOLDEN_CHESTPLATE
+        hand-item: DIAMOND_PICKAXE
+      6:
+        skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWQwNzg2YTYxNGE3ODljNzFlNjA2ODFkOTAxNTk2OGQzNmQ3NGE4YzNhYjVhYzg3NDExNjQzN2Q2NzE1Yzg4In19fQ=="
+        armor-material: DIAMOND_CHESTPLATE
+        hand-item: DIAMOND_PICKAXE
+      7:
+        skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNzk1NDQzOTUzY2FkMzdlOGFkOWRhYTRhMDFmNzE5Mjg2Nzg4ZDA0ZTVhYzg2NDBiOWI4M2VmMzEwNzgyMjY4In19fQ=="
+        armor-material: NETHERITE_CHESTPLATE
+        hand-item: NETHERITE_PICKAXE
