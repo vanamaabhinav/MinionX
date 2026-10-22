@@ -21,7 +21,7 @@
 5. [Per-Minion Max Tier Caps](#5-per-minion-max-tier-caps)
 6. [Super Compactor 3000 & Custom Items Support](#6-super-compactor-3000--custom-items-support)
 7. [Multi-Drop Engine with Chance Percentages](#7-multi-drop-engine-with-chance-percentages)
-8. [Operator Control Center (`/minionsx`)](#8-operator-control-center-minionsx)
+8. [Operator Control Center (`/minionx`)](#8-operator-control-center-minionx)
 9. [Anti-Dupe Security & Emergency Quarantine Mode](#9-anti-dupe-security--emergency-quarantine-mode)
 10. [Plugin Integrations & Protection Hooks](#10-plugin-integrations--protection-hooks)
 11. [Complete Commands & Permissions Reference](#11-complete-commands--permissions-reference)
@@ -125,7 +125,7 @@ MinionX features full-fledged in-game visual GUIs for designing, customizing, an
   * Choose hand tools, armor styles, and head textures.
 
 ### Upgrade & Hopper Creator Studio
-* **Command:** `/minion create upgrade` (or click Slot 22 inside `/minionsx`)
+* **Command:** `/minion create upgrade` (or click Slot 22 inside `/minionx`)
 * **Features:**
   * Configure upgrade ID, display name, and item material.
   * Select upgrade behavior: automated shipping hopper, compaction, auto-smelter, speed boost, or area expander.
@@ -133,7 +133,7 @@ MinionX features full-fledged in-game visual GUIs for designing, customizing, an
   * Live test item delivery and direct atomic persistence to `upgrades.yml`.
 
 ### Fuel Creator Studio
-* **Command:** `/minion create fuel` (or click Slot 50 inside `/minionsx` Fuel Supplies)
+* **Command:** `/minion create fuel` (or click Slot 50 inside `/minionx` Fuel Supplies)
 * **Features:**
   * Configure fuel ID and display name via interactive chat prompt.
   * Select fuel material (Blaze Powder, Lava Bucket, Charcoal, Dragon Breath, etc.).
@@ -158,7 +158,7 @@ MinionX features full-fledged in-game visual GUIs for designing, customizing, an
   * Dual-mode persistence: Global edits write to `tiers.yml`, while per-minion edits write directly to the minion's `tiers:` map in `minions.yml`.
 
 ### Skin Creator Studio
-* **Command:** `/minion create skin` (or click Slot 50 in `/minionsx`)
+* **Command:** `/minion create skin` (or click Slot 50 in `/minionx`)
 * **Features:**
   * Design custom minion skins using player head textures or Base64 skins.
   * Adjust leather armor RGB color tints and held weapons.
@@ -311,7 +311,7 @@ custom-minions:
 
 ---
 
-## 8. Operator Control Center (`/minionsx`)
+## 8. Operator Control Center (`/minionx`)
 
 The Operator Control Center provides administrators with a single, unified control panel:
 
@@ -398,7 +398,7 @@ MinionX natively integrates with the Minecraft server ecosystem:
 | `/minion quarantine [on\|off\|status]` | `minionx.admin` | Controls emergency server-wide quarantine mode |
 | `/minion list` | `minionx.use` | Lists player's placed minions and locations |
 | `/minion killall` | `minionx.admin` | Purges all placed minions and holograms |
-| `/minionsx` | `minionx.admin` | Opens the interactive MinionX Operator Hub |
+| `/minionx` | `minionx.admin` | Opens the interactive MinionX Operator Hub (Aliases: `/minion op`, `/minionsx`, `/mxop`) |
 | `/minion claim` | `minionx.use` | Safely recovers verified escrow items and stored XP; blocks ambiguous operations |
 | `/minion recover list` | `minionx.admin` | Lists all pending, quarantined, or ambiguous operations in the escrow ledger |
 | `/minion recover resolve <opId> complete [reason]` | `minionx.admin` | Clears operation from escrow ledger with an audit entry |

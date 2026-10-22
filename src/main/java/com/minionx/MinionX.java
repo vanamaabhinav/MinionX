@@ -86,11 +86,12 @@ public class MinionX extends JavaPlugin {
             cmd.setTabCompleter(minionCommand);
         }
 
-        // Register Operator Command (/minionsx and /minionx)
+        // Register Operator Command (/minionx, /minionsx, and /mxop)
         OperatorCommand operatorCommand = new OperatorCommand();
-        PluginCommand opCmd = getCommand("minionsx");
+        PluginCommand opCmd = getCommand("minionx");
         if (opCmd != null) {
             opCmd.setExecutor(operatorCommand);
+            opCmd.setTabCompleter(operatorCommand);
         }
 
         // Start repeating tick task (1-tick scheduler dispatch with sub-millisecond spread)

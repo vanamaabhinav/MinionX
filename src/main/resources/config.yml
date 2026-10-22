@@ -44,7 +44,7 @@ settings:
   #   - Freezes inventory withdrawals and item collections
   #
   # Players with permission "minionx.quarantine.bypass" or OPs can still interact.
-  # Can also be toggled live in-game via `/minionsx` (Slot 51) or `/minion quarantine`.
+  # Can also be toggled live in-game via `/minionx` (Slot 51) or `/minion quarantine`.
   quarantine-mode: false
 
   # If true, minion harvesting AI tick loop is completely paused during quarantine.

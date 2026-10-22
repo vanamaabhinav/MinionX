@@ -127,7 +127,7 @@ Minions aren't just resource machines — they bring life and personality to pla
 
 ---
 
-## 🎮 Operator Hub (`/minionsx`)
+## 🎮 Operator Hub (`/minionx`)
 
 The **MinionX Operator Panel** is the ultimate administrative command center:
 
@@ -174,7 +174,7 @@ MinionX integrates out-of-the-box with all leading Minecraft plugins:
    /minion give <player> diamond 11
    ```
 4. **Place**: Place the minion head on any block. Right-click to open its 54-slot interactive dashboard.
-5. **Customize**: Type `/minionsx` or `/minion create` to explore in-game studios!
+5. **Customize**: Type `/minionx` or `/minion create` to explore in-game studios!
 
 ---
 
@@ -198,7 +198,7 @@ MinionX integrates out-of-the-box with all leading Minecraft plugins:
 | `/minion quarantine [on\|off\|status]` | `minionx.admin` | Emergency network-wide anti-dupe freeze |
 | `/minion list` | `minionx.use` | View your placed minions and coordinates |
 | `/minion killall` | `minionx.admin` | Purge placed minions and remove display entities |
-| `/minionsx` | `minionx.admin` | Opens the all-in-one MinionX Operator Panel |
+| `/minionx` | `minionx.admin` | Opens the all-in-one MinionX Operator Panel (Aliases: `/minion op`, `/minionsx`, `/mxop`) |
 | `/minion reload` | `minionx.admin` | Instant zero-downtime configuration hot-reload |
 
 ---

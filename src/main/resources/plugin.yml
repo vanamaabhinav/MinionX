@@ -9,13 +9,13 @@ commands:
   minion:
     description: Main command for MinionX
     permission: minionx.use
-    aliases: [minions, mx, minionx]
+    aliases: [minions, mx]
     usage: /minion
-  minionsx:
+  minionx:
     description: Opens the MinionX Operator interface
     permission: minionx.admin
-    aliases: [mxop]
-    usage: /minionsx
+    aliases: [minionsx, mxop]
+    usage: /minionx
 
 permissions:
   minionx.admin:

@@ -32,7 +32,7 @@
 #
 # In-Game Creator & Commands:
 #   - Give Fuel: /minion give <player> fuel <fuel_id> [amount]
-#   - Live Studio: /minion create fuel  (or /minionsx -> Fuels Vault Slot 24)
+#   - Live Studio: /minion create fuel  (or /minionx -> Fuels Vault Slot 24)
 # ==============================================================================
 
 fuels:

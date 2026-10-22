@@ -20,7 +20,7 @@
 11. [RPG Skill Rewards & Collections](#11-rpg-skill-rewards--collections)
 12. [Dialogue & Visual Displays](#12-dialogue--visual-displays)
 13. [In-Game Creator Studios](#13-in-game-creator-studios)
-14. [Operator Control Center (`/minionsx`)](#14-the-operator-control-center-minionsx)
+14. [Operator Control Center (`/minionx`)](#14-the-operator-control-center-minionx)
 15. [Configuration Files Guide](#15-configuration-files-guide)
 16. [Land Claim & Protection Integrations](#16-land-claim--protection-integrations)
 17. [Security & Emergency Quarantine](#17-security--emergency-quarantine)
@@ -265,9 +265,9 @@ MinionX provides interactive in-game menus allowing administrators to configure 
 
 ---
 
-## 14. The Operator Command Center (`/minionsx`)
+## 14. The Operator Command Center (`/minionx`)
 
-The Operator Command Center (`/minionsx` or `/mxop`) provides an administrative dashboard:
+The Operator Command Center (`/minionx` or aliases `/minion op`, `/minionsx`, `/mxop`) provides an administrative dashboard:
 
 * **Minions Catalog (Slot 20)**: Inspect registered minions and claim test copies.
 * **Upgrades Catalog (Slot 22)**: Browse all upgrades and launch the Upgrade Creator Studio.
@@ -348,7 +348,7 @@ MinionX includes safety controls designed to protect player data, prevent item/X
 ### Commands:
 | Command | Permission | Description |
 |---|---|---|
-| `/minionsx` or `/mxop` | `minionx.admin` | Opens the Operator Command Center. |
+| `/minionx` | `minionx.admin` | Opens the Operator Command Center (Aliases: `/minion op`, `/minionsx`, `/mxop`). |
 | `/minion create [type]` | `minionx.admin` | Opens the in-game creator studio (`minion`, `fuel`, `skin`, `upgrade`, `storage`). |
 | `/minion tier [id]` | `minionx.admin` | Opens the Global or Per-Minion Tier Studio. |
 | `/minion give <player> <item> [tier]` | `minionx.admin` | Gives a minion head, fuel, upgrade, skin, or storage item. |
@@ -366,7 +366,7 @@ MinionX includes safety controls designed to protect player data, prevent item/X
 
 ### Permissions:
 * `minionx.use`: Allows players to place, interact with, and view their minions (Default: `true`).
-* `minionx.admin`: Access to administrative commands, studios, and `/minionsx` (Default: `op`).
+* `minionx.admin`: Access to administrative commands, studios, and `/minionx` (Default: `op`).
 * `minionx.bypass.limit`: Bypasses the placed minion limit.
 * `minionx.limit.<number>`: Sets a custom placed minion limit for a player or permission group.
 

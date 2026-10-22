@@ -76,6 +76,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             case "claim" -> handleClaim(sender);
             case "recover" -> handleRecover(sender, args);
             case "reload" -> handleReload(sender);
+            case "op", "operator", "hub" -> handleOperator(sender);
             default -> sendHelp(sender);
         }
 
@@ -423,6 +424,15 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ColorUtil.color("&e/minion quarantine [on|off|status|toggle] &7- Manage anti-dupe quarantine mode"));
         sender.sendMessage(ColorUtil.color("&e/minion killall &7- Kill and purge all active minions and holograms"));
         sender.sendMessage(ColorUtil.color("&e/minion reload &7- Reload configuration"));
+        sender.sendMessage(ColorUtil.color("&e/minion op &7(or &e/minionx&7) - Open Operator Control Center"));
+    }
+
+    private void handleOperator(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ColorUtil.color("&cOnly players can open the MinionX operator interface."));
+            return;
+        }
+        com.minionx.gui.OperatorGUI.openMain(player);
     }
 
     @Override
@@ -435,7 +445,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return filter(List.of("create", "tier", "give", "limit", "list", "claim", "recover", "quarantine", "killall", "purge", "reload"), args[0]);
+            return filter(List.of("create", "tier", "give", "limit", "list", "claim", "recover", "quarantine", "killall", "purge", "reload", "op", "hub"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {

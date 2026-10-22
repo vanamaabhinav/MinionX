@@ -20,4 +20,12 @@ public class OperatorGUITest {
         assertEquals(OperatorHolder.ViewType.MINION_TIERS, tierHolder.getViewType());
         assertEquals(MinionType.DIAMOND, tierHolder.getContext());
     }
+
+    @Test
+    @DisplayName("Should verify OperatorCommand implements TabCompleter and returns empty completions")
+    void testOperatorCommandTabCompletion() {
+        com.minionx.command.OperatorCommand cmd = new com.minionx.command.OperatorCommand();
+        assertNotNull(cmd.onTabComplete(null, null, "minionx", new String[]{}));
+        assertTrue(cmd.onTabComplete(null, null, "minionx", new String[]{}).isEmpty());
+    }
 }
