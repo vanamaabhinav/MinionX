@@ -339,4 +339,68 @@ public class CombatScalingAndEnchantedUpgradesTest {
         assertEquals(2, inRange.size(), "Only the 2 mobs within the 5x5 boundary must be in range");
         assertFalse(aliveTracked.size() < 5, "Minion must not spawn excess mobs beyond cap");
     }
+
+    @Test
+    @DisplayName("Sunlight combust event is cancelled for minion-spawned mobs, while preserving external fire/lava")
+    void testSunlightCombustCancellationForMinionMob() {
+        com.minionx.listener.MinionInteractListener listener = new com.minionx.listener.MinionInteractListener();
+
+        org.bukkit.entity.Entity minionMob = createMockMob(true);
+        org.bukkit.entity.Entity vanillaMob = createMockMob(false);
+
+        // 1. Minion mob exposed to sunlight -> Pure EntityCombustEvent must be cancelled
+        org.bukkit.event.entity.EntityCombustEvent sunlightEvent = new org.bukkit.event.entity.EntityCombustEvent(minionMob, 8);
+        listener.onEntityCombust(sunlightEvent);
+        assertTrue(sunlightEvent.isCancelled(), "Sunlight ignition on minion mob must be cancelled");
+
+        // 2. Vanilla mob exposed to sunlight -> Must NOT be cancelled
+        org.bukkit.event.entity.EntityCombustEvent vanillaSunlight = new org.bukkit.event.entity.EntityCombustEvent(vanillaMob, 8);
+        listener.onEntityCombust(vanillaSunlight);
+        assertFalse(vanillaSunlight.isCancelled(), "Vanilla mobs must burn naturally");
+
+        // 3. Minion mob burning from block (fire/lava) -> Must NOT be cancelled
+        org.bukkit.block.Block mockBlock = (org.bukkit.block.Block) java.lang.reflect.Proxy.newProxyInstance(
+                org.bukkit.block.Block.class.getClassLoader(),
+                new Class<?>[]{org.bukkit.block.Block.class},
+                (proxy, method, args) -> null
+        );
+        org.bukkit.event.entity.EntityCombustByBlockEvent blockFireEvent =
+                new org.bukkit.event.entity.EntityCombustByBlockEvent(mockBlock, minionMob, 8);
+        listener.onEntityCombust(blockFireEvent);
+        assertFalse(blockFireEvent.isCancelled(), "Block combustion (fire/lava) must not be cancelled");
+
+        // 4. Minion mob burning from entity (fire aspect) -> Must NOT be cancelled
+        org.bukkit.event.entity.EntityCombustByEntityEvent entityCombustEvent =
+                new org.bukkit.event.entity.EntityCombustByEntityEvent(vanillaMob, minionMob, 8);
+        listener.onEntityCombust(entityCombustEvent);
+        assertFalse(entityCombustEvent.isCancelled(), "Entity combustion (fire aspect) must not be cancelled");
+    }
+
+    private org.bukkit.entity.Entity createMockMob(boolean isMinionMob) {
+        org.bukkit.persistence.PersistentDataContainer pdc = (org.bukkit.persistence.PersistentDataContainer) java.lang.reflect.Proxy.newProxyInstance(
+                org.bukkit.persistence.PersistentDataContainer.class.getClassLoader(),
+                new Class<?>[]{org.bukkit.persistence.PersistentDataContainer.class},
+                (proxy, method, args) -> {
+                    if ("has".equals(method.getName())) {
+                        org.bukkit.NamespacedKey key = (org.bukkit.NamespacedKey) args[0];
+                        return isMinionMob && com.minionx.hook.MythicMobsHook.MINION_MOB_KEY.equals(key);
+                    }
+                    return null;
+                }
+        );
+
+        return (org.bukkit.entity.Entity) java.lang.reflect.Proxy.newProxyInstance(
+                org.bukkit.entity.Entity.class.getClassLoader(),
+                new Class<?>[]{org.bukkit.entity.Entity.class},
+                (proxy, method, args) -> {
+                    if ("getPersistentDataContainer".equals(method.getName())) {
+                        return pdc;
+                    }
+                    if ("getUniqueId".equals(method.getName())) {
+                        return UUID.randomUUID();
+                    }
+                    return null;
+                }
+        );
+    }
 }

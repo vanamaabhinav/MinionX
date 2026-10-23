@@ -77,14 +77,6 @@ public class MythicMobsHook {
                 if (disableAi) {
                     living.setAI(false);
                 }
-                // Prevent sunlight burn on undead mobs so daylight setups do not kill spawned mobs
-                if (living.getEquipment() != null) {
-                    if (living instanceof org.bukkit.entity.Zombie || living instanceof org.bukkit.entity.Skeleton) {
-                        if (living.getEquipment().getHelmet() == null || living.getEquipment().getHelmet().getType().isAir()) {
-                            living.getEquipment().setHelmet(new org.bukkit.inventory.ItemStack(org.bukkit.Material.LEATHER_HELMET));
-                        }
-                    }
-                }
             }
         }
 

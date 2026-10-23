@@ -15,6 +15,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityCombustByBlockEvent;
+import org.bukkit.event.entity.EntityCombustByEntityEvent;
+import org.bukkit.event.entity.EntityCombustEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -119,6 +122,21 @@ public class MinionInteractListener implements Listener {
         }
     }
 
+    /**
+     * Prevents daylight / sunlight combustion on minion-spawned undead mobs without requiring helmets.
+     * Sunlight ignition in Bukkit/Paper is dispatched as a pure EntityCombustEvent
+     * (not EntityCombustByBlockEvent or EntityCombustByEntityEvent).
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onEntityCombust(EntityCombustEvent event) {
+        Entity entity = event.getEntity();
+        if (!com.minionx.hook.MythicMobsHook.isMinionSpawnedMob(entity)) return;
+
+        // Cancel sunlight combustion while preserving intentional fire/lava (Block) or fire-aspect/flame (Entity)
+        if (!(event instanceof EntityCombustByBlockEvent) && !(event instanceof EntityCombustByEntityEvent)) {
+            event.setCancelled(true);
+        }
+    }
 
     private Minion getMinionFromEntity(Entity entity) {
         if (!(entity instanceof ArmorStand as)) return null;
