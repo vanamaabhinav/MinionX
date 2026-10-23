@@ -400,20 +400,101 @@ MinionX implements robust protection against griefing, duplication, inventory de
 
 ## 11. Plugin Integrations & Protection Hooks
 
-MinionX natively integrates with the Minecraft server ecosystem:
+MinionX provides native integration with major Minecraft plugins, handling claims, custom items, economy, and progression systems out-of-the-box.
 
-* **Land Claims & Island Protection:**
-  * WorldGuard, GriefPrevention, Towny, Lands.
-  * SuperiorSkyblock2, BentoBox (BSkyBlock, AcidIsland).
-  * Automatically respects build/break permissions and island member boundaries.
-* **Economy & Hoppers:**
-  * Vault & RoyaleEconomy integration for Budget Hoppers (50% sell price) and Enchanted Hoppers (90% sell price).
-* **Skills Progression:**
-  * AuraSkills & EcoSkills integration for direct skill experience awards.
-* **Collections Systems:**
-  * Native `CollectionsHook` interfacing with EcoCollections, SuperiorSkyblock2 Collections, and custom developer providers.
-* **Bedrock Edition (Geyser & Floodgate):**
-  * Auto-detects Bedrock players and optimizes menu navigation for mobile touch controls.
+### 1. MythicMobs Integration Guide
+MinionX allows combat minions to spawn and harvest custom MythicMobs instead of vanilla mobs:
+
+* **Configuration in `minions.yml`**:
+  Set `target-mob` to any valid MythicMobs internal ID:
+  ```yaml
+  custom-minions:
+    skeletal_knight_minion:
+      display-name: "<gold>Skeletal Knight Minion"
+      archetype: COMBAT
+      target-mob: "SkeletalKnight" # Your MythicMobs internal ID
+      head-texture: "eyJ0ZXh0dXJlcyI6..."
+      hand-tool: "DIAMOND_SWORD"
+      drops:
+        - material: "BONE"
+          amount: 2
+          chance: 1.0
+        - item: "mmoitems:SWORD:BONE_DAGGER" # Optional custom item drop
+          amount: 1
+          chance: 0.15
+  ```
+* **In-Game Creation (`/minion create`)**:
+  1. Open `/minion create` and select the `COMBAT` archetype (Slot 4).
+  2. Right-click Slot 9 (`Target Mob`) or follow the chat prompt: type your MythicMob ID (e.g., `SkeletalKnight`).
+  3. Pick up any item onto your cursor and place it in Slot 12 (Drop Table) or Slot 24 (Held Tool/Weapon) to set equipment and drops.
+* **Mob Management & Spawning**:
+  * MinionX automatically checks if MythicMobs is enabled and calls `MythicBukkit.get().getMobManager().spawnMob()`.
+  * The spawned entity is tagged with `minion_spawned_mob` and `minion_owner_id` in its PersistentDataContainer, preventing it from despawning (`setRemoveWhenFarAway(false)`).
+  * Minions slay mobs within their 5×5 working area and award the configured drops into minion storage.
+  * If a player slays a minion-spawned mob manually with weapons, MythicMobs handles player damage and grants standard loot and experience.
+
+### 2. SuperiorSkyblock2 & Island Protection (BentoBox)
+MinionX includes dedicated handling for skyblock island networks:
+
+* **Island Claim Protection**:
+  * Minions can only be placed within the boundary of an island where the player is a member or has build permission.
+  * Verifies island permissions via `SuperiorSkyblockAPI.getPlayer(player).getIsland()` or BentoBox `IslandsManager.getIslandAt(location)`.
+* **Automatic Island Collections**:
+  * When players collect harvested items from a minion (via "Collect All" or by clicking individual slots), MinionX automatically forwards the progress directly to the island's collection using `island.handleBlockBreak(material, amount)`.
+  * No external commands, bridges, or custom scripts are required.
+* **Co-op Anti-Theft Protection**:
+  * Co-op teammates can open minion dashboards and collect resources by default (`security.access-mode: TEAM_ACCESS`).
+  * To prevent co-op griefing, minion pickup is strictly locked to the original owner who placed it (`security.allow-team-pickup: false`).
+  * Linked minion storage chests are protected from being broken by team members (`settings.allow-team-break-storage: false`).
+* **Island Limits**:
+  * Placement caps can be assigned per player or island group using permissions: `minionx.limit.<number>` or `/minion limit set <player> <amount>`.
+
+### 3. Custom Item Plugins (ItemsAdder, MMOItems, Oraxen, EcoItems)
+MinionX bridges custom RPG items across drop tables, compression recipes, and hand equipment:
+
+* **Item Identifier Formats**:
+  * `itemsadder:<namespace>:<id>` or `itemsadder:<id>` (e.g. `itemsadder:ruby`, `itemsadder:custom_crops:tomato`)
+  - `mmoitems:<TYPE>:<ID>` (e.g. `mmoitems:SWORD:FIRE_KATANA`)
+  - `ecoitems:<id>` (e.g. `ecoitems:enchanted_iron`)
+  - Vanilla materials (e.g. `DIAMOND`)
+* **Direct In-Game Cloning**:
+  * In the Creator Studios (`/minion create`), pick up any item onto your cursor and click Slot 12 (Drop) or Slot 24 (Held Tool).
+  * MinionX copies all CustomModelData, display names, hex lore, and PersistentDataContainer tags directly without requiring manual YAML entry.
+* **Super Compactor Support (`recipes.yml`)**:
+  * Define custom compression recipes that turn raw custom items into compacted custom items.
+  * Strict metadata isolation ensures vanilla compression recipes never accidentally consume items with custom names or CustomModelData.
+
+### 4. Economy Integrations (Vault & RoyaleEconomy)
+* Automated Shipping Hoppers sell overflow items when minion storage fills up.
+* **Budget Hopper**: Sells excess items at 50% of base price.
+* **Enchanted Hopper**: Sells excess items at 90% of base price.
+* Base item prices are configured in `prices.yml`. Earned coins accumulate in the hopper slot and deposit directly into the player's balance via Vault upon collection.
+
+### 5. RPG Skill Integrations (AuraSkills & EcoSkills)
+* When players claim resources from a minion, skill experience is awarded directly to their RPG profile.
+* Configurable in `config.yml` under `skill-rewards`:
+  ```yaml
+  skill-rewards:
+    cobblestone:
+      skill: "mining"
+      xp-per-item: 1.0
+    wheat:
+      skill: "farming"
+      xp-per-item: 2.0
+    zombie:
+      skill: "combat"
+      xp-per-item: 3.5
+  ```
+
+### 6. Land Protection Integrations (WorldGuard, GriefPrevention, Towny, Lands)
+MinionX checks protection rules before allowing players to place or access minions:
+* **WorldGuard**: Checks build and block placement permissions.
+* **GriefPrevention**: Checks claim ownership and trust level (`allowBuild` for placement, `allowContainers` for GUI access).
+* **Towny**: Verifies resident plot build permissions via `TownyAPI`.
+* **Lands**: Checks land area flags via `LandsIntegration` (`canBuild` and `canAccess`).
+
+### 7. Bedrock Edition (GeyserMC & Floodgate)
+* Automatically detects Bedrock players and adapts menu navigation with symmetrical, touch-friendly slot layouts for mobile and console players.
 
 ---
 

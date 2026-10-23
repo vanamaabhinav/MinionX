@@ -177,6 +177,8 @@ MinionX integrates out-of-the-box with leading Minecraft plugins:
 | **Bedrock Compatibility** | GeyserMC, Floodgate |
 | **Metrics & Analytics** | Anonymous bStats integration |
 
+For step-by-step setup guides on configuring custom MythicMobs combat minions, island collections with SuperiorSkyblock2 / BentoBox, and custom item imports (ItemsAdder, MMOItems, Oraxen), see our [Plugin Integrations & Setup Guide](docs/WIKI.md#17-plugin-integrations--setup-guide) in the Wiki and the [Administrator Manual](docs/DOCUMENTATION.md#11-plugin-integrations--protection-hooks).
+
 ---
 
 ## Quick Start Guide
