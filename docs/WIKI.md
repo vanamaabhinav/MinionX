@@ -9,7 +9,7 @@
 ## Table of Contents
 1. [Overview](#1-overview)
 2. [Interactive Minion Dashboard](#2-interactive-minion-dashboard)
-3. [Combat & Animal Husbandry Minion Lifecycle](#3-combat--animal-husbandry-minion-lifecycle)
+3. [Minion Work Cycles & Mechanics](#3-minion-work-cycles--mechanics)
 4. [Automated Shipping & Economy System](#4-automated-shipping--economy-system)
 5. [External Minion Storage Chests](#5-external-minion-storage-chests)
 6. [Upgrades, Compression & Accessories](#6-upgrades-compression--accessories)
@@ -86,24 +86,29 @@ Right-clicking the minion opens its **54-slot interactive control menu**:
 
 ---
 
-## 3. Combat & Animal Husbandry Minion Lifecycle
+## 3. Minion Work Cycles & Mechanics
 
-Combat and animal husbandry minions operate using a predictable pen-filling pattern:
+All minions in MinionX operate on a predictable, two-phase work cycle within a designated working radius:
 
-1. **Natural Pen Filling (Up to 5 Mobs)**:
-   * The minion spawns mobs one by one with each action cycle up to a maximum cap of 5 mobs inside its working pen.
-   * Once 5 mobs are present, the minion shifts to harvest mode.
-2. **Boundary-Checked Harvesting (5×5 Area)**:
-   * The minion only slays mobs located strictly inside its 5×5 working area.
-   * Defeating 1 mob reduces the tracked count to 4, which prompts the minion to spawn 1 replacement mob on its next cycle.
-3. **Stray Mob Tracking & `No Mobs in Range!` Status**:
-   * If all spawned mobs are pushed or wander outside the 5×5 area, the minion pauses and displays a configurable `"No Mobs in Range!"` status.
-   * Mobs outside the boundary remain counted against the 5-mob cap, preventing accidental mob buildup.
-4. **Daylight Burn Protection**:
-   * Undead mobs (Zombies and Skeletons) spawn with natural bare heads. Daylight combustion is cancelled at the event level, preventing mobs from catching fire in sunlight while allowing intentional fire/lava and player weapon damage.
-5. **Player Kills & Minion Pickup**:
-   * When players kill minion-spawned mobs with their own weapons, normal vanilla drops and experience are granted.
-   * Picking up a minion leaves any existing pen mobs alive in the world for players to handle.
+### Operational Cycle:
+1. **Generation Phase**:
+   * Depending on the minion archetype, the minion places its target block (Mining), plants a crop (Farming), places a sapling or tree (Foraging), or spawns its target mob entity (Combat & Animal Husbandry) within its working area.
+2. **Harvest Phase**:
+   * Once targets are ready (ores generated, crops mature, logs grown, or mobs present), the minion harvests the target, collecting raw resources into its internal storage.
+
+### Working Radius & Expansion:
+* **Default Boundary**: Base minions work within a 5×5 block area centered on their placement location.
+* **Expansions**: Placing 1 Minion Expander upgrade increases the working area to 7×7, and 2 Minion Expanders increase it to 9×9.
+
+### Target Scanning & Status Feedback:
+* Minions actively check their working area before performing a harvest.
+* If targets wander or are pushed outside the working radius, the minion pauses and displays a status indicating it is waiting for targets within range.
+* Targets outside the working area remain tracked to prevent excessive spawning.
+
+### Entity Safety & Player Interaction:
+* **Daylight Protection**: Undead mobs spawned by combat minions are protected from daylight combustion through event interception, allowing them to remain active in daylight without wearing helmets.
+* **Player Kills & Gathering**: If a player slays minion-spawned mobs or harvests minion blocks manually, standard vanilla drops and experience are granted naturally.
+* **Pickup Safety**: Picking up a minion safely leaves existing blocks or spawned entities in the world for players to handle.
 
 ---
 
