@@ -161,14 +161,21 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        event.setCancelled(true);
-
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
 
         int slot = event.getRawSlot();
-        if (slot < 0 || slot >= 54) return;
+        if (slot >= 54) {
+            // Allow player to pick up items from their own inventory onto cursor
+            if (event.isShiftClick()) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        event.setCancelled(true);
+        if (slot < 0) return;
 
         MinionCreatorSession session = holder.getSession();
         ItemStack cursor = event.getCursor();
@@ -593,14 +600,44 @@ public class MinionCreatorListener implements Listener {
         if (slot == 24) {
             int targetTier = session.getSelectedTier();
             if (cursor != null && cursor.getType() != Material.AIR) {
+                ItemStack equipped = cursor.clone();
+                equipped.setAmount(1);
                 if (session.isPerTierMode()) {
-                    session.setTierHandItem(targetTier, cursor.clone());
+                    session.setTierHandItem(targetTier, equipped);
                 } else {
-                    session.setHandItem(cursor.clone());
+                    session.setHandItem(equipped);
                 }
                 String tierNote = session.isPerTierMode() ? " for Tier " + targetTier : "";
                 player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aEquipped " + cursor.getType().name() + " in minion's hand" + tierNote + "."));
                 player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1.0f, 1.2f);
+                MinionCreatorGUI.open(player, session);
+            } else {
+                // Empty cursor click: Cycle common weapons and tools or clear hand
+                Material[] tools = {
+                        Material.DIAMOND_SWORD, Material.NETHERITE_SWORD, Material.BOW, Material.TRIDENT,
+                        Material.DIAMOND_PICKAXE, Material.NETHERITE_PICKAXE, Material.DIAMOND_AXE,
+                        Material.NETHERITE_AXE, Material.DIAMOND_SHOVEL, Material.DIAMOND_HOE,
+                        Material.FISHING_ROD, Material.SHEARS, Material.AIR
+                };
+                ItemStack currentHand = session.getEffectiveHandItem(targetTier);
+                Material cur = currentHand != null ? currentHand.getType() : Material.AIR;
+                int idx = tools.length - 1;
+                for (int i = 0; i < tools.length; i++) {
+                    if (tools[i] == cur) {
+                        idx = i;
+                        break;
+                    }
+                }
+                Material nextTool = tools[(idx + 1) % tools.length];
+                ItemStack nextStack = nextTool != Material.AIR ? new ItemStack(nextTool) : null;
+                if (session.isPerTierMode()) {
+                    session.setTierHandItem(targetTier, nextStack);
+                } else {
+                    session.setHandItem(nextStack);
+                }
+                String name = nextTool != Material.AIR ? nextTool.name() : "NONE (Empty Hand)";
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSet held tool to &e" + name + (session.isPerTierMode() ? " for Tier " + targetTier : "") + "&a."));
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.5f);
                 MinionCreatorGUI.open(player, session);
             }
             return;

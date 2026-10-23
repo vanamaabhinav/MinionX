@@ -155,6 +155,13 @@ public class MinionPlaceListener implements Listener {
         // Register minion
         MinionX.getInstance().getMinionManager().register(minion);
 
+        // Persist newly placed minion immediately so it exists in persistence storage for pickups and reboots
+        if (MinionX.getInstance() != null && MinionX.getInstance().getStorage() != null) {
+            com.minionx.storage.DatabaseStorage.MinionSnapshot snap = com.minionx.storage.DatabaseStorage.MinionSnapshot.fromMinion(minion);
+            MinionX.getInstance().getStorage().submitMutation(snap, minion.getStateRevision());
+            MinionX.getInstance().getStorage().flushPendingMutationsAsync();
+        }
+
         // Spawn visual representations
         MinionVisual.spawnOrUpdate(minion);
         MinionHologram.updateHologram(minion);

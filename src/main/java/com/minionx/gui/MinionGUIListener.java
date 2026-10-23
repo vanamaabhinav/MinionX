@@ -671,6 +671,11 @@ public class MinionGUIListener implements Listener {
             storage.getPersistenceExecutor().submit(() -> {
                 DatabaseStorage.PickupRemovalResult removalResult;
                 try {
+                    // Ensure the minion snapshot is synced to persistence before executing atomic removal
+                    com.minionx.storage.DatabaseStorage.MinionSnapshot snap = com.minionx.storage.DatabaseStorage.MinionSnapshot.fromMinion(minion);
+                    storage.submitMutation(snap, stateRevision);
+                    storage.flushPendingMutationsSync();
+
                     removalResult = storage.executePickupRemoval(
                             operationId,
                             minionId,

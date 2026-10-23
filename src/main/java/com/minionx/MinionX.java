@@ -168,6 +168,10 @@ public class MinionX extends JavaPlugin {
         return minionStorage;
     }
 
+    public MinionStorage getStorage() {
+        return minionStorage;
+    }
+
     public void setMinionStorage(MinionStorage minionStorage) {
         this.minionStorage = minionStorage;
     }

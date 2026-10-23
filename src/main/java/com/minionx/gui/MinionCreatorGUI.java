@@ -242,6 +242,7 @@ public class MinionCreatorGUI {
             lore.add(ColorUtil.color("&8Weapon or tool held in the minion's right hand."));
             lore.add(ColorUtil.color("&7"));
             lore.add(ColorUtil.color("&eClick with ANY tool/weapon on cursor to equip"));
+            lore.add(ColorUtil.color("&7Or click with empty hand to cycle weapons/tools"));
             if (session.isPerTierMode()) {
                 lore.add(ColorUtil.color("&3[Per-Tier Mode: Setting tool for Tier " + session.getSelectedTier() + "]"));
             }
