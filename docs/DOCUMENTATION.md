@@ -2,7 +2,7 @@
 
 > **MinionX** - Autonomous Minions Plugin for **Paper / Purpur / Pufferfish 1.20.4 – 1.21+**  
 > **Author:** AbhinavVanama  
-> **Plugin Version:** `v1.0.0` (Release)  
+> **Plugin Version:** `v1.0.1` (Release)  
 > **Source Repository:** [https://github.com/vanamaabhinav/MinionX](https://github.com/vanamaabhinav/MinionX)
 
 ---
@@ -10,22 +10,23 @@
 ## Table of Contents
 1. [System Requirements & Installation](#1-system-requirements--installation)
 2. [Quick Start Deployment](#2-quick-start-deployment)
-3. [Modular Configuration Architecture](#3-modular-configuration-architecture)
-4. [In-Game Creator Studios](#4-in-game-creator-studios)
+3. [Combat & Animal Husbandry Minion Lifecycle](#3-combat--animal-husbandry-minion-lifecycle)
+4. [Modular Configuration Architecture](#4-modular-configuration-architecture)
+5. [In-Game Creator Studios](#5-in-game-creator-studios)
    * [Minion Creator Studio (`/minion create`)](#minion-creator-studio)
    * [Upgrade & Hopper Creator Studio (`/minion create upgrade`)](#upgrade--hopper-creator-studio)
    * [Fuel Creator Studio (`/minion create fuel`)](#fuel-creator-studio)
    * [Tier Creator & Editor Studio (`/minion tier`)](#tier-creator--editor-studio)
    * [Skin Creator Studio (`/minion create skin`)](#skin-creator-studio)
    * [Storage Creator Studio (`/minion create storage`)](#storage-creator-studio)
-5. [Per-Minion Max Tier Caps](#5-per-minion-max-tier-caps)
-6. [Super Compactor 3000 & Custom Items Support](#6-super-compactor-3000--custom-items-support)
-7. [Multi-Drop Engine with Chance Percentages](#7-multi-drop-engine-with-chance-percentages)
-8. [Operator Control Center (`/minionx`)](#8-operator-control-center-minionx)
-9. [Anti-Dupe Security & Emergency Quarantine Mode](#9-anti-dupe-security--emergency-quarantine-mode)
-10. [Plugin Integrations & Protection Hooks](#10-plugin-integrations--protection-hooks)
-11. [Complete Commands & Permissions Reference](#11-complete-commands--permissions-reference)
-12. [Administrator FAQ & Troubleshooting](#12-administrator-faq--troubleshooting)
+6. [Per-Minion Max Tier Caps & Per-Tier Styles](#6-per-minion-max-tier-caps--per-tier-styles)
+7. [Super Compactor 3000 & Custom Items Support](#7-super-compactor-3000--custom-items-support)
+8. [Multi-Drop Engine with Chance Percentages](#8-multi-drop-engine-with-chance-percentages)
+9. [Operator Control Center (`/minionx`)](#9-operator-control-center-minionx)
+10. [Anti-Theft Security & Emergency Quarantine Mode](#10-anti-theft-security--emergency-quarantine-mode)
+11. [Plugin Integrations & Protection Hooks](#11-plugin-integrations--protection-hooks)
+12. [Complete Commands & Permissions Reference](#12-complete-commands--permissions-reference)
+13. [Administrator FAQ & Troubleshooting](#13-administrator-faq--troubleshooting)
 
 ---
 
@@ -39,7 +40,7 @@ MinionX is engineered for production Minecraft servers with bounded-budget tick 
 * **Network:** Optional connection for asynchronous GitHub update checks and anonymous bStats metrics.
 
 ### Step-by-Step Installation:
-1. Download the latest `MinionX-1.0.0.jar` build.
+1. Download the latest `MinionX-1.0.1.jar` build.
 2. Drop the jar file into your server's `plugins/` folder.
 3. Start or restart your server.
 4. MinionX will automatically generate its configuration folder: `plugins/MinionX/`.
@@ -58,14 +59,35 @@ Giving and placing minions in MinionX requires zero complex commands:
 
 ### Deploying the Minion:
 1. Place the minion head item on any solid block in the world.
-2. The minion spawns with authentic animations, billboard text display holograms, and commences its two-phase cycle:
-   * **Phase 1 (Place):** Places the target ore, crop, sapling, or spawns the target mob.
-   * **Phase 2 (Harvest):** Breaks the block, fells the tree, reaps the mature crop, or slays the mob.
+2. The minion spawns with working animations, billboard text display holograms, and commences its cycle:
+   * **Mining / Foraging / Farming:** Places target blocks, logs, or crops, then harvests them when mature.
+   * **Combat / Animal Husbandry:** Follows the 5-mob pen-filling lifecycle detailed below.
 3. Right-click the minion at any time to open its 54-slot interactive control GUI.
 
 ---
 
-## 3. Modular Configuration Architecture
+## 3. Combat & Animal Husbandry Minion Lifecycle
+
+Combat and animal husbandry minions operate using a predictable pen-filling pattern:
+
+1. **Natural Pen Filling (Up to 5 Mobs)**:
+   * The minion spawns mobs one by one with each action cycle up to a maximum cap of 5 mobs inside its working pen.
+   * Once 5 mobs are present, the minion shifts to harvest mode.
+2. **Boundary-Checked Harvesting (5×5 Area)**:
+   * The minion only slays mobs located strictly inside its 5×5 working area.
+   * Defeating 1 mob reduces the tracked count to 4, which prompts the minion to spawn 1 replacement mob on its next cycle.
+3. **Stray Mob Tracking & `No Mobs in Range!` Status**:
+   * If all spawned mobs are pushed or wander outside the 5×5 area, the minion pauses and displays a configurable `"No Mobs in Range!"` status.
+   * Mobs outside the boundary remain counted against the 5-mob cap, preventing accidental mob buildup.
+4. **Daylight Burn Protection**:
+   * Undead mobs (Zombies and Skeletons) spawn with natural bare heads. Daylight combustion is cancelled at the event level, preventing mobs from catching fire in sunlight while allowing intentional fire/lava and player weapon damage.
+5. **Player Kills & Minion Pickup**:
+   * When players kill minion-spawned mobs with their own weapons, normal vanilla drops and experience are granted.
+   * Picking up a minion leaves any existing pen mobs alive in the world for players to handle.
+
+---
+
+## 4. Modular Configuration Architecture
 
 To keep settings tidy and avoid monolithic configuration files, MinionX splits its settings into dedicated files:
 
@@ -109,7 +131,7 @@ storage:
 
 ---
 
-## 4. In-Game Creator Studios
+## 5. In-Game Creator Studios
 
 MinionX features full-fledged in-game visual GUIs for designing, customizing, and deploying plugin content without touching YAML files.
 
@@ -119,10 +141,12 @@ MinionX features full-fledged in-game visual GUIs for designing, customizing, an
   * Define Minion ID and formatted display name.
   * Select archetype: `MINER`, `FORAGING`, `FARMING`, or `COMBAT`.
   * Set primary block/ore to place and harvest.
+  * **Slot 12 (Exact Primary Drop):** Pick up any item onto your cursor to capture an exact clone (preserving custom lore, display name, and CustomModelData).
+  * **Slot 13 (Secondary Drop):** Optional second drop with custom probability percentage.
+  * **Slot 24 (Hand Tool / Weapon):** Pick up any item onto your cursor to equip it directly into the minion's hand, or click with an empty cursor to cycle through standard tools and weapons.
   * **Slot 33 (Max Tier Cap):** Adjust individual maximum tier limit (1 to max tier).
-  * Clone exact drop items with custom metadata, lore, or CustomModelData directly from player cursor.
+  * **Per-Tier Visual Styles Toggle:** Customize head textures, armor materials, leather dye colors, and held items individually for each tier.
   * Integrate custom MythicMobs internal IDs for combat minions.
-  * Choose hand tools, armor styles, and head textures.
 
 ### Upgrade & Hopper Creator Studio
 * **Command:** `/minion create upgrade` (or click Slot 22 inside `/minionx`)
@@ -173,12 +197,13 @@ MinionX features full-fledged in-game visual GUIs for designing, customizing, an
 
 ---
 
-## 5. Per-Minion Tier Customization (Max Tier, Speed, Capacity & Cost)
+## 6. Per-Minion Tier Customization & Per-Tier Visual Styles
 
-Different minions can have different maximum tier caps, individual speeds, storage capacities, and upgrade costs per tier.
+Different minions can have different maximum tier caps, individual speeds, storage capacities, upgrade costs, and visual styles per tier.
 * Standard Ore Minions: Progress up to **Tier XII** using global defaults.
 * Specialized Resource Minions: Can be capped at **Tier V** or **Tier X**.
 * Each tier for a specific minion can override `action-delay`, `storage-slots`, and `upgrade-cost`. Any tier not explicitly overridden automatically falls back to global settings in `tiers.yml`.
+* **Per-Tier Visual Styles (`tier-styles:`)**: Give each tier a unique head texture (Base64 or player name), armor material, leather dye color, and held tool or block as the minion levels up.
 
 ### Configuration in `minions.yml`:
 ```yaml
@@ -227,7 +252,7 @@ When a minion reaches its individual `max-tier`, the Upgrade button inside its G
 
 ---
 
-## 6. Super Compactor 3000 & Unified Custom Items Support
+## 7. Super Compactor 3000 & Unified Custom Items Support
 
 Both `minions.yml` (drops) and `recipes.yml` (compression input/output) share the **identical unified custom item schema**. You can define vanilla items, custom RPG items, or third-party hook items (`itemsadder:`, `mmoitems:`, `oraxen:`, `mythicmobs:`) seamlessly.
 
@@ -285,7 +310,7 @@ The Super Compactor algorithm verifies custom item properties strictly:
 
 ---
 
-## 7. Multi-Drop Engine with Chance Percentages
+## 8. Multi-Drop Engine with Chance Percentages
 
 Minions can produce multiple distinct drop items simultaneously, each with an independent chance percentage:
 
@@ -311,7 +336,7 @@ custom-minions:
 
 ---
 
-## 8. Operator Control Center (`/minionx`)
+## 9. Operator Control Center (`/minionx`)
 
 The Operator Control Center provides administrators with a single, unified control panel:
 
@@ -330,11 +355,12 @@ The Operator Control Center provides administrators with a single, unified contr
 
 ---
 
-## 9. Anti-Dupe Security, Escrow Durability & Crash Safety
+## 10. Anti-Theft Security, Escrow Durability & Crash Safety
 
-MinionX implements robust protection against duplication, inventory desync, and crash exploits:
+MinionX implements robust protection against griefing, duplication, inventory desync, and crash exploits:
 
 ### Security & Durability Highlights:
+* **Co-op Anti-Theft Security:** Island team members can open minion menus and collect items, but cannot pick up minions or break linked storage chests owned by other teammates unless `allow-team-break-storage` is enabled in `config.yml`.
 * **Thread-Safe Data Operations:** All inventory accesses and modifications are synchronized and backed by thread-safe data structures.
 * **Atomic Disk Serialization:** States are written to temporary files and atomically moved to destination paths, guaranteeing zero corrupted or truncated files if a server crashes.
 * **Non-Duplicable Pickups & Durable Escrow:**
@@ -364,7 +390,7 @@ MinionX implements robust protection against duplication, inventory desync, and 
 
 ---
 
-## 10. Plugin Integrations & Protection Hooks
+## 11. Plugin Integrations & Protection Hooks
 
 MinionX natively integrates with the Minecraft server ecosystem:
 
@@ -383,7 +409,7 @@ MinionX natively integrates with the Minecraft server ecosystem:
 
 ---
 
-## 11. Complete Commands & Permissions Reference
+## 12. Complete Commands & Permissions Reference
 
 | Command | Permission | Description |
 |---|---|---|
@@ -415,7 +441,7 @@ MinionX natively integrates with the Minecraft server ecosystem:
 
 ---
 
-## 12. Administrator FAQ & Troubleshooting
+## 13. Administrator FAQ & Troubleshooting
 
 **Q: Can I cap a custom minion at Tier V without affecting other 12-tier minions?**  
 A: Yes! Simply add `max-tier: 5` under that minion in `minions.yml`, or adjust Slot 33 inside the In-Game Minion Creator Studio (`/minion create`).

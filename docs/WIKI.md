@@ -2,30 +2,31 @@
 
 > **MinionX** is an autonomous minion plugin designed for **Paper, Purpur, and Pufferfish (1.20.4 – 1.21+)**.  
 > **Author:** AbhinavVanama  
-> **Version:** `v1.0.0`  
+> **Version:** `v1.0.1`  
 
 ---
 
 ## Table of Contents
 1. [Overview](#1-overview)
 2. [Interactive Minion Dashboard](#2-interactive-minion-dashboard)
-3. [Automated Shipping & Economy System](#3-automated-shipping--economy-system)
-4. [External Minion Storage Chests](#4-external-minion-storage-chests)
-5. [Upgrades, Compression & Accessories](#5-upgrades-compression--accessories)
-6. [Fuel System (Temporary & Permanent)](#6-fuel-system-temporary--permanent)
-7. [Cosmetic Minion Skins & Armor Sets](#7-cosmetic-minion-skins--armor-sets)
-8. [Per-Minion Tier Customization](#8-per-minion-tier-customization)
-9. [Multi-Drop Engine & Custom Items](#9-multi-drop-engine--custom-items)
-10. [Offline Production & Catch-Up](#10-offline-production--catch-up)
-11. [RPG Skill Rewards & Collections](#11-rpg-skill-rewards--collections)
-12. [Dialogue & Visual Displays](#12-dialogue--visual-displays)
-13. [In-Game Creator Studios](#13-in-game-creator-studios)
-14. [Operator Control Center (`/minionx`)](#14-the-operator-control-center-minionx)
-15. [Configuration Files Guide](#15-configuration-files-guide)
-16. [Land Claim & Protection Integrations](#16-land-claim--protection-integrations)
-17. [Security & Emergency Quarantine](#17-security--emergency-quarantine)
-18. [Commands & Permissions Reference](#18-commands--permissions-reference)
-19. [Frequently Asked Questions (FAQ)](#19-frequently-asked-questions-faq)
+3. [Combat & Animal Husbandry Minion Lifecycle](#3-combat--animal-husbandry-minion-lifecycle)
+4. [Automated Shipping & Economy System](#4-automated-shipping--economy-system)
+5. [External Minion Storage Chests](#5-external-minion-storage-chests)
+6. [Upgrades, Compression & Accessories](#6-upgrades-compression--accessories)
+7. [Fuel System (Temporary & Permanent)](#7-fuel-system-temporary--permanent)
+8. [Cosmetic Skins & Per-Tier Visual Styles](#8-cosmetic-skins--per-tier-visual-styles)
+9. [Per-Minion Tier Customization](#9-per-minion-tier-customization)
+10. [Multi-Drop Engine & Custom Items](#10-multi-drop-engine--custom-items)
+11. [Offline Production & Catch-Up](#11-offline-production--catch-up)
+12. [RPG Skill Rewards & Collections](#12-rpg-skill-rewards--collections)
+13. [Dialogue & Visual Displays](#13-dialogue--visual-displays)
+14. [In-Game Creator Studios](#14-in-game-creator-studios)
+15. [Operator Control Center (`/minionx`)](#15-the-operator-control-center-minionx)
+16. [Configuration Files Guide](#16-configuration-files-guide)
+17. [Land Claim & Protection Integrations](#17-land-claim--protection-integrations)
+18. [Anti-Theft Security & Emergency Quarantine](#18-anti-theft-security--emergency-quarantine)
+19. [Commands & Permissions Reference](#19-commands--permissions-reference)
+20. [Frequently Asked Questions (FAQ)](#20-frequently-asked-questions-faq)
 
 ---
 
@@ -85,7 +86,28 @@ Right-clicking the minion opens its **54-slot interactive control menu**:
 
 ---
 
-## 3. Automated Shipping & Economy System
+## 3. Combat & Animal Husbandry Minion Lifecycle
+
+Combat and animal husbandry minions operate using a predictable pen-filling pattern:
+
+1. **Natural Pen Filling (Up to 5 Mobs)**:
+   * The minion spawns mobs one by one with each action cycle up to a maximum cap of 5 mobs inside its working pen.
+   * Once 5 mobs are present, the minion shifts to harvest mode.
+2. **Boundary-Checked Harvesting (5×5 Area)**:
+   * The minion only slays mobs located strictly inside its 5×5 working area.
+   * Defeating 1 mob reduces the tracked count to 4, which prompts the minion to spawn 1 replacement mob on its next cycle.
+3. **Stray Mob Tracking & `No Mobs in Range!` Status**:
+   * If all spawned mobs are pushed or wander outside the 5×5 area, the minion pauses and displays a configurable `"No Mobs in Range!"` status.
+   * Mobs outside the boundary remain counted against the 5-mob cap, preventing accidental mob buildup.
+4. **Daylight Burn Protection**:
+   * Undead mobs (Zombies and Skeletons) spawn with natural bare heads. Daylight combustion is cancelled at the event level, preventing mobs from catching fire in sunlight while allowing intentional fire/lava and player weapon damage.
+5. **Player Kills & Minion Pickup**:
+   * When players kill minion-spawned mobs with their own weapons, normal vanilla drops and experience are granted.
+   * Picking up a minion leaves any existing pen mobs alive in the world for players to handle.
+
+---
+
+## 4. Automated Shipping & Economy System
 
 To prevent minions from halting when their storage fills up, Automated Shipping hoppers can be equipped to sell overflow items directly to the server economy.
 
@@ -107,7 +129,7 @@ To prevent minions from halting when their storage fills up, Automated Shipping 
 
 ---
 
-## 4. External Minion Storage Chests
+## 5. External Minion Storage Chests
 
 Players can expand a minion's holding capacity by placing a dedicated Minion Storage chest directly adjacent to the minion.
 
@@ -124,13 +146,14 @@ Players can expand a minion's holding capacity by placing a dedicated Minion Sto
 
 ### Security & Protection Features:
 * **Owner Protection**: Only the minion owner or server operators can open or remove a linked storage chest.
+* **Co-op Team Protection**: Island teammates cannot break linked chests owned by another player unless `allow-team-break-storage: true` is set in `config.yml`.
 * **Withdrawal-Only Mode**: Minion chests are designed for withdrawal only; players cannot accidentally insert unwanted items or drag external items into them.
 * **Hopper Siphoning Prevention**: Vanilla hoppers, droppers, and hopper minecarts are prevented from pulling items out of or pushing items into minion chests.
 * **Break Safety**: Breaking the chest safely drops all stored contents and the storage chest item on the ground.
 
 ---
 
-## 5. Upgrades, Compression & Accessories
+## 6. Upgrades, Compression & Accessories
 
 Minions can be equipped with up to two functional upgrades in **Slots 37 & 46**:
 
@@ -153,7 +176,7 @@ Server owners can also create custom upgrades with unique speed buffs, area incr
 
 ---
 
-## 6. Fuel System (Temporary & Permanent)
+## 7. Fuel System (Temporary & Permanent)
 
 Fuels can be placed into **Slot 19** of the Minion GUI to reduce action delays and accelerate harvest rates.
 
@@ -172,20 +195,24 @@ Fuels can be placed into **Slot 19** of the Minion GUI to reduce action delays a
 
 ---
 
-## 7. Cosmetic Minion Skins & Armor Sets
+## 8. Cosmetic Skins & Per-Tier Visual Styles
 
-Cosmetic skins allow players to customize the appearance of their minions without altering their harvest mechanics.
+Minion appearance can be customized through cosmetic skins or per-tier visual progression:
 
-* **Custom Skull Textures**: Supports custom head textures via Base64 textures or standard player usernames.
-* **Complete Armor Sets**: Equipping a skin dresses the minion in matching armor (chestplate, leggings, and boots).
-* **Leather Armor Dyeing**: Supports custom Hex color codes (`#RRGGBB`), RGB values, or standard color names to give leather armor distinct color palettes.
-* **Metallic Armor Styles**: Supports metallic armor sets including Chainmail, Iron, Gold, Diamond, and Netherite.
-* **Handheld Items**: Allows the minion to hold custom tools or items in its main hand (swords, pickaxes, axes, or novelty items).
-* **Equipping**: Placed in **Slot 10** of the Minion GUI. Clicking an active skin with an empty cursor returns it safely to the player's inventory.
+* **Cosmetic Skins**:
+  * **Custom Skull Textures**: Supports custom head textures via Base64 textures or standard player usernames.
+  * **Complete Armor Sets**: Equipping a skin dresses the minion in matching armor (chestplate, leggings, and boots).
+  * **Leather Armor Dyeing**: Supports custom Hex color codes (`#RRGGBB`), RGB values, or standard color names to give leather armor distinct color palettes.
+  * **Metallic Armor Styles**: Supports metallic armor sets including Chainmail, Iron, Gold, Diamond, and Netherite.
+  * **Handheld Items**: Allows the minion to hold custom tools or items in its main hand (swords, pickaxes, axes, or novelty items).
+  * **Equipping**: Placed in **Slot 10** of the Minion GUI. Clicking an active skin with an empty cursor returns it safely to the player's inventory.
+* **Per-Tier Visual Styles (`tier-styles:`)**:
+  * In addition to cosmetic skins, minions can display unique visual styles for each tier configured in `minions.yml`.
+  * Each tier can define a distinct custom head texture (Base64 or player name), armor material, leather dye color, and held tool/block as the minion levels up.
 
 ---
 
-## 8. Per-Minion Tier Customization
+## 9. Per-Minion Tier Customization
 
 Different minion types can be configured with distinct maximum tiers, action delays, storage capacities, and upgrade costs.
 
@@ -195,7 +222,7 @@ Different minion types can be configured with distinct maximum tiers, action del
 
 ---
 
-## 9. Multi-Drop Engine & Custom Items
+## 10. Multi-Drop Engine & Custom Items
 
 MinionX supports multi-drop tables and custom item frameworks for both harvest yields and compression recipes.
 
@@ -208,7 +235,7 @@ MinionX supports multi-drop tables and custom item frameworks for both harvest y
 
 ---
 
-## 10. Offline Production & Catch-Up
+## 11. Offline Production & Catch-Up
 
 When chunks unload or the server restarts, minions calculate their production using an offline catch-up calculation upon reload:
 
@@ -219,7 +246,7 @@ When chunks unload or the server restarts, minions calculate their production us
 
 ---
 
-## 11. RPG Skill Rewards & Collections
+## 12. RPG Skill Rewards & Collections
 
 Collecting resources from minions can reward players with skill experience and advance server-wide collections.
 
@@ -234,7 +261,7 @@ Collecting resources from minions can reward players with skill experience and a
 
 ---
 
-## 12. Dialogue & Visual Displays
+## 13. Dialogue & Visual Displays
 
 Minions feature dynamic visual cues and floating status displays to provide feedback to players.
 
@@ -252,11 +279,12 @@ Minions feature dynamic visual cues and floating status displays to provide feed
 
 ---
 
-## 13. In-Game Creator Studios
+## 14. In-Game Creator Studios
 
 MinionX provides interactive in-game menus allowing administrators to configure content without manual file editing:
 
 * **Minion Creator (`/minion create`)**: Configure new minion types, target blocks or mobs, held items, primary/secondary drops, and tier limits.
+* **Held Tool & Weapon Studio Slot (Slot 24)**: Customize the minion's held equipment directly. Click Slot 24 with any item on your cursor to equip it instantly, or click with an empty cursor to cycle through default tools.
 * **Upgrade Creator (`/minion create upgrade`)**: Create custom automated shipping hoppers, compactors, speed catalysts, and accessories with adjustable sell ratios and speed boosts.
 * **Fuel Creator (`/minion create fuel`)**: Create fuels with custom durations, speed multipliers, and glint effects.
 * **Skin Creator (`/minion create skin`)**: Design cosmetic skins with custom skull textures, leather dye colors, and held equipment.
@@ -265,9 +293,9 @@ MinionX provides interactive in-game menus allowing administrators to configure 
 
 ---
 
-## 14. The Operator Command Center (`/minionx`)
+## 15. Operator Control Center (`/minionx`)
 
-The Operator Command Center (`/minionx` or aliases `/minion op`, `/minionsx`, `/mxop`) provides an administrative dashboard:
+The Operator Control Center (`/minionx` or aliases `/minion op`, `/minionsx`, `/mxop`) provides an administrative dashboard:
 
 * **Minions Catalog (Slot 20)**: Inspect registered minions and claim test copies.
 * **Upgrades Catalog (Slot 22)**: Browse all upgrades and launch the Upgrade Creator Studio.
@@ -278,7 +306,7 @@ The Operator Command Center (`/minionx` or aliases `/minion op`, `/minionsx`, `/
 
 ---
 
-## 15. Configuration Files Guide
+## 16. Configuration Files Guide
 
 All settings are neatly separated across dedicated files in `plugins/MinionX/`:
 
@@ -297,7 +325,7 @@ All settings are neatly separated across dedicated files in `plugins/MinionX/`:
 
 ---
 
-## 16. Land Claim & Protection Integrations
+## 17. Land Claim & Protection Integrations
 
 MinionX checks placement and interaction permissions against major protection plugins:
 
@@ -309,12 +337,15 @@ MinionX checks placement and interaction permissions against major protection pl
 
 ---
 
-## 17. Security, Escrow Durability & Emergency Quarantine
+## 18. Anti-Theft Security & Emergency Quarantine
 
-MinionX includes safety controls designed to protect player data, prevent item/XP duplication, and ensure 100% crash recovery:
+MinionX includes safety controls designed to protect player data, prevent item/XP duplication, and ensure crash recovery:
 
 * **Thread-Safe Data Handling**: Persistence flushes occur on a dedicated worker while snapshotting occurs on the primary server thread with atomic revisions.
-* **Container Isolation**: Storage chests cannot be accessed by vanilla hoppers, droppers, or minecarts.
+* **Container Isolation & Co-op Protection**:
+  * Minion storage chests cannot be accessed by vanilla hoppers, droppers, or minecarts.
+  * On skyblock servers (SuperiorSkyblock2, BentoBox), minions and their linked chests verify ownership. The configurable option `settings.allow-team-break-storage` (default: `false`) ensures co-op team members cannot break another player's minion chest or siphon stored items, while still allowing legitimate island building.
+  * Minion pickup is strictly restricted to the placing owner or administrators.
 * **Atomic Pickup & Durable Escrow**:
   * Minion pickup is executed in a multi-phase atomic sequence: the minion and state are committed to a durable escrow operation (`minion_pending_operations`) before world entities are removed.
   * Stored XP is embedded into the durable payload (`XP:<xp>;;;PAYLOAD:::<items>`) from Phase 1.
@@ -343,7 +374,7 @@ MinionX includes safety controls designed to protect player data, prevent item/X
 
 ---
 
-## 18. Commands & Permissions Reference
+## 19. Commands & Permissions Reference
 
 ### Commands:
 | Command | Permission | Description |
@@ -372,13 +403,13 @@ MinionX includes safety controls designed to protect player data, prevent item/X
 
 ---
 
-## 19. Frequently Asked Questions (FAQ)
+## 20. Frequently Asked Questions (FAQ)
 
 **Q: How does Automated Shipping sell items when storage fills up?**  
 A: When both the minion's internal inventory and any linked storage chest are full, equipped hoppers automatically sell further harvested items using prices in `prices.yml`. Earned coins accumulate in the hopper slot and can be collected at any time.
 
 **Q: Can players take items from another player's minion chest?**  
-A: No. Storage chests are protected by owner verification. Only the minion's owner or an operator can open the chest, and items can only be withdrawn.
+A: No. Storage chests are protected by owner verification. Only the minion's owner or an operator can open the chest, and items can only be withdrawn. Furthermore, co-op team members cannot break linked storage chests unless `allow-team-break-storage` is explicitly set to `true`.
 
 **Q: How does offline catch-up work?**  
 A: When an unloaded chunk reloads or the server restarts, MinionX computes elapsed downtime cycle-by-cycle across fuel boundaries, applying compaction recipes, and stopping gracefully if storage reaches capacity without dropping or deleting unpriced items.
