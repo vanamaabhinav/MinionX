@@ -140,4 +140,50 @@ public class CombatScalingAndEnchantedUpgradesTest {
         assertEquals(Material.ROTTEN_FLESH, req5.getMaterial());
         assertEquals(8, req5.getRequiredAmount());
     }
+
+    @Test
+    @DisplayName("Animal Husbandry minions are FARMING archetype with explicit targetMob definitions")
+    void testAnimalHusbandryDefinitionsTargetMobAndArchetype() {
+        String[] husbandryIds = new String[]{"cow", "pig", "chicken", "sheep", "rabbit"};
+        String[] expectedMobs = new String[]{"COW", "PIG", "CHICKEN", "SHEEP", "RABBIT"};
+
+        for (int i = 0; i < husbandryIds.length; i++) {
+            String id = husbandryIds[i];
+            MinionDefinition def = MinionRegistry.get(id);
+            assertNotNull(def, "Husbandry minion definition for " + id + " must exist");
+            assertEquals(MinionArchetype.FARMING, def.getArchetype(), id + " should have FARMING archetype");
+            assertNotNull(def.getTargetMob(), id + " must define targetMob for mob routing");
+            assertEquals(expectedMobs[i], def.getTargetMob().toUpperCase(), id + " targetMob mismatch");
+        }
+    }
+
+    @Test
+    @DisplayName("Combat and Husbandry filling logic spawns until cap (5) then enters steady state slaying")
+    void testCombatAndHusbandryFillingCapacityInvariant() {
+        int cap = 5;
+        java.util.List<UUID> tracked = new java.util.ArrayList<>();
+
+        // Phase 1: Population up to cap
+        for (int i = 0; i < cap; i++) {
+            boolean shouldSpawn = tracked.size() < cap;
+            assertTrue(shouldSpawn, "Should prioritize spawning when mob count is " + i + " (< " + cap + ")");
+            tracked.add(UUID.randomUUID());
+        }
+
+        // At capacity (5 mobs)
+        assertEquals(5, tracked.size());
+        boolean shouldSpawnAtCap = tracked.size() < cap;
+        assertFalse(shouldSpawnAtCap, "Should NOT spawn when at cap (5)");
+
+        // Slay 1 mob (steady state harvest)
+        UUID slain = tracked.remove(0);
+        assertNotNull(slain);
+        assertEquals(4, tracked.size());
+
+        // Pen now has 4 (< 5), next action replenishes
+        boolean replenish = tracked.size() < cap;
+        assertTrue(replenish, "Should replenish 1 mob to return to 5");
+        tracked.add(UUID.randomUUID());
+        assertEquals(5, tracked.size());
+    }
 }

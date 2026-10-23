@@ -1126,10 +1126,8 @@ public class MinionTickTask extends BukkitRunnable {
 
         boolean isPartiallyObstructed = foreignObstructions > 0 && !validLocs.isEmpty();
 
-        // 1. If we have no mobs spawned, OR we are below cap and the last action was killing/harvesting: SPAWN A MOB
-        boolean shouldSpawn = taggedMobs.isEmpty() || (taggedMobs.size() < cap && !minion.wasLastActionPlace());
-
-        if (shouldSpawn && !validLocs.isEmpty()) {
+        // 1. If we have fewer than cap mobs spawned: SPAWN A MOB (fill up the arena first, just like Miner places blocks)
+        if (taggedMobs.size() < cap && !validLocs.isEmpty()) {
             updateObstructionState(minion, isPartiallyObstructed);
             Location spawnLoc = getRandomElement(validLocs);
             Entity spawned = MythicMobsHook.spawnMob(def.getTargetMob(), spawnLoc, disableAi);
@@ -1146,7 +1144,7 @@ public class MinionTickTask extends BukkitRunnable {
             // If physical spawn returned null (e.g. peaceful mode or region deny), fall through to harvest directly
         }
 
-        // 2. If mobs exist in the 5x5 arena: KILL A MOB & HARVEST
+        // 2. Once the pen reaches cap (or if no spawn space but mobs are present): SLAUGHTER A MOB & HARVEST
         if (!taggedMobs.isEmpty()) {
             updateObstructionState(minion, isPartiallyObstructed);
             Entity target = taggedMobs.getFirst();
