@@ -34,17 +34,19 @@ public class PlayerLimitManager {
      */
     public int getEffectiveLimit(Player player) {
         if (player == null) return 5;
-        if (player.hasPermission("minionx.bypass.limit")) return -1;
+        if (player.hasPermission("minionx.bypass.limit") || player.hasPermission("minions.bypass.limit")) return -1;
 
         int baseLimit = -1;
 
-        // 1. Scan permission nodes: minionx.limit.<N> (picks highest)
+        // 1. Scan permission nodes: minionx.limit.<N> or minions.limit.<N> (picks highest)
         int highestPermLimit = -1;
         for (PermissionAttachmentInfo pai : player.getEffectivePermissions()) {
             String perm = pai.getPermission().toLowerCase();
             String prefix = null;
             if (perm.startsWith("minionx.limit.")) {
                 prefix = "minionx.limit.";
+            } else if (perm.startsWith("minions.limit.")) {
+                prefix = "minions.limit.";
             }
 
             if (prefix != null && pai.getValue()) {

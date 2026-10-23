@@ -17,6 +17,7 @@ import com.minionx.item.MinionItemFactory;
 import com.minionx.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -146,7 +147,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 if (args.length >= 5) {
                     try { amount = Math.max(1, Integer.parseInt(args[4])); } catch (NumberFormatException ignored) {}
                 }
-                target.getInventory().addItem(MinionItemFactory.createStorageItem(st, amount));
+                giveItemSafely(target, MinionItemFactory.createStorageItem(st, amount));
                 sender.sendMessage(ColorUtil.color("&aGave " + amount + "x " + st.getDisplayName() + " &ato " + target.getName() + "."));
                 target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received " + amount + "x " + st.getDisplayName() + "!"));
                 return;
@@ -162,7 +163,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             if (args.length >= 4) {
                 try { amount = Math.max(1, Integer.parseInt(args[3])); } catch (NumberFormatException ignored) {}
             }
-            target.getInventory().addItem(MinionItemFactory.createStorageItem(directStorage, amount));
+            giveItemSafely(target, MinionItemFactory.createStorageItem(directStorage, amount));
             sender.sendMessage(ColorUtil.color("&aGave " + amount + "x " + directStorage.getDisplayName() + " &ato " + target.getName() + "."));
             target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received " + amount + "x " + directStorage.getDisplayName() + "!"));
             return;
@@ -173,7 +174,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             String skinId = args[3].toLowerCase();
             com.minionx.api.MinionSkin skin = com.minionx.api.MinionSkinRegistry.get(skinId);
             if (skin != null) {
-                target.getInventory().addItem(MinionItemFactory.createSkinItem(skin));
+                giveItemSafely(target, MinionItemFactory.createSkinItem(skin));
                 sender.sendMessage(ColorUtil.color("&aGave " + skin.getDisplayName() + " &aminion skin to " + target.getName() + "."));
                 target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received a " + skin.getDisplayName() + " &aminion skin!"));
                 return;
@@ -185,7 +186,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         com.minionx.api.MinionSkin directSkin = com.minionx.api.MinionSkinRegistry.get(itemArg);
         if (directSkin != null) {
-            target.getInventory().addItem(MinionItemFactory.createSkinItem(directSkin));
+            giveItemSafely(target, MinionItemFactory.createSkinItem(directSkin));
             sender.sendMessage(ColorUtil.color("&aGave " + directSkin.getDisplayName() + " &aminion skin to " + target.getName() + "."));
             target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received a " + directSkin.getDisplayName() + " &aminion skin!"));
             return;
@@ -197,11 +198,11 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             int tier = 1;
             if (args.length >= 4) {
                 try {
-                    tier = Math.clamp(Integer.parseInt(args[3]), 1, MinionTier.getMaxTier());
+                    tier = Math.clamp(Integer.parseInt(args[3]), 1, customDef.getMaxTier());
                 } catch (NumberFormatException ignored) {}
             }
             ItemStack customItem = MinionItemFactory.createCustomMinionItem(customDef, tier, 0);
-            target.getInventory().addItem(customItem);
+            giveItemSafely(target, customItem);
             sender.sendMessage(ColorUtil.color("&aGave " + customDef.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + " to " + target.getName() + "."));
             target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received a " + customDef.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + "!"));
             return;
@@ -210,7 +211,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         // 2. Check dynamic custom fuels from config
         CustomFuel customFuel = FuelRegistry.get(itemArg);
         if (customFuel != null) {
-            target.getInventory().addItem(MinionItemFactory.createFuelItem(customFuel));
+            giveItemSafely(target, MinionItemFactory.createFuelItem(customFuel));
             sender.sendMessage(ColorUtil.color("&aGave " + customFuel.getDisplayName() + " fuel to " + target.getName() + "."));
             return;
         }
@@ -218,7 +219,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         // 3. Check dynamic custom upgrades from config
         CustomUpgrade customUpgrade = UpgradeRegistry.get(itemArg);
         if (customUpgrade != null) {
-            target.getInventory().addItem(MinionItemFactory.createUpgradeItem(customUpgrade));
+            giveItemSafely(target, MinionItemFactory.createUpgradeItem(customUpgrade));
             sender.sendMessage(ColorUtil.color("&aGave " + customUpgrade.getDisplayName() + " upgrade to " + target.getName() + "."));
             return;
         }
@@ -230,18 +231,30 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        MinionDefinition builtInDef = MinionRegistry.get(type.name().toLowerCase());
+        int maxTier = builtInDef != null ? builtInDef.getMaxTier() : type.getMaxTier();
         int tier = 1;
         if (args.length >= 4) {
             try {
-                tier = Math.clamp(Integer.parseInt(args[3]), 1, MinionTier.getMaxTier());
+                tier = Math.clamp(Integer.parseInt(args[3]), 1, maxTier);
             } catch (NumberFormatException ignored) {}
         }
 
         ItemStack minionItem = MinionItemFactory.createMinionItem(type, tier, 0);
-        target.getInventory().addItem(minionItem);
+        giveItemSafely(target, minionItem);
 
         sender.sendMessage(ColorUtil.color("&aGave " + type.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + " to " + target.getName() + "."));
         target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received a " + type.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + "!"));
+    }
+
+    private void giveItemSafely(Player target, ItemStack item) {
+        if (target == null || item == null || item.getType() == Material.AIR) return;
+        java.util.HashMap<Integer, ItemStack> left = target.getInventory().addItem(item);
+        if (!left.isEmpty() && target.getWorld() != null) {
+            for (ItemStack drop : left.values()) {
+                target.getWorld().dropItemNaturally(target.getLocation(), drop);
+            }
+        }
     }
 
     private void handleLimit(CommandSender sender, String[] args) {

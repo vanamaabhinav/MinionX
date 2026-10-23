@@ -176,6 +176,10 @@ public class MinionX extends JavaPlugin {
         return playerLimitManager;
     }
 
+    public MinionTickTask getMinionTickTask() {
+        return minionTickTask;
+    }
+
     private org.bukkit.configuration.file.FileConfiguration tiersConfig;
     private org.bukkit.configuration.file.FileConfiguration fuelsConfig;
     private org.bukkit.configuration.file.FileConfiguration upgradesConfig;

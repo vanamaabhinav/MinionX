@@ -110,13 +110,20 @@ public class MinionCreatorSession {
     public void setStorageSlots(int storageSlots) { this.storageSlots = Math.clamp(storageSlots, 1, 15); }
 
     public int getMaxTier() { return maxTier; }
-    public void setMaxTier(int maxTier) { this.maxTier = Math.clamp(maxTier, 1, com.minionx.api.MinionTier.getMaxTier()); }
+    public void setMaxTier(int maxTier) {
+        this.maxTier = Math.clamp(maxTier, 1, com.minionx.api.MinionTier.getMaxTier());
+        if (this.selectedTier > this.maxTier) {
+            this.selectedTier = this.maxTier;
+        }
+    }
 
     public boolean isPerTierMode() { return perTierMode; }
     public void setPerTierMode(boolean perTierMode) { this.perTierMode = perTierMode; }
 
     public int getSelectedTier() { return selectedTier; }
-    public void setSelectedTier(int selectedTier) { this.selectedTier = Math.clamp(selectedTier, 1, 11); }
+    public void setSelectedTier(int selectedTier) {
+        this.selectedTier = Math.clamp(selectedTier, 1, Math.max(1, this.maxTier));
+    }
 
     public Map<Integer, MinionDefinition.TierStyle> getTierStyles() { return tierStyles; }
 

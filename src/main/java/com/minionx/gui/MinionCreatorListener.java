@@ -710,7 +710,7 @@ public class MinionCreatorListener implements Listener {
         MinionRegistry.saveCustomMinion(def);
 
         ItemStack item = MinionItemFactory.createCustomMinionItem(def, tier, 0);
-        player.getInventory().addItem(item);
+        giveItemSafely(player, item);
 
         player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aCreated custom minion &f" + def.getDisplayName() + " &aand saved to minions.yml!"));
         player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&7Received Tier " + tier + " spawn item. Right-click to place!"));
@@ -975,7 +975,7 @@ public class MinionCreatorListener implements Listener {
             );
             MinionStorageRegistry.saveCustomStorage(storage);
             ItemStack stItem = MinionItemFactory.createStorageItem(storage, 1);
-            player.getInventory().addItem(stItem);
+            giveItemSafely(player, stItem);
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSaved custom storage: &e" + storage.getDisplayName() + " &aand gave you 1x item!"));
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
             player.closeInventory();
@@ -1151,7 +1151,7 @@ public class MinionCreatorListener implements Listener {
         if (slot == 40 || slot == 53) {
             CustomFuel fuel = session.toCustomFuel();
             ItemStack fuelItem = MinionItemFactory.createFuelItem(fuel);
-            player.getInventory().addItem(fuelItem);
+            giveItemSafely(player, fuelItem);
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aGave you 1x test copy of: &e" + fuel.getDisplayName()));
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
             return;
@@ -1161,7 +1161,7 @@ public class MinionCreatorListener implements Listener {
             CustomFuel fuel = session.toCustomFuel();
             FuelRegistry.saveFuel(fuel, session.getDurationString());
             ItemStack fuelItem = MinionItemFactory.createFuelItem(fuel);
-            player.getInventory().addItem(fuelItem);
+            giveItemSafely(player, fuelItem);
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSaved custom fuel: &e" + fuel.getDisplayName() + " &aand added to &ffuels.yml&a!"));
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
             player.closeInventory();
@@ -1274,7 +1274,7 @@ public class MinionCreatorListener implements Listener {
         if (slot == 16) {
             CustomUpgrade preview = session.buildUpgrade();
             ItemStack item = MinionItemFactory.createUpgradeItem(preview);
-            player.getInventory().addItem(item);
+            giveItemSafely(player, item);
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aGave you 1x test copy of: &e" + preview.getDisplayName()));
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
             return;
@@ -1285,7 +1285,7 @@ public class MinionCreatorListener implements Listener {
             CustomUpgrade upgrade = session.buildUpgrade();
             UpgradeRegistry.saveCustomUpgrade(upgrade);
             ItemStack item = MinionItemFactory.createUpgradeItem(upgrade);
-            player.getInventory().addItem(item);
+            giveItemSafely(player, item);
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSaved custom upgrade: &e" + upgrade.getDisplayName() + " &aand added to &fupgrades.yml&a!"));
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
             player.closeInventory();
@@ -1331,4 +1331,13 @@ public class MinionCreatorListener implements Listener {
         });
     }
 
+    private void giveItemSafely(Player player, ItemStack item) {
+        if (player == null || item == null || item.getType() == Material.AIR) return;
+        var leftover = player.getInventory().addItem(item);
+        if (!leftover.isEmpty() && player.getWorld() != null) {
+            for (ItemStack drop : leftover.values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), drop);
+            }
+        }
+    }
 }

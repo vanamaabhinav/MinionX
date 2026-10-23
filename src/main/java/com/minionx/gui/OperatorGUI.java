@@ -181,13 +181,14 @@ public class OperatorGUI {
 
         for (int i = 0; i < defs.size() && i < slots.length; i++) {
             MinionDefinition def = defs.get(i);
-            ItemStack item = MinionItemFactory.createCustomMinionItem(def, 11, 0);
+            int max = def.getMaxTier();
+            ItemStack item = MinionItemFactory.createCustomMinionItem(def, max, 0);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
                 List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
                 lore.add(ColorUtil.color("&8------------------------"));
-                lore.add(ColorUtil.color("&aLeft-Click: &fGet Tier XI (Maxed)"));
-                lore.add(ColorUtil.color("&eRight-Click: &fBrowse Tiers I to XI"));
+                lore.add(ColorUtil.color("&aLeft-Click: &fGet Tier " + MinionTier.toRoman(max) + " (Maxed)"));
+                lore.add(ColorUtil.color("&eRight-Click: &fBrowse Tiers I to " + MinionTier.toRoman(max)));
                 lore.add(ColorUtil.color("&bShift-Click: &fGet Tier I (Starter)"));
                 lore.add(ColorUtil.color("&dMiddle-Click / Drop: &fEdit Properties in Studio"));
                 meta.setLore(lore);
@@ -249,12 +250,13 @@ public class OperatorGUI {
         ItemStack border = createPane(Material.BLACK_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) inv.setItem(i, border);
 
-        inv.setItem(4, createNamedItem(Material.CHEST, ColorUtil.color("&b" + def.getDisplayName() + " Minion Tiers (I to XII)"),
+        int[] tierSlots = {19, 20, 21, 22, 23, 24, 28, 29, 30, 31, 32, 33};
+        int max = Math.min(def.getMaxTier(), tierSlots.length);
+
+        inv.setItem(4, createNamedItem(Material.CHEST, ColorUtil.color("&b" + def.getDisplayName() + " Minion Tiers (I to " + MinionTier.toRoman(max) + ")"),
                 List.of(ColorUtil.color("&7Click any tier to receive that minion item."),
                         ColorUtil.color("&7Shift-Click to receive a full stack."))));
 
-        int[] tierSlots = {19, 20, 21, 22, 23, 24, 28, 29, 30, 31, 32, 33};
-        int max = Math.min(MinionTier.getMaxTier(), tierSlots.length);
         for (int tier = 1; tier <= max; tier++) {
             ItemStack minionItem = MinionItemFactory.createCustomMinionItem(def, tier, 0);
             inv.setItem(tierSlots[tier - 1], minionItem);

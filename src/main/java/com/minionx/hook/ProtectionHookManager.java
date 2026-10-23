@@ -208,6 +208,9 @@ public class ProtectionHookManager {
         if ("OWNER_ONLY".equalsIgnoreCase(mode)) {
             return false;
         }
+        if ("PUBLIC".equalsIgnoreCase(mode) || "OPEN".equalsIgnoreCase(mode)) {
+            return true;
+        }
 
         Location loc = minion.getLocation();
         if (loc == null) return false;
@@ -245,6 +248,16 @@ public class ProtectionHookManager {
                 Object area = landsGetArea.invoke(landsIntegration, loc);
                 if (area != null) {
                     return (boolean) landsCanAccess.invoke(area, player, loc);
+                }
+            } catch (Throwable ignored) {}
+        }
+
+        // 4. Towny check
+        if (townyAvailable && townyApi != null && townyGetTownBlock != null && townyCanPlayerBuild != null) {
+            try {
+                Object townBlock = townyGetTownBlock.invoke(townyApi, loc);
+                if (townBlock != null) {
+                    return (boolean) townyCanPlayerBuild.invoke(townBlock, player);
                 }
             } catch (Throwable ignored) {}
         }

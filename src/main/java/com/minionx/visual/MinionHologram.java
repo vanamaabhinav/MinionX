@@ -132,13 +132,13 @@ public class MinionHologram {
 
         if (minion.getHologramId() != null) {
             Entity main = Bukkit.getEntity(minion.getHologramId());
-            if (main != null) main.remove();
+            if (main != null && main.isValid()) main.remove();
             minion.setHologramId(null);
         }
 
         if (minion.getDialogueHologramId() != null) {
             Entity dialogue = Bukkit.getEntity(minion.getDialogueHologramId());
-            if (dialogue != null) dialogue.remove();
+            if (dialogue != null && dialogue.isValid()) dialogue.remove();
             minion.setDialogueHologramId(null);
         }
 
@@ -147,9 +147,10 @@ public class MinionHologram {
     }
 
     private static void cleanupLegacyArmorStands(Minion minion) {
-        if (minion.getLocation() == null || minion.getLocation().getWorld() == null) return;
+        if (minion == null || minion.getLocation() == null || minion.getLocation().getWorld() == null) return;
         Location loc = minion.getLocation();
-        for (Entity entity : loc.getWorld().getNearbyEntities(loc, 2, 2, 2)) {
+        if (!loc.isChunkLoaded()) return;
+        for (Entity entity : loc.getWorld().getNearbyEntities(loc, 2.5, 2.5, 2.5)) {
             if (entity instanceof TextDisplay || entity instanceof ArmorStand) {
                 PersistentDataContainer pdc = entity.getPersistentDataContainer();
                 String id = pdc.get(HOLOGRAM_KEY, PersistentDataType.STRING);

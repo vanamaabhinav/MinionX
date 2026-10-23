@@ -212,6 +212,16 @@ public class MinionPlaceListener implements Listener {
         if (MinionItemFactory.isMinionItem(item)) {
             // Minion items must only be deployed via right click interaction, not as a vanilla player head block
             event.setCancelled(true);
+            return;
+        }
+
+        // Prevent placing blocks directly inside an active minion
+        Block placedBlock = event.getBlockPlaced();
+        if (placedBlock != null && MinionX.getInstance().getMinionManager() != null) {
+            if (MinionX.getInstance().getMinionManager().getMinionAt(placedBlock.getLocation()) != null) {
+                event.setCancelled(true);
+                event.getPlayer().sendMessage(ColorUtil.color("&cYou cannot place blocks inside an active minion!"));
+            }
         }
     }
 }

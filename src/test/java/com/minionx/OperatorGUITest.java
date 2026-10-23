@@ -28,4 +28,14 @@ public class OperatorGUITest {
         assertNotNull(cmd.onTabComplete(null, null, "minionx", new String[]{}));
         assertTrue(cmd.onTabComplete(null, null, "minionx", new String[]{}).isEmpty());
     }
+
+    @Test
+    @DisplayName("Should initialize OperatorHolder with MinionDefinition context")
+    void testOperatorHolderWithCustomDefinition() {
+        com.minionx.gui.MinionCreatorSession session = new com.minionx.gui.MinionCreatorSession("ruby_minion");
+        com.minionx.api.MinionDefinition def = session.buildDefinition();
+        OperatorHolder defHolder = new OperatorHolder(OperatorHolder.ViewType.MINION_TIERS, def);
+        assertEquals(OperatorHolder.ViewType.MINION_TIERS, defHolder.getViewType());
+        assertEquals(def, defHolder.getContext());
+    }
 }

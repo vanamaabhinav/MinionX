@@ -1,5 +1,6 @@
 package com.minionx.core;
 
+import com.minionx.MinionX;
 import com.minionx.api.*;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -149,6 +150,11 @@ public class Minion {
 
     public void setTier(int tier) {
         this.tier = Math.clamp(tier, 1, getMaxTier());
+        advanceStateRevision();
+        advanceSchedulingGeneration();
+        if (!isFullSleeping() && MinionX.getInstance() != null && MinionX.getInstance().getMinionTickTask() != null) {
+            MinionX.getInstance().getMinionTickTask().scheduleMinion(this);
+        }
     }
 
     public Location getLocation() {
@@ -191,6 +197,11 @@ public class Minion {
             amount = Math.max(1, amount);
             this.fuelEndTime = System.currentTimeMillis() + (cf.getDurationMillis() * (long) amount);
         }
+        advanceStateRevision();
+        advanceSchedulingGeneration();
+        if (!isFullSleeping() && MinionX.getInstance() != null && MinionX.getInstance().getMinionTickTask() != null) {
+            MinionX.getInstance().getMinionTickTask().scheduleMinion(this);
+        }
     }
 
     public void setFuel(CustomFuel fuel) {
@@ -207,6 +218,11 @@ public class Minion {
             } else {
                 amount = Math.max(1, amount);
                 this.fuelEndTime = System.currentTimeMillis() + (fuel.getDurationMillis() * (long) amount);
+            }
+            advanceStateRevision();
+            advanceSchedulingGeneration();
+            if (!isFullSleeping() && MinionX.getInstance() != null && MinionX.getInstance().getMinionTickTask() != null) {
+                MinionX.getInstance().getMinionTickTask().scheduleMinion(this);
             }
         }
     }
@@ -274,6 +290,11 @@ public class Minion {
 
     public void setUpgrade1Id(String upgrade1Id) {
         this.upgrade1Id = upgrade1Id != null ? upgrade1Id.toLowerCase() : null;
+        advanceStateRevision();
+        advanceSchedulingGeneration();
+        if (!isFullSleeping() && MinionX.getInstance() != null && MinionX.getInstance().getMinionTickTask() != null) {
+            MinionX.getInstance().getMinionTickTask().scheduleMinion(this);
+        }
     }
 
     public CustomUpgrade getCustomUpgrade1() {
@@ -290,11 +311,11 @@ public class Minion {
     }
 
     public void setUpgrade1(CustomUpgrade upgrade) {
-        this.upgrade1Id = upgrade != null ? upgrade.getId() : null;
+        setUpgrade1Id(upgrade != null ? upgrade.getId() : null);
     }
 
     public void setUpgrade1(MinionUpgradeType upgrade1) {
-        this.upgrade1Id = upgrade1 != null ? upgrade1.name().toLowerCase() : null;
+        setUpgrade1Id(upgrade1 != null ? upgrade1.name().toLowerCase() : null);
     }
 
     public void setUpgradeType1(MinionUpgradeType upgrade1) {
@@ -307,6 +328,11 @@ public class Minion {
 
     public void setUpgrade2Id(String upgrade2Id) {
         this.upgrade2Id = upgrade2Id != null ? upgrade2Id.toLowerCase() : null;
+        advanceStateRevision();
+        advanceSchedulingGeneration();
+        if (!isFullSleeping() && MinionX.getInstance() != null && MinionX.getInstance().getMinionTickTask() != null) {
+            MinionX.getInstance().getMinionTickTask().scheduleMinion(this);
+        }
     }
 
     public CustomUpgrade getCustomUpgrade2() {
@@ -323,11 +349,11 @@ public class Minion {
     }
 
     public void setUpgrade2(CustomUpgrade upgrade) {
-        this.upgrade2Id = upgrade != null ? upgrade.getId() : null;
+        setUpgrade2Id(upgrade != null ? upgrade.getId() : null);
     }
 
     public void setUpgrade2(MinionUpgradeType upgrade2) {
-        this.upgrade2Id = upgrade2 != null ? upgrade2.name().toLowerCase() : null;
+        setUpgrade2Id(upgrade2 != null ? upgrade2.name().toLowerCase() : null);
     }
 
     public String getSkinId() {

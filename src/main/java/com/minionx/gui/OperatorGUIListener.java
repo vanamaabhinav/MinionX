@@ -170,7 +170,7 @@ public class OperatorGUIListener implements Listener {
             if (com.minionx.hook.GeyserHook.isBedrockPlayer(player) || event.isRightClick()) {
                 OperatorGUI.openTierBrowser(player, def);
             } else {
-                int tier = event.isShiftClick() ? 1 : 11;
+                int tier = event.isShiftClick() ? 1 : def.getMaxTier();
                 giveItem(player, MinionItemFactory.createCustomMinionItem(def, tier, 0), 1);
             }
         }
@@ -347,9 +347,8 @@ public class OperatorGUIListener implements Listener {
             CustomMinionStorage def = MinionStorageRegistry.get(stId);
             if (def != null) {
                 int amount = event.isShiftClick() ? 64 : 1;
-                player.getInventory().addItem(MinionItemFactory.createStorageItem(def, amount));
+                giveItem(player, MinionItemFactory.createStorageItem(def, 1), amount);
                 player.sendMessage(ColorUtil.color("&aGiven &f" + amount + "x " + def.getDisplayName() + "&a!"));
-                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
             }
         }
     }

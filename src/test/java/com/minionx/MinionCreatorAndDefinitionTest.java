@@ -129,4 +129,19 @@ public class MinionCreatorAndDefinitionTest {
         // Tier 1 has no override so falls back to base
         assertEquals("base_texture", session.getEffectiveSkullTexture(1));
     }
+
+    @Test
+    public void testDynamicTierCapAndAutoClamp() {
+        MinionCreatorSession session = new MinionCreatorSession("tier12_minion");
+        session.setMaxTier(12);
+        assertEquals(12, session.getMaxTier());
+
+        session.setSelectedTier(12);
+        assertEquals(12, session.getSelectedTier());
+
+        // Lowering max tier automatically clamps selected tier
+        session.setMaxTier(6);
+        assertEquals(6, session.getMaxTier());
+        assertEquals(6, session.getSelectedTier());
+    }
 }
