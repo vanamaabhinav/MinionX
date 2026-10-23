@@ -1087,24 +1087,34 @@ public class MinionTickTask extends BukkitRunnable {
 
         List<Entity> taggedMobs = new ArrayList<>();
         // Fast path: check directly tracked mob UUIDs first without scanning nearby chunk entities
+        double maxDistSq = Math.pow(minion.getWorkingRadius() + 2.5, 2);
         if (!minion.getTrackedSpawnedMobs().isEmpty()) {
             Iterator<UUID> it = minion.getTrackedSpawnedMobs().iterator();
             while (it.hasNext()) {
                 UUID mobId = it.next();
                 Entity e = loc.getWorld().getEntity(mobId);
                 if (e != null && e.isValid() && !e.isDead() && MythicMobsHook.isMinionSpawnedMob(e)) {
-                    taggedMobs.add(e);
+                    // Stray containment guard: if mob escaped/dragged outside the pen area, clean up and respawn
+                    if (!e.getWorld().equals(loc.getWorld()) || e.getLocation().distanceSquared(loc) > maxDistSq) {
+                        e.remove();
+                        it.remove();
+                    } else {
+                        taggedMobs.add(e);
+                    }
                 } else {
                     it.remove();
                 }
             }
         } else {
-            // Cold start or server restart fallback: populate tracked mobs from nearby entities
+            // Cold start or server restart fallback: populate tracked mobs strictly belonging to this minion
             double searchRadius = minion.getWorkingRadius() + 1.5;
             for (Entity e : loc.getWorld().getNearbyEntities(loc, searchRadius, 3.0, searchRadius)) {
                 if (MythicMobsHook.isMinionSpawnedMob(e) && e.isValid() && !e.isDead()) {
-                    taggedMobs.add(e);
-                    minion.trackSpawnedMob(e.getUniqueId());
+                    String owner = e.getPersistentDataContainer().get(MythicMobsHook.MINION_OWNER_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+                    if (owner == null || owner.equals(minion.getId().toString())) {
+                        taggedMobs.add(e);
+                        minion.trackSpawnedMob(e.getUniqueId());
+                    }
                 }
             }
         }
@@ -1130,7 +1140,7 @@ public class MinionTickTask extends BukkitRunnable {
         if (taggedMobs.size() < cap && !validLocs.isEmpty()) {
             updateObstructionState(minion, isPartiallyObstructed);
             Location spawnLoc = getRandomElement(validLocs);
-            Entity spawned = MythicMobsHook.spawnMob(def.getTargetMob(), spawnLoc, disableAi);
+            Entity spawned = MythicMobsHook.spawnMob(def.getTargetMob(), spawnLoc, disableAi, minion.getId());
 
             if (spawned != null && spawned.isValid()) {
                 minion.trackSpawnedMob(spawned.getUniqueId());

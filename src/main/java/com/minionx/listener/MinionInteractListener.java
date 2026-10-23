@@ -100,6 +100,25 @@ public class MinionInteractListener implements Listener {
                 } catch (IllegalArgumentException ignored) {
                 }
             }
+            return;
+        }
+
+        // Anti-exploit: minion-spawned mobs must never drop vanilla loot or player XP when killed externally
+        if (com.minionx.hook.MythicMobsHook.isMinionSpawnedMob(entity)) {
+            event.getDrops().clear();
+            event.setDroppedExp(0);
+
+            String ownerIdStr = entity.getPersistentDataContainer().get(com.minionx.hook.MythicMobsHook.MINION_OWNER_KEY, PersistentDataType.STRING);
+            if (ownerIdStr != null) {
+                try {
+                    UUID ownerId = UUID.fromString(ownerIdStr);
+                    Minion m = MinionX.getInstance() != null && MinionX.getInstance().getMinionManager() != null
+                            ? MinionX.getInstance().getMinionManager().getMinionById(ownerId) : null;
+                    if (m != null) {
+                        m.untrackSpawnedMob(entity.getUniqueId());
+                    }
+                } catch (IllegalArgumentException ignored) {}
+            }
         }
     }
 

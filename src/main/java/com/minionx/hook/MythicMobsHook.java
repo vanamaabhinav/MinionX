@@ -17,6 +17,7 @@ import java.lang.reflect.Method;
 public class MythicMobsHook {
 
     public static final NamespacedKey MINION_MOB_KEY = new NamespacedKey("minionx", "minion_spawned_mob");
+    public static final NamespacedKey MINION_OWNER_KEY = new NamespacedKey("minionx", "minion_owner_id");
 
     public static boolean isMythicMobsEnabled() {
         return Bukkit.getPluginManager().isPluginEnabled("MythicMobs");
@@ -26,6 +27,13 @@ public class MythicMobsHook {
      * Spawns a mob (either via MythicMobs by mob ID or vanilla EntityType fallback).
      */
     public static Entity spawnMob(String mobIdOrType, Location location, boolean disableAi) {
+        return spawnMob(mobIdOrType, location, disableAi, null);
+    }
+
+    /**
+     * Spawns a mob with explicit minion owner attribution.
+     */
+    public static Entity spawnMob(String mobIdOrType, Location location, boolean disableAi, java.util.UUID minionId) {
         if (mobIdOrType == null || location == null || location.getWorld() == null) return null;
 
         Entity spawnedEntity = null;
@@ -56,9 +64,12 @@ public class MythicMobsHook {
             } catch (IllegalArgumentException ignored) {}
         }
 
-        // 3. Apply tag, gravity, persistence, and optional AI disabling
+        // 3. Apply tag, owner attribution, gravity, persistence, and optional AI disabling
         if (spawnedEntity != null) {
             spawnedEntity.getPersistentDataContainer().set(MINION_MOB_KEY, PersistentDataType.BYTE, (byte) 1);
+            if (minionId != null) {
+                spawnedEntity.getPersistentDataContainer().set(MINION_OWNER_KEY, PersistentDataType.STRING, minionId.toString());
+            }
             spawnedEntity.setGravity(true);
             if (spawnedEntity instanceof LivingEntity living) {
                 living.setRemoveWhenFarAway(false);

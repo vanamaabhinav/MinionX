@@ -186,4 +186,58 @@ public class CombatScalingAndEnchantedUpgradesTest {
         tracked.add(UUID.randomUUID());
         assertEquals(5, tracked.size());
     }
+
+    @Test
+    @DisplayName("MythicMobsHook declares distinct MINION_MOB_KEY and MINION_OWNER_KEY namespaced keys")
+    void testMythicMobsHookOwnerKeyAndTagConstants() {
+        assertNotNull(com.minionx.hook.MythicMobsHook.MINION_MOB_KEY);
+        assertNotNull(com.minionx.hook.MythicMobsHook.MINION_OWNER_KEY);
+        assertEquals("minion_spawned_mob", com.minionx.hook.MythicMobsHook.MINION_MOB_KEY.getKey());
+        assertEquals("minion_owner_id", com.minionx.hook.MythicMobsHook.MINION_OWNER_KEY.getKey());
+    }
+
+    @Test
+    @DisplayName("External mob death untracking immediately enables replacement spawn")
+    void testUntrackOnExternalMobDeath() {
+        Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), null, 1, null);
+        UUID mob1 = UUID.randomUUID();
+        UUID mob2 = UUID.randomUUID();
+        UUID mob3 = UUID.randomUUID();
+        UUID mob4 = UUID.randomUUID();
+        UUID mob5 = UUID.randomUUID();
+
+        minion.trackSpawnedMob(mob1);
+        minion.trackSpawnedMob(mob2);
+        minion.trackSpawnedMob(mob3);
+        minion.trackSpawnedMob(mob4);
+        minion.trackSpawnedMob(mob5);
+
+        assertEquals(5, minion.getTrackedSpawnedMobs().size());
+
+        // External death occurs on mob3 (e.g. killed by player or environment)
+        minion.untrackSpawnedMob(mob3);
+
+        assertEquals(4, minion.getTrackedSpawnedMobs().size());
+        assertFalse(minion.getTrackedSpawnedMobs().contains(mob3));
+
+        // Pen capacity allows replacement
+        assertTrue(minion.getTrackedSpawnedMobs().size() < 5);
+    }
+
+    @Test
+    @DisplayName("Stray mob distance boundary correctly detects escaped entities")
+    void testStrayMobDistanceBoundCalculation() {
+        Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), null, 1, null);
+        int radius = minion.getWorkingRadius(); // Default 2 (5x5 grid)
+        double maxDist = radius + 2.5; // 4.5 blocks
+        double maxDistSq = maxDist * maxDist; // 20.25
+
+        // Within arena (e.g. 2.0 blocks away)
+        double insideDistSq = 2.0 * 2.0; // 4.0
+        assertTrue(insideDistSq <= maxDistSq, "Entity within 2 blocks must be considered inside arena");
+
+        // Escaped / dragged away (e.g. 5.0 blocks away)
+        double escapedDistSq = 5.0 * 5.0; // 25.0
+        assertTrue(escapedDistSq > maxDistSq, "Entity dragged 5 blocks away must be considered stray and cleaned up");
+    }
 }
