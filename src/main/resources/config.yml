@@ -340,7 +340,10 @@ messages:
   no-island-place-permission: "&cYou do not have permission to place minions here!"
   no-island-access-permission: "&cYou do not have permission to access this minion!"
   no-minion-access-permission: "&cYou do not have permission to access this minion!"
+  cannot-pickup-coop: "&cYou cannot pick up this minion! Only the minion owner (%owner%) or an admin can pick it up."
+  cannot-break-chest: "&cYou cannot break this storage chest! It is linked to %owner%'s minion."
   partially-obstructed-status: "&ePartially Obstructed"
+  no-mobs-in-range-status: "&cNo Mobs in Range!"
 
 # ==============================================================================
 # MINION STORAGE SYMMETRICAL SLOT CONFIGURATION

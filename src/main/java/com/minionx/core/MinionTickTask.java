@@ -1096,7 +1096,12 @@ public class MinionTickTask extends BukkitRunnable {
             Iterator<UUID> it = minion.getTrackedSpawnedMobs().iterator();
             while (it.hasNext()) {
                 UUID mobId = it.next();
-                Entity e = loc.getWorld().getEntity(mobId);
+                Entity e = org.bukkit.Bukkit.getEntity(mobId);
+                if (e == null && loc.getWorld() != null) {
+                    try {
+                        e = loc.getWorld().getEntity(mobId);
+                    } catch (Throwable ignored) {}
+                }
                 if (e != null && e.isValid() && !e.isDead() && MythicMobsHook.isMinionSpawnedMob(e)) {
                     aliveTrackedMobs.add(e);
                     // Check if mob is inside the minion's working boundary (e.g. 5x5 platform area)
@@ -1112,13 +1117,22 @@ public class MinionTickTask extends BukkitRunnable {
             }
         } else {
             // Cold start or server restart fallback: populate tracked mobs strictly belonging to this minion
-            double searchRadius = workingRadius + 1.5;
-            for (Entity e : loc.getWorld().getNearbyEntities(loc, searchRadius, 3.0, searchRadius)) {
+            double searchRadius = workingRadius + 6.0;
+            for (Entity e : loc.getWorld().getNearbyEntities(loc, searchRadius, 4.0, searchRadius)) {
                 if (MythicMobsHook.isMinionSpawnedMob(e) && e.isValid() && !e.isDead()) {
                     String owner = e.getPersistentDataContainer().get(MythicMobsHook.MINION_OWNER_KEY, org.bukkit.persistence.PersistentDataType.STRING);
-                    if (owner == null || owner.equals(minion.getId().toString())) {
+                    boolean isOwnerMatch = owner != null && owner.equals(minion.getId().toString());
+                    boolean isLegacyUnassigned = owner == null
+                            && Math.abs(e.getLocation().getX() - centerX) <= workingRadius + 0.8
+                            && Math.abs(e.getLocation().getZ() - centerZ) <= workingRadius + 0.8;
+                    if (isOwnerMatch || isLegacyUnassigned) {
                         aliveTrackedMobs.add(e);
-                        inRangeMobs.add(e);
+                        if (e.getWorld().equals(loc.getWorld())
+                                && Math.abs(e.getLocation().getX() - centerX) <= workingRadius + 0.8
+                                && Math.abs(e.getLocation().getZ() - centerZ) <= workingRadius + 0.8
+                                && Math.abs(e.getLocation().getY() - centerY) <= 2.5) {
+                            inRangeMobs.add(e);
+                        }
                         minion.trackSpawnedMob(e.getUniqueId());
                     }
                 }

@@ -86,6 +86,10 @@ public class Minion {
         return minionId;
     }
 
+    public UUID getId() {
+        return minionId;
+    }
+
     public com.minionx.api.MinionDefinition getDefinition() {
         if (customDefinitionId != null) {
             return com.minionx.api.MinionRegistry.get(customDefinitionId);

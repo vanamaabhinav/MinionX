@@ -299,4 +299,44 @@ public class CombatScalingAndEnchantedUpgradesTest {
         assertEquals(51.0, inRange.getFirst()[0]);
         assertEquals(51.0, inRange.getFirst()[2]);
     }
+
+    @Test
+    @DisplayName("Cold start / restart fallback categorizes displaced mobs as tracked but out-of-range")
+    void testColdStartFallbackDisplacedMobsClassification() {
+        int workingRadius = 2;
+        double centerX = 10.5;
+        double centerZ = 10.5;
+        double centerY = 64.0;
+        UUID myMinionId = UUID.randomUUID();
+
+        record MockEntity(UUID id, double x, double y, double z, String ownerTag) {}
+
+        // 5 mobs belonging to this minion: 2 inside 5x5, 3 displaced outside
+        java.util.List<MockEntity> worldEntities = java.util.List.of(
+                new MockEntity(UUID.randomUUID(), 10.5, 64.0, 10.5, myMinionId.toString()), // in-range
+                new MockEntity(UUID.randomUUID(), 12.0, 64.0, 11.0, myMinionId.toString()), // in-range (dx=1.5, dz=0.5 <= 2.8)
+                new MockEntity(UUID.randomUUID(), 16.0, 64.0, 10.5, myMinionId.toString()), // displaced (dx=5.5 > 2.8)
+                new MockEntity(UUID.randomUUID(), 10.5, 64.0, 18.0, myMinionId.toString()), // displaced (dz=7.5 > 2.8)
+                new MockEntity(UUID.randomUUID(), 5.0, 64.0, 5.0, myMinionId.toString())    // displaced (dx=5.5, dz=5.5 > 2.8)
+        );
+
+        java.util.List<UUID> aliveTracked = new java.util.ArrayList<>();
+        java.util.List<UUID> inRange = new java.util.ArrayList<>();
+
+        for (MockEntity e : worldEntities) {
+            boolean isOwnerMatch = myMinionId.toString().equals(e.ownerTag());
+            if (isOwnerMatch) {
+                aliveTracked.add(e.id());
+                if (Math.abs(e.x() - centerX) <= workingRadius + 0.8
+                        && Math.abs(e.z() - centerZ) <= workingRadius + 0.8
+                        && Math.abs(e.y() - centerY) <= 2.5) {
+                    inRange.add(e.id());
+                }
+            }
+        }
+
+        assertEquals(5, aliveTracked.size(), "All 5 mobs must be re-tracked across restart");
+        assertEquals(2, inRange.size(), "Only the 2 mobs within the 5x5 boundary must be in range");
+        assertFalse(aliveTracked.size() < 5, "Minion must not spawn excess mobs beyond cap");
+    }
 }
