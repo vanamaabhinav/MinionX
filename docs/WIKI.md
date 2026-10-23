@@ -37,7 +37,7 @@ MinionX brings automated resource gathering to your server, inspired by classic 
 ### Key Capabilities:
 * **Included Minion Types**: Comes with over 30 pre-configured minions across mining, farming, foraging, and combat categories (such as Cobblestone, Iron, Diamond, Wheat, Oak, Zombie, and Blaze).
 * **Flexible Customization**: Server administrators can add brand-new minions, multi-drop loot tables, custom working delays, and unique item requirements either through configuration files or directly in-game.
-* **Optimized Architecture**: Uses modern text display entities for floating nametags, non-ticking armor stands for minion models, a bounded generational priority queue scheduler, and offline catch-up simulation for unloaded chunks.
+* **Optimized Architecture**: Uses modern text display entities for floating nametags, non-ticking armor stands for minion models, optimized action scheduling, and offline catch-up simulation for unloaded chunks.
 * **Extensive Compatibility**: Natively supports major land claim systems, economy providers, skill plugins, and custom item frameworks.
 
 ---
@@ -234,7 +234,7 @@ MinionX supports multi-drop tables and custom item frameworks for both harvest y
 ### Drop Capabilities:
 * **Multiple Drops per Harvest**: A minion can produce primary and secondary items simultaneously (such as a Blaze minion yielding Blaze Rods at 100% and Magma Cream at 50%).
 * **Drop Probabilities**: Each drop supports a decimal percentage chance (`1.0` = 100%, `0.33` = 33%).
-* **Custom Item Attributes**: Supports custom display names, lore lines, CustomModelData numbers, enchantment glints, and PersistentDataContainer (PDC) keys.
+* **Custom Item Attributes**: Supports custom display names, lore lines, CustomModelData numbers, enchantment glints, and custom NBT or plugin tags.
 * **Plugin Integrations**: Directly references items from plugins such as ItemsAdder (`itemsadder:ruby`), MMOItems (`mmoitems:TYPE_ID`), or Oraxen.
 * **Metadata Protection**: The compression engine strictly respects custom item metadata, preventing vanilla recipes from accidentally consuming items that have custom names or models.
 
@@ -430,38 +430,24 @@ MinionX supports custom items seamlessly across all drops, recipes, and equipmen
 
 ## 18. Anti-Theft Security & Emergency Quarantine
 
-MinionX includes safety controls designed to protect player data, prevent item/XP duplication, and ensure crash recovery:
+MinionX is built with safety controls to protect player inventories, prevent duplication exploits, and ensure zero item loss during server restarts or crashes.
 
-* **Thread-Safe Data Handling**: Persistence flushes occur on a dedicated worker while snapshotting occurs on the primary server thread with atomic revisions.
-* **Container Isolation & Co-op Protection**:
-  * Minion storage chests cannot be accessed by vanilla hoppers, droppers, or minecarts.
-  * On skyblock servers (SuperiorSkyblock2, BentoBox), minions and their linked chests verify ownership. The configurable option `settings.allow-team-break-storage` (default: `false`) ensures co-op team members cannot break another player's minion chest or siphon stored items, while still allowing legitimate island building.
-  * Minion pickup is strictly restricted to the placing owner or administrators.
-* **Atomic Pickup & Durable Escrow**:
-  * Minion pickup is executed in a multi-phase atomic sequence: the minion and state are committed to a durable escrow operation (`minion_pending_operations`) before world entities are removed.
-  * Stored XP is embedded into the durable payload (`XP:<xp>;;;PAYLOAD:::<items>`) from Phase 1.
-* **Crash-Safety Boundary & Zero-Leftover XP Invariant**:
-  * Both `/minion claim` and `/minion recover` write and positively confirm `DELIVERY_ATTEMPTED` on disk before modifying player inventory or granting XP.
-  * If a server crashes or halts mid-delivery, the operation reboots in `DELIVERY_ATTEMPTED` (or `UNKNOWN`), strictly blocking automatic player re-claims and ordinary recovery.
-  * Stored XP is **only** awarded when inventory delivery has **zero leftovers**. If inventory fills up, unclaimed XP is safely preserved alongside leftover items.
-  * If persisting leftovers fails in `/minion claim` or `/minion recover`, the operation is fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with a canonical single-XP emergency audit ledger to prevent duplicate replay.
-  * Ordinary recovery (`/minion recover resolve <opId> deliver`) strictly rejects ambiguous operations (`DELIVERY_ATTEMPTED`, `UNKNOWN`, `AMBIGUOUS_PARTIAL_DELIVERY`, `COMPLETION_UNCONFIRMED`).
-  * If items are delivered under `deliver-force-all` while XP remains unresolved, the XP-only ledger update is verified durably, retaining pending XP until explicitly audited (`deliver-force-all-with-xp` or `complete`), and fencing on persistence failure to prevent stale item replay.
-  * **Ambiguous Leftover State Preservation & `XP_AMBIGUOUS` Defense**:
-    * If an administrator uses `deliver-force-all` on an ambiguous operation and inventory fills up, leftover state selection is strictly decoupled from XP presence: any operation with ambiguous delivery history preserves `DELIVERY_ATTEMPTED` (never downgraded to `QUARANTINED_LEFTOVERS`), even if the operation has no XP or its XP was already delivered.
-    * Both `/minion claim` and ordinary recovery (`deliver` / `deliver-force-all`) strictly withhold `XP_AMBIGUOUS` XP—even if the stored state is nominally safe (`QUARANTINED_LEFTOVERS`)—ensuring automatic claims can never award ambiguous XP. Only the explicit administrative override `/minion recover resolve <opId> deliver-force-all-with-xp` can grant it.
-    * When items are claimed under `/minion claim` while XP remains ambiguous, updating the durable ledger to the XP-only payload is strictly verified; on persistence failure, the operation is immediately fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with empty leftovers (`LEFTOVER:::`) to prevent stale item replay.
-    * **Malformed XP Payload Retention & Quarantine Invariant**: If an operation's XP amount in `XP_AMBIGUOUS:`, `XP:`, `XP_GRANTED:`, or `XP_DELIVERED:` is malformed or invalid (e.g. non-numeric string or integer overflow), `xpParseFailed` is set to `true`. Parsing failure independently requires escrow retention (`xpRemainsUnresolved = xpParseFailed || ...`), guaranteeing that malformed records are NEVER deleted even if marked as already delivered (`XP_GRANTED:` / `XP_DELIVERED:`). Automatic XP grants are suppressed, the raw token is preserved (`XP_AMBIGUOUS:<rawToken>;;;PAYLOAD:::`) under `DELIVERY_ATTEMPTED` in the escrow ledger, and the operation is held for manual administrative audit.
-    * **Missing Delimiter & Negative XP Detection**: Recognized XP prefixes (`XP_DELIVERED:`, `XP_GRANTED:`, `XP_AMBIGUOUS:`, `XP_PENDING:`, `XP:`) are detected before delimiter validation. If the `;;;PAYLOAD:::` delimiter is absent or invalid, or if the parsed XP amount is negative (`parsed < 0`), parsing is rejected (`xpParseFailed = true`, `xpToGrant = 0`), automatic XP grants are prohibited, and the record is held for manual audit.
-    * **Emergency Fallback Write Verification**: Both primary ledger persistence and emergency fallback writes (`AMBIGUOUS_PARTIAL_DELIVERY`) strictly inspect boolean return values. If an emergency fallback write fails, the operation remains locked in the last confirmed ambiguous fence state, automatic item/XP claims remain blocked, and an alert is logged to warn administrators of an unconfirmed ledger update.
-    * **Item Delimiter Collision Escaping**: All serialized YAML item payloads are escaped via `MinionPayloadUtil.escapeItemPayload`, percent-encoding `%` and reserved delimiters (`;;;ITEM;;;`, `;;;PAYLOAD:::`, `;;;LEFTOVER:::`). Item stacks with arbitrary display names, lores, or metadata can never corrupt ledger delimiter splitting upon deserialization.
-    * **Automated Shipping Currency Overflow Protection**: In `Minion.java`, incoming coin values are checked with `Double.isFinite(coins) && coins >= 0.0001`. In-memory micro-coin addition uses `Math.addExact(this.shippingCoinsMicros, addMicros)` and catches `ArithmeticException`, safely rejecting overflowing credits and logging an audit warning without mutating the balance or manufacturing `Long.MAX_VALUE`.
-* **Unresolved Payout Quarantine Fencing**:
-  * Any automated shipping payout with an uncertain or interrupted outcome (`ATTEMPTED` or `PAYOUT_AMBIGUOUS`) is quarantined across restarts. Payout locks are automatically re-established in memory, and automatic Vault retries or rollbacks are forbidden.
+### Security Highlights:
+* **Anti-Duplication Locks**:
+  * All player interactions, storage transfers, and shipping hopper coin claims use internal action locks to prevent click-spamming, inventory glitching, or packet injection exploits.
+* **Co-op Anti-Theft & Container Protection**:
+  * Minion chests cannot be accessed by vanilla hoppers, droppers, or hopper minecarts.
+  * On SkyBlock servers (SuperiorSkyblock2, BentoBox), only the player who placed the minion can pick it up. Teammates cannot steal or dismantle another player's minion.
+  * Teammates are also prevented from breaking another player's linked minion storage chest unless `allow-team-break-storage: true` is explicitly enabled in `config.yml`.
+* **Zero Item Loss on Pickup (`/minion claim`)**:
+  * When a player picks up a minion, all stored items, upgrades, active fuel, and experience are safely secured before the minion is removed from the world.
+  * If the player's inventory fills up during pickup, the remaining items and experience are held safely in a secure pending queue. The player can collect them at any time using `/minion claim` once inventory space is cleared.
+* **Crash Recovery & Item Protection (`/minion recover`)**:
+  * If a server restarts or unexpectedly stops mid-pickup or during an economy payout, items and experience are never deleted or duplicated.
+  * Pending recoveries are safely preserved across server reboots. Administrators can inspect and resolve pending recoveries at any time with `/minion recover`.
 * **Emergency Quarantine Mode (`/minion quarantine on`)**:
-  * Temporarily freezes minion item collection, placement, and pickup across the server.
-  * Allows administrators to perform maintenance or investigations safely.
-  * Run `/minion quarantine off` to return minions to normal operation.
+  * If server staff suspect an exploit or need to conduct maintenance, running `/minion quarantine on` immediately freezes all placed minion actions, pickups, and GUI interactions network-wide without needing to kick players or take the server offline.
+  * Running `/minion quarantine off` instantly restores normal minion operations.
 
 ---
 

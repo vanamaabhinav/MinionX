@@ -7,7 +7,6 @@
 [![Paper](https://img.shields.io/badge/Platform-Paper%20%7C%20Purpur%20%7C%20Pufferfish-00a8ff?style=for-the-badge&logo=curseforge)](https://papermc.io)
 [![Minecraft Version](https://img.shields.io/badge/Minecraft-1.20.4%20%E2%80%93%201.21+-brightgreen?style=for-the-badge&logo=minecraft)](https://www.minecraft.net)
 [![Java Version](https://img.shields.io/badge/Java-21%20LTS-orange?style=for-the-badge&logo=openjdk)](https://adoptium.net)
-[![Performance](https://img.shields.io/badge/Scheduling-Priority%20Queue-success?style=for-the-badge&logo=speedtest)](https://github.com/vanamaabhinav/MinionX)
 [![Status](https://img.shields.io/badge/Release-v1.0.1-blueviolet?style=for-the-badge)](https://github.com/vanamaabhinav/MinionX)
 
 [Explore Full Wiki](docs/WIKI.md) • [Administrator Manual](docs/DOCUMENTATION.md) • [Report Issue](https://github.com/vanamaabhinav/MinionX/issues)
@@ -100,7 +99,7 @@ MinionX was built from day one to handle high minion counts on active servers:
 
 - **Non-Ticking Display Entities**: Minion models use Paper-native `setCanTick(false)` and `setMarker(true)` armor stands. The vanilla entity tick loop completely skips minion models.
 - **Modern Billboard Text Displays**: Nametags and floating holograms use Paper `TextDisplay` entities with `Billboard.CENTER`. They rotate client-side without sending continuous server packets or causing flicker.
-- **Bounded Priority Queue Scheduling**: Minion AI actions are scheduled via a bounded generational priority queue processing up to a capped action and time budget per tick with latency shedding under heavy server load.
+- **Optimized Action Scheduling**: Minion actions are scheduled in smart tick batches, ensuring smooth server performance even with large numbers of active minions.
 - **Offline Downtime Simulation**: When chunks unload or players disconnect, minions cease all ticking. When chunks reload, MinionX computes elapsed downtime cycle-by-cycle across fuel boundaries without ticking entities.
 - **Durable Persistence & Single-Server Isolation**: Flat-file storage writes atomically to temporary files before moving, while SQLite and MySQL database backends provide persistent relational storage. Each server instance requires an isolated database schema (cross-server proxy synchronization is not supported).
 

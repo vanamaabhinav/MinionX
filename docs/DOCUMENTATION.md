@@ -27,6 +27,7 @@
 11. [Plugin Integrations & Protection Hooks](#11-plugin-integrations--protection-hooks)
 12. [Complete Commands & Permissions Reference](#12-complete-commands--permissions-reference)
 13. [Administrator FAQ & Troubleshooting](#13-administrator-faq--troubleshooting)
+14. [Developer API & Events Guide](#14-developer-api--events-guide)
 
 ---
 
@@ -363,38 +364,26 @@ The Operator Control Center provides administrators with a single, unified contr
 
 ---
 
-## 10. Anti-Theft Security, Escrow Durability & Crash Safety
+## 10. Anti-Theft Security & Emergency Quarantine Mode
 
 MinionX implements robust protection against griefing, duplication, inventory desync, and crash exploits:
 
 ### Security & Durability Highlights:
-* **Co-op Anti-Theft Security:** Island team members can open minion menus and collect items, but cannot pick up minions or break linked storage chests owned by other teammates unless `allow-team-break-storage` is enabled in `config.yml`.
-* **Thread-Safe Data Operations:** All inventory accesses and modifications are synchronized and backed by thread-safe data structures.
-* **Atomic Disk Serialization:** States are written to temporary files and atomically moved to destination paths, guaranteeing zero corrupted or truncated files if a server crashes.
-* **Non-Duplicable Pickups & Durable Escrow:**
-  * Minions are unregistered before dropping.
-  * Pickups are staged in durable operation records (`minion_pending_operations`) embedding stored XP (`XP:<xp>;;;PAYLOAD:::...`) before deletion.
-* **Crash-Safety Boundary & Zero-Leftover XP Invariant:**
-  * Both `/minion claim` and `/minion recover` write and positively confirm `DELIVERY_ATTEMPTED` on disk before modifying player inventory or granting XP. If a server stops mid-delivery, reboot reconciliation marks it `UNKNOWN` / `DELIVERY_ATTEMPTED` and quarantines the minion.
-  * Stored XP is **only** awarded when inventory delivery has **zero leftovers**. If inventory fills up, unclaimed XP is preserved with remaining leftovers.
-  * If persisting leftovers fails in `/minion claim` or `/minion recover`, the operation is fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with a canonical single-XP emergency audit ledger to prevent duplicate replay.
-  * Ordinary recovery (`/minion recover resolve <opId> deliver`) strictly rejects ambiguous operations (`DELIVERY_ATTEMPTED`, `UNKNOWN`, `AMBIGUOUS_PARTIAL_DELIVERY`, `COMPLETION_UNCONFIRMED`).
-  * If items are delivered under `deliver-force-all` while XP remains unresolved, the XP-only ledger update is verified durably, retaining pending XP until explicitly audited (`deliver-force-all-with-xp` or `complete`), and fencing on persistence failure to prevent stale item replay.
-  * **Ambiguous Leftover State Preservation & Dual-Layer `XP_AMBIGUOUS` Defense:**
-    * When an administrator resolves an ambiguous operation using `deliver-force-all` and player inventory fills up before all items fit, leftover state selection is strictly decoupled from XP presence: any operation with ambiguous delivery history preserves `DELIVERY_ATTEMPTED` (never downgraded to `QUARANTINED_LEFTOVERS`), even if the operation has no XP or XP was already delivered.
-    * Unresolved XP is encoded with canonical prefix `XP_AMBIGUOUS:<xp>;;;PAYLOAD:::`. Both `/minion claim` and ordinary recovery (`deliver` / `deliver-force-all`) strictly withhold this XP—even if the stored state is nominally safe (`QUARANTINED_LEFTOVERS`)—ensuring automatic claims can never award ambiguous XP. Only the explicit administrative override `/minion recover resolve <opId> deliver-force-all-with-xp` can grant it.
-    * When items are claimed under `/minion claim` while XP remains ambiguous, updating the durable ledger to the XP-only payload is strictly verified. If persistence fails or is unconfirmed, the operation is immediately fenced to `AMBIGUOUS_PARTIAL_DELIVERY` with empty leftovers (`LEFTOVER:::`) to prevent stale item replay.
-    * **Malformed XP Payload Retention & Quarantine Invariant:** If an operation's XP amount in `XP_AMBIGUOUS:`, `XP:`, `XP_GRANTED:`, or `XP_DELIVERED:` is malformed (e.g. non-numeric token or integer overflow), parsing failure is explicitly detected (`xpParseFailed = true`). Parsing failure independently requires operation retention (`xpRemainsUnresolved = xpParseFailed || ...`), ensuring malformed records are NEVER deleted even if marked as already delivered (`XP_GRANTED:` / `XP_DELIVERED:`). The raw token is preserved (`XP_AMBIGUOUS:<rawToken>;;;PAYLOAD:::`) under `DELIVERY_ATTEMPTED` in the escrow ledger for administrative audit.
-    * **Missing Delimiter & Negative XP Detection:** Recognized XP prefixes (`XP_DELIVERED:`, `XP_GRANTED:`, `XP_AMBIGUOUS:`, `XP_PENDING:`, `XP:`) are detected before delimiter validation. If the `;;;PAYLOAD:::` delimiter is absent or invalid, or if the parsed XP amount is negative (`parsed < 0`), parsing is rejected (`xpParseFailed = true`, `xpToGrant = 0`), automatic XP grants are prohibited, and the record is held for manual audit.
-    * **Emergency Fallback Write Verification:** Both primary ledger persistence and emergency fallback writes (`AMBIGUOUS_PARTIAL_DELIVERY`) strictly inspect boolean return values. If an emergency fallback write fails, the operation remains locked in the last confirmed ambiguous fence state, automatic item/XP claims remain blocked, and an alert is logged to warn administrators of an unconfirmed ledger update.
-    * **Item Delimiter Collision Escaping:** All serialized YAML item payloads are escaped via `MinionPayloadUtil.escapeItemPayload`, percent-encoding `%` and reserved delimiters (`;;;ITEM;;;`, `;;;PAYLOAD:::`, `;;;LEFTOVER:::`). Item stacks with arbitrary display names, lores, or metadata can never corrupt ledger delimiter splitting upon deserialization.
-    * **Automated Shipping Currency Overflow Protection:** In `Minion.java`, incoming coin values are checked with `Double.isFinite(coins) && coins >= 0.0001`. In-memory micro-coin addition uses `Math.addExact(this.shippingCoinsMicros, addMicros)` and catches `ArithmeticException`, safely rejecting overflowing credits and logging an audit warning without mutating the balance or manufacturing `Long.MAX_VALUE`.
-* **Unresolved Payout Quarantine Fencing:**
-  * Payouts interrupted during Vault calls (`ATTEMPTED` or `PAYOUT_AMBIGUOUS`) are quarantined on startup. Automatic Vault retries and rollbacks are prohibited.
+* **Co-op Anti-Theft Security:** Island team members can open minion menus and collect items, but cannot pick up minions or break linked storage chests owned by other teammates unless `allow-team-break-storage` or `security.allow-team-pickup` is explicitly enabled in `config.yml`.
+* **Thread-Safe Data Operations:** All inventory modifications and database flushes are fully synchronized and thread-safe, preventing transaction race conditions and menu click-spamming exploits.
+* **Atomic Disk Serialization:** Minion states are written to temporary files and atomically moved to destination paths, guaranteeing zero corrupted or truncated files if a server crashes mid-write.
+* **Safe Pickups & Pending Claim Queue (`/minion claim`):**
+  * Minion pickups are executed in a safe, multi-phase sequence: minion items, upgrades, fuel, and experience are secured before the minion entity is removed from the world.
+  * If a player's inventory fills up during pickup, the uncollected items and experience are held in a pending claim queue. Players can recover them at any time with `/minion claim`.
+* **Crash-Proof Ledger & Recovery (`/minion recover`):**
+  * If a server restarts or crashes unexpectedly mid-pickup or during an economy payout, the operation is safely recorded and quarantined across reboots to prevent item loss or duplication.
+  * Administrators can inspect, deliver, or audit pending operations at any time using `/minion recover`.
+* **Automated Shipping Protection:**
+  * Payout calculations protect against mathematical overflow, and coin deposits are safely handled without balance corruption.
 * **Emergency Quarantine Mode (`/minion quarantine on`):**
   * Immediately freezes all minion item collections, breaking/pickups, and placements across the entire server.
-  * Ticking continues or freezes depending on `settings.quarantine-freeze-ticks`.
-  * Administrators with `minionx.admin` bypass quarantine restrictions for live troubleshooting.
+  * Allows administrators to perform maintenance or investigate issues safely without kicking players or stopping the server.
+  * Running `/minion quarantine off` instantly restores normal minion operations.
 
 ---
 
@@ -543,6 +532,98 @@ A: No. MinionX features strict anti-swallowing isolation. Vanilla recipes will n
 
 **Q: How does offline production work?**  
 A: When a chunk unloads or the server restarts, minion calculations pause. Upon chunk reload or player interaction, MinionX computes elapsed downtime cycle-by-cycle across fuel boundaries, calculates exact item production, executes Super Compaction batches, and updates minion storage without ticking entities.
+
+---
+
+## 14. Developer API & Events Guide
+
+MinionX provides a Java API and Bukkit event pipeline for third-party plugin integration.
+
+### Maven Dependency:
+Add `MinionX.jar` as a provided dependency in your build tool:
+
+```xml
+<dependency>
+    <groupId>com.minionx</groupId>
+    <artifactId>MinionX</artifactId>
+    <version>1.0.1</version>
+    <scope>provided</scope>
+</dependency>
+```
+
+In your `plugin.yml`:
+```yaml
+depend: [MinionX]
+# or softdepend: [MinionX]
+```
+
+### Static API Methods (`MinionXAPI`):
+The `com.minionx.api.MinionXAPI` class provides static methods for querying and controlling minions:
+
+```java
+import com.minionx.api.MinionXAPI;
+import com.minionx.core.Minion;
+
+// Query a placed minion by world location
+Minion minion = MinionXAPI.getMinionAt(location);
+
+// Query all active minions owned by a player
+List<Minion> playerMinions = MinionXAPI.getMinionsByOwner(player.getUniqueId());
+
+// Query placed minion counts and limits
+int placedCount = MinionXAPI.getPlacedCount(player.getUniqueId());
+int limit = MinionXAPI.getEffectiveLimit(player);
+int availableSlots = MinionXAPI.getAvailableSlots(player);
+
+// Give a minion head item directly to a player
+boolean success = MinionXAPI.giveMinion(player, "diamond", 11);
+
+// Register custom definitions dynamically
+MinionXAPI.registerCustomMinion(customMinionDef);
+MinionXAPI.registerCustomFuel(customFuel);
+MinionXAPI.registerCustomUpgrade(customUpgrade);
+```
+
+### Bukkit Event Pipeline (`com.minionx.api.event`):
+MinionX fires standard Bukkit events that can be listened to or cancelled:
+
+| Event | Cancellable | Description |
+|---|---|---|
+| `MinionPlaceEvent` | Yes | Fired when a player attempts to place a minion in the world. |
+| `MinionPickupEvent` | Yes | Fired when a player attempts to pick up a placed minion. |
+| `MinionHarvestEvent` | Yes | Fired when a minion harvests a block, crop, or mob entity. |
+| `MinionUpgradeEvent` | Yes | Fired when a minion is upgraded to a higher tier. |
+| `MinionStorageLinkEvent` | Yes | Fired when an external minion storage chest is placed and linked. |
+| `MinionCollectionEvent` | No | Fired when a player collects resources from minion storage or linked chests. |
+| `MinionFuelConsumeEvent` | No | Fired when temporary fuel burns or is consumed. |
+| `MinionQuarantineEvent` | No | Fired when emergency quarantine mode is toggled on or off. |
+
+### Example Event Listener:
+```java
+import com.minionx.api.event.MinionPlaceEvent;
+import com.minionx.api.event.MinionHarvestEvent;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+
+public class CustomMinionListener implements Listener {
+
+    @EventHandler
+    public void onMinionPlace(MinionPlaceEvent event) {
+        // Prevent placement in special worlds or regions
+        if (event.getLocation().getWorld().getName().equalsIgnoreCase("spawn")) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("Minions cannot be placed in the spawn world!");
+        }
+    }
+
+    @EventHandler
+    public void onMinionHarvest(MinionHarvestEvent event) {
+        // Custom logging or triggering custom rewards
+        Minion minion = event.getMinion();
+        // event.getHarvestedItems() contains the items rolled for this cycle
+    }
+}
+```
 
 ---
 *MinionX — Designed and maintained by AbhinavVanama.*
