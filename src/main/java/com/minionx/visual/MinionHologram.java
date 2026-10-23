@@ -56,9 +56,14 @@ public class MinionHologram {
         StringBuilder sb = new StringBuilder();
         if (isMainHoloEnabled) {
             String template = config != null ? config.getString("nametags.format", "&e[Lv.%tier_roman%] &a%minion_name% Minion &7(%status%&7)") : "&e[Lv.%tier_roman%] &a%minion_name% Minion &7(%status%&7)";
-            String statusDisplay = minion.getState() == MinionState.PARTIALLY_OBSTRUCTED
-                    ? (config != null ? config.getString("messages.partially-obstructed-status", "&ePartially Obstructed") : "&ePartially Obstructed")
-                    : minion.getState().getDisplayStatus();
+            String statusDisplay;
+            if (minion.getState() == MinionState.PARTIALLY_OBSTRUCTED) {
+                statusDisplay = config != null ? config.getString("messages.partially-obstructed-status", "&ePartially Obstructed") : "&ePartially Obstructed";
+            } else if (minion.getState() == MinionState.NO_MOBS_IN_RANGE) {
+                statusDisplay = config != null ? config.getString("messages.no-mobs-in-range-status", "&cNo Mobs in Range!") : "&cNo Mobs in Range!";
+            } else {
+                statusDisplay = minion.getState().getDisplayStatus();
+            }
 
             if (QuarantineManager.isQuarantined()) {
                 statusDisplay = "&c&l[QUARANTINED]";

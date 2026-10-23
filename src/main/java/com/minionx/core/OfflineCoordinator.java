@@ -24,8 +24,8 @@ public class OfflineCoordinator {
     public static int catchUpIfNeeded(Minion minion) {
         if (minion == null) return 0;
 
-        // 1. Advance paused-time anchor when full or blocked so paused intervals are never credited
-        if (minion.getState() == MinionState.FULL || minion.getState() == MinionState.NO_SPACE) {
+        // 1. Advance paused-time anchor when full, blocked, or out of range so paused intervals are never credited
+        if (minion.getState() == MinionState.FULL || minion.getState() == MinionState.NO_SPACE || minion.getState() == MinionState.NO_MOBS_IN_RANGE) {
             minion.setLastActionTime(System.currentTimeMillis());
             return 0;
         }

@@ -85,17 +85,8 @@ public class MinionManager {
         MinionVisual.remove(minion);
         MinionHologram.remove(minion);
 
-        // Clean up tracked spawned combat / animal husbandry mobs
-        if (!minion.getTrackedSpawnedMobs().isEmpty() && minion.getLocation() != null && minion.getLocation().getWorld() != null) {
-            org.bukkit.World world = minion.getLocation().getWorld();
-            for (UUID mobId : minion.getTrackedSpawnedMobs()) {
-                Entity e = world.getEntity(mobId);
-                if (e != null && e.isValid()) {
-                    e.remove();
-                }
-            }
-            minion.getTrackedSpawnedMobs().clear();
-        }
+        // Release tracked spawned combat / animal husbandry mobs without killing them
+        minion.getTrackedSpawnedMobs().clear();
     }
 
     public Minion getMinionById(UUID id) {

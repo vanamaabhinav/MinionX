@@ -23,7 +23,7 @@ public class OfflineCalculator {
         if (minion == null) return 0;
 
         // 1. Paused-state anchor advance: paused duration is never credited as work
-        if (minion.getState() == MinionState.FULL || minion.getState() == MinionState.NO_SPACE) {
+        if (minion.getState() == MinionState.FULL || minion.getState() == MinionState.NO_SPACE || minion.getState() == MinionState.NO_MOBS_IN_RANGE) {
             minion.setLastActionTime(System.currentTimeMillis());
             return 0;
         }

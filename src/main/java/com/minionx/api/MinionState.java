@@ -11,7 +11,8 @@ public enum MinionState {
     MINING("&aMining"),
     PARTIALLY_OBSTRUCTED("&ePartially Obstructed"),
     FULL("&cInventory Full!"),
-    NO_SPACE("&cNeed 5x5 Area!");
+    NO_SPACE("&cNeed 5x5 Area!"),
+    NO_MOBS_IN_RANGE("&cNo Mobs in Range!");
 
     private final String defaultStatus;
 

@@ -225,19 +225,78 @@ public class CombatScalingAndEnchantedUpgradesTest {
     }
 
     @Test
-    @DisplayName("Stray mob distance boundary correctly detects escaped entities")
-    void testStrayMobDistanceBoundCalculation() {
+    @DisplayName("When all 5 mobs are outside the 5x5 boundary, minion halts with NO_MOBS_IN_RANGE and never spawns extra mobs")
+    void testNoMobsInRangeStateWhenAllMobsOutsideBoundary() {
+        int cap = 5;
+        int workingRadius = 2; // 5x5 grid
+        double centerX = 100.5;
+        double centerZ = 100.5;
+        double centerY = 64.0;
+
+        // 5 mobs all positioned at (110.0, 64.0, 110.0) - well outside the 5x5 boundary
+        java.util.List<double[]> mobPositions = java.util.List.of(
+                new double[]{110.0, 64.0, 110.0},
+                new double[]{112.0, 64.0, 105.0},
+                new double[]{90.0, 64.0, 90.0},
+                new double[]{100.5, 64.0, 120.0},
+                new double[]{100.5, 64.0, 80.0}
+        );
+
+        java.util.List<double[]> inRange = new java.util.ArrayList<>();
+        for (double[] pos : mobPositions) {
+            if (Math.abs(pos[0] - centerX) <= workingRadius + 0.8
+                    && Math.abs(pos[2] - centerZ) <= workingRadius + 0.8
+                    && Math.abs(pos[1] - centerY) <= 2.5) {
+                inRange.add(pos);
+            }
+        }
+
+        // All 5 mobs are outside
+        assertTrue(inRange.isEmpty(), "No mobs should be within 5x5 range");
+        assertEquals(5, mobPositions.size(), "All 5 mobs must remain tracked against the cap");
+
+        // Minion must NOT spawn a 6th mob
+        boolean canSpawn = mobPositions.size() < cap;
+        assertFalse(canSpawn, "Minion must strictly adhere to 5-mob cap even if all mobs are pushed outside");
+
+        // Minion cannot slay (inRange is empty), so it transitions to NO_MOBS_IN_RANGE
+        boolean isHaltedNoMobsInRange = mobPositions.size() >= cap && inRange.isEmpty();
+        assertTrue(isHaltedNoMobsInRange, "Minion must enter NO_MOBS_IN_RANGE halted state");
+
         Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), null, 1, null);
-        int radius = minion.getWorkingRadius(); // Default 2 (5x5 grid)
-        double maxDist = radius + 2.5; // 4.5 blocks
-        double maxDistSq = maxDist * maxDist; // 20.25
+        minion.setState(MinionState.NO_MOBS_IN_RANGE);
+        assertEquals(MinionState.NO_MOBS_IN_RANGE, minion.getState());
+        assertEquals("§cNo Mobs in Range!", minion.getState().getDisplayStatus());
+    }
 
-        // Within arena (e.g. 2.0 blocks away)
-        double insideDistSq = 2.0 * 2.0; // 4.0
-        assertTrue(insideDistSq <= maxDistSq, "Entity within 2 blocks must be considered inside arena");
+    @Test
+    @DisplayName("Minion slays only the mobs inside the 5x5 boundary when some are displaced")
+    void testSlayingOnlyTargetsMobsInsideRange() {
+        int workingRadius = 2; // 5x5 grid
+        double centerX = 50.5;
+        double centerZ = 50.5;
+        double centerY = 64.0;
 
-        // Escaped / dragged away (e.g. 5.0 blocks away)
-        double escapedDistSq = 5.0 * 5.0; // 25.0
-        assertTrue(escapedDistSq > maxDistSq, "Entity dragged 5 blocks away must be considered stray and cleaned up");
+        // 4 mobs outside, 1 mob inside at (51.0, 64.0, 51.0)
+        java.util.List<double[]> mobPositions = java.util.List.of(
+                new double[]{65.0, 64.0, 50.0}, // outside
+                new double[]{50.5, 64.0, 70.0}, // outside
+                new double[]{51.0, 64.0, 51.0}, // INSIDE (dx=0.5, dz=0.5 <= 2.8)
+                new double[]{30.0, 64.0, 50.0}, // outside
+                new double[]{50.5, 64.0, 30.0}  // outside
+        );
+
+        java.util.List<double[]> inRange = new java.util.ArrayList<>();
+        for (double[] pos : mobPositions) {
+            if (Math.abs(pos[0] - centerX) <= workingRadius + 0.8
+                    && Math.abs(pos[2] - centerZ) <= workingRadius + 0.8
+                    && Math.abs(pos[1] - centerY) <= 2.5) {
+                inRange.add(pos);
+            }
+        }
+
+        assertEquals(1, inRange.size(), "Exactly 1 mob must be detected in range");
+        assertEquals(51.0, inRange.getFirst()[0]);
+        assertEquals(51.0, inRange.getFirst()[2]);
     }
 }

@@ -1085,21 +1085,26 @@ public class MinionTickTask extends BukkitRunnable {
         int cap = MinionX.getInstance().getConfig().getInt("settings.combat.max-mobs-per-minion", 5);
         boolean disableAi = MinionX.getInstance().getConfig().getBoolean("settings.combat.disable-mob-wandering", false);
 
-        List<Entity> taggedMobs = new ArrayList<>();
-        // Fast path: check directly tracked mob UUIDs first without scanning nearby chunk entities
-        double maxDistSq = Math.pow(minion.getWorkingRadius() + 2.5, 2);
+        List<Entity> aliveTrackedMobs = new ArrayList<>();
+        List<Entity> inRangeMobs = new ArrayList<>();
+        int workingRadius = minion.getWorkingRadius();
+        double centerX = loc.getBlockX() + 0.5;
+        double centerZ = loc.getBlockZ() + 0.5;
+        double centerY = loc.getY();
+
         if (!minion.getTrackedSpawnedMobs().isEmpty()) {
             Iterator<UUID> it = minion.getTrackedSpawnedMobs().iterator();
             while (it.hasNext()) {
                 UUID mobId = it.next();
                 Entity e = loc.getWorld().getEntity(mobId);
                 if (e != null && e.isValid() && !e.isDead() && MythicMobsHook.isMinionSpawnedMob(e)) {
-                    // Stray containment guard: if mob escaped/dragged outside the pen area, clean up and respawn
-                    if (!e.getWorld().equals(loc.getWorld()) || e.getLocation().distanceSquared(loc) > maxDistSq) {
-                        e.remove();
-                        it.remove();
-                    } else {
-                        taggedMobs.add(e);
+                    aliveTrackedMobs.add(e);
+                    // Check if mob is inside the minion's working boundary (e.g. 5x5 platform area)
+                    if (e.getWorld().equals(loc.getWorld())
+                            && Math.abs(e.getLocation().getX() - centerX) <= workingRadius + 0.8
+                            && Math.abs(e.getLocation().getZ() - centerZ) <= workingRadius + 0.8
+                            && Math.abs(e.getLocation().getY() - centerY) <= 2.5) {
+                        inRangeMobs.add(e);
                     }
                 } else {
                     it.remove();
@@ -1107,12 +1112,13 @@ public class MinionTickTask extends BukkitRunnable {
             }
         } else {
             // Cold start or server restart fallback: populate tracked mobs strictly belonging to this minion
-            double searchRadius = minion.getWorkingRadius() + 1.5;
+            double searchRadius = workingRadius + 1.5;
             for (Entity e : loc.getWorld().getNearbyEntities(loc, searchRadius, 3.0, searchRadius)) {
                 if (MythicMobsHook.isMinionSpawnedMob(e) && e.isValid() && !e.isDead()) {
                     String owner = e.getPersistentDataContainer().get(MythicMobsHook.MINION_OWNER_KEY, org.bukkit.persistence.PersistentDataType.STRING);
                     if (owner == null || owner.equals(minion.getId().toString())) {
-                        taggedMobs.add(e);
+                        aliveTrackedMobs.add(e);
+                        inRangeMobs.add(e);
                         minion.trackSpawnedMob(e.getUniqueId());
                     }
                 }
@@ -1136,8 +1142,8 @@ public class MinionTickTask extends BukkitRunnable {
 
         boolean isPartiallyObstructed = foreignObstructions > 0 && !validLocs.isEmpty();
 
-        // 1. If we have fewer than cap mobs spawned: SPAWN A MOB (fill up the arena first, just like Miner places blocks)
-        if (taggedMobs.size() < cap && !validLocs.isEmpty()) {
+        // 1. If we have fewer than cap mobs spawned total: SPAWN A MOB (fill up the arena first, just like Miner places blocks)
+        if (aliveTrackedMobs.size() < cap && !validLocs.isEmpty()) {
             updateObstructionState(minion, isPartiallyObstructed);
             Location spawnLoc = getRandomElement(validLocs);
             Entity spawned = MythicMobsHook.spawnMob(def.getTargetMob(), spawnLoc, disableAi, minion.getId());
@@ -1154,10 +1160,10 @@ public class MinionTickTask extends BukkitRunnable {
             // If physical spawn returned null (e.g. peaceful mode or region deny), fall through to harvest directly
         }
 
-        // 2. Once the pen reaches cap (or if no spawn space but mobs are present): SLAUGHTER A MOB & HARVEST
-        if (!taggedMobs.isEmpty()) {
+        // 2. Once pen reaches cap (or if no spawn space), SLAUGHTER A MOB IN RANGE
+        if (!inRangeMobs.isEmpty()) {
             updateObstructionState(minion, isPartiallyObstructed);
-            Entity target = taggedMobs.getFirst();
+            Entity target = inRangeMobs.getFirst();
             minion.untrackSpawnedMob(target.getUniqueId());
             MinionAnimation.playMineAnimation(minion, target.getLocation().getBlock());
             target.remove();
@@ -1171,7 +1177,15 @@ public class MinionTickTask extends BukkitRunnable {
             return;
         }
 
-        // 3. If the entire 5x5 area is blocked with solid blocks and no mobs exist: NO SPACE
+        // 3. If all cap mobs exist, but ALL are outside the minion's 5x5 boundary: STOP WORKING & SHOW STATUS
+        if (aliveTrackedMobs.size() >= cap && inRangeMobs.isEmpty()) {
+            minion.setState(MinionState.NO_MOBS_IN_RANGE);
+            minion.setLastActionTime(System.currentTimeMillis());
+            MinionHologram.updateHologram(minion);
+            return;
+        }
+
+        // 4. If the entire 5x5 area is blocked with solid blocks and no mobs exist: NO SPACE
         if (validLocs.isEmpty()) {
             setNoSpaceState(minion);
             return;
