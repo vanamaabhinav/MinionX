@@ -336,7 +336,9 @@ public class MinionTickTask extends BukkitRunnable {
         }
 
         // Automatic Compactor / Super Compactor processing
-        CompressionManager.processCompaction(minion);
+        if (com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
+            CompressionManager.processCompaction(minion);
+        }
         return true;
     }
 
@@ -522,8 +524,12 @@ public class MinionTickTask extends BukkitRunnable {
             if (leaf.getType().isAir()) leaf.setType(leafMat);
         }
 
-        ServerCompatibilityUtil.spawnHappyParticles(base.getLocation().add(0.5, 1.5, 0.5), 10, 0.4, 0.6, 0.4, 0.1);
-        base.getWorld().playSound(base.getLocation(), Sound.BLOCK_GRASS_PLACE, 1.0f, 1.2f);
+        if (com.minionx.util.FeatureToggle.isParticlesEnabled()) {
+            ServerCompatibilityUtil.spawnHappyParticles(base.getLocation().add(0.5, 1.5, 0.5), 10, 0.4, 0.6, 0.4, 0.1);
+        }
+        if (com.minionx.util.FeatureToggle.isSoundsEnabled()) {
+            base.getWorld().playSound(base.getLocation(), Sound.BLOCK_GRASS_PLACE, 1.0f, 1.2f);
+        }
 
         minion.setLastActionWasPlace(false);
         minion.setLastActionTime(System.currentTimeMillis());
@@ -566,7 +572,9 @@ public class MinionTickTask extends BukkitRunnable {
         // Cut the whole tree at once with the leaves!
         int logsMined = Math.max(1, trunkLogs.size());
         for (Block log : trunkLogs) {
-            ServerCompatibilityUtil.spawnBlockBreakParticles(log.getLocation().add(0.5, 0.5, 0.5), log.getBlockData(), 8, 0.3, 0.3, 0.3);
+            if (com.minionx.util.FeatureToggle.isParticlesEnabled()) {
+                ServerCompatibilityUtil.spawnBlockBreakParticles(log.getLocation().add(0.5, 0.5, 0.5), log.getBlockData(), 8, 0.3, 0.3, 0.3);
+            }
             log.setType(Material.AIR);
         }
         for (Block leaf : connectedLeaves) {
@@ -711,7 +719,9 @@ public class MinionTickTask extends BukkitRunnable {
         if (target.getBlockData() instanceof Ageable ageable) {
             ageable.setAge(Math.min(ageable.getMaximumAge(), ageable.getAge() + 2));
             target.setBlockData(ageable);
-            ServerCompatibilityUtil.spawnHappyParticles(target.getLocation().add(0.5, 0.3, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+            if (com.minionx.util.FeatureToggle.isParticlesEnabled()) {
+                ServerCompatibilityUtil.spawnHappyParticles(target.getLocation().add(0.5, 0.3, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+            }
         }
         minion.setLastActionWasPlace(false);
         minion.setLastActionTime(System.currentTimeMillis());
@@ -818,7 +828,9 @@ public class MinionTickTask extends BukkitRunnable {
             if (target.getBlockData() instanceof Ageable ageable) {
                 ageable.setAge(Math.min(7, ageable.getAge() + 2));
                 target.setBlockData(ageable);
-                ServerCompatibilityUtil.spawnHappyParticles(target.getLocation().add(0.5, 0.3, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+                if (com.minionx.util.FeatureToggle.isParticlesEnabled()) {
+                    ServerCompatibilityUtil.spawnHappyParticles(target.getLocation().add(0.5, 0.3, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+                }
             }
             minion.setLastActionWasPlace(false);
             minion.setLastActionTime(System.currentTimeMillis());
@@ -1367,9 +1379,7 @@ public class MinionTickTask extends BukkitRunnable {
 
     private void triggerOccasionalDialogue(Minion minion) {
         if (minion == null) return;
-        org.bukkit.configuration.file.FileConfiguration config = MinionX.getInstance() != null
-                ? MinionX.getInstance().getConfig() : null;
-        if (config != null && !config.getBoolean("dialogues.enabled", true)) {
+        if (!com.minionx.util.FeatureToggle.isDialoguesEnabled()) {
             return;
         }
 
@@ -1384,11 +1394,11 @@ public class MinionTickTask extends BukkitRunnable {
         }
 
         List<String> pool = null;
-        if (config != null) {
-            String arch = minion.getDefinition() != null ? minion.getDefinition().getArchetype().name().toLowerCase() : "general";
-            pool = config.getStringList("dialogues.messages." + arch);
+        String arch = minion.getDefinition() != null ? minion.getDefinition().getArchetype().name().toLowerCase() : "general";
+        if (MinionX.getInstance() != null) {
+            pool = MinionX.getInstance().getDialogues(arch);
             if (pool == null || pool.isEmpty()) {
-                pool = config.getStringList("dialogues.messages.general");
+                pool = MinionX.getInstance().getDialogues("general");
             }
         }
 
@@ -1403,7 +1413,8 @@ public class MinionTickTask extends BukkitRunnable {
         }
 
         String msg = pool.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(pool.size()));
-        long durationSec = config != null ? config.getLong("dialogues.duration-seconds", 5L) : 5L;
+        org.bukkit.configuration.file.FileConfiguration cfg = MinionX.getInstance() != null ? MinionX.getInstance().getConfig() : null;
+        long durationSec = cfg != null ? cfg.getLong("dialogues.duration-seconds", 5L) : 5L;
         minion.speak(msg, durationSec * 1000L);
         MinionHologram.updateHologram(minion);
     }

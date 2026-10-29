@@ -12,6 +12,7 @@ import com.minionx.item.MinionItemFactory;
 import com.minionx.hook.ProtectionHookManager;
 import com.minionx.quarantine.QuarantineManager;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.FeatureToggle;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -78,6 +79,19 @@ public class MinionStorageListener implements Listener {
         }
 
         if (storageId == null) return;
+
+        if (!FeatureToggle.isStorageChestsEnabled()) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (!player.hasPermission("minionx.storage")) {
+            event.setCancelled(true);
+            String noPermMsg = MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to place minion storage!");
+            player.sendMessage(ColorUtil.color(noPermMsg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
 
         // Prevent placing Minion Storage adjacent to ANY other chest (normal, trapped, or another minion storage)
         Block[] storageNeighbors = new Block[]{
@@ -211,9 +225,22 @@ public class MinionStorageListener implements Listener {
         event.setCancelled(true);
         Player player = event.getPlayer();
 
+        if (!FeatureToggle.isStorageChestsEnabled()) {
+            return;
+        }
+
+        if (!player.hasPermission("minionx.storage")) {
+            String noPermMsg = MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to access minion storage!");
+            player.sendMessage(ColorUtil.color(noPermMsg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
         // Check Storage Access (Owner, Team Member, or Admin)
         if (!ProtectionHookManager.canAccessMinion(player, minion)) {
-            player.sendMessage(ColorUtil.color("&cYou do not have permission to access this minion storage!"));
+            String noAccessMsg = MinionX.getInstance().getMessage(
+                    "no-minion-access-permission", "&cYou do not have permission to access this minion storage!");
+            player.sendMessage(ColorUtil.color(noAccessMsg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }

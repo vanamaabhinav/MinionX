@@ -28,6 +28,9 @@ public class UpgradeRegistry {
 
     public static void load(ConfigurationSection section) {
         UPGRADES.clear();
+        if (!com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
+            return;
+        }
 
         if (section != null) {
             for (String key : section.getKeys(false)) {
@@ -77,6 +80,9 @@ public class UpgradeRegistry {
     }
 
     private static void registerDefaults() {
+        if (!com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
+            return;
+        }
         registerDefaultIfMissing("auto_smelter", new CustomUpgrade("auto_smelter", ColorUtil.color("&6Auto-Smelter"), Material.FURNACE,
                 CustomUpgrade.UpgradeBehavior.AUTO_SMELTER, 0.0, 0.0,
                 ColorUtil.color(List.of("&7Automatically smelts harvested resources.")), true, 0));

@@ -21,6 +21,10 @@ public class OfflineCalculator {
 
     public static int processOfflineCatchup(Minion minion) {
         if (minion == null) return 0;
+        if (!com.minionx.util.FeatureToggle.isOfflineCatchupEnabled()) {
+            minion.setLastActionTime(System.currentTimeMillis());
+            return 0;
+        }
 
         // 1. Paused-state anchor advance: paused duration is never credited as work
         if (minion.getState() == MinionState.FULL || minion.getState() == MinionState.NO_SPACE || minion.getState() == MinionState.NO_MOBS_IN_RANGE) {
@@ -107,8 +111,9 @@ public class OfflineCalculator {
         boolean hasSecondary = def != null && def.hasSecondaryDrop() && def.getSecondaryDropChance() > 0 && def.getSecondaryDropItem() != null;
         long secChanceMicros = (def != null && hasSecondary) ? (long) (def.getSecondaryDropChance() * 1_000_000.0) : 0L;
 
-        boolean hasSpreading = minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
-                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING);
+        boolean hasSpreading = com.minionx.util.FeatureToggle.isUpgradesEnabled() &&
+                (minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
+                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING));
 
         long curSecRem = minion.getChannelRemainder("secondary");
         long curDiaRem = minion.getChannelRemainder("diamond_spreading");
@@ -169,7 +174,9 @@ public class OfflineCalculator {
             successfulHarvests++;
             actualAdded += baseStack.getAmount();
 
-            CompressionManager.processCompaction(minion);
+            if (com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
+                CompressionManager.processCompaction(minion);
+            }
         }
 
         if (hasSecondary) minion.setChannelRemainder("secondary", curSecRem);

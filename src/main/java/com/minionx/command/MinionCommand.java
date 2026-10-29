@@ -15,6 +15,7 @@ import com.minionx.core.PlayerLimitManager;
 import com.minionx.gui.MinionCreatorGUI;
 import com.minionx.item.MinionItemFactory;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.FeatureToggle;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -55,7 +56,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 handleClaim(sender);
                 return true;
             }
-            sender.sendMessage(ColorUtil.color("&cYou do not have permission to use this command."));
+            sender.sendMessage(ColorUtil.color(MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to use this command.")));
             return true;
         }
 
@@ -101,15 +102,31 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         if (args.length >= 2) {
             if ("skin".equalsIgnoreCase(args[1])) {
+                if (!FeatureToggle.isSkinsEnabled()) {
+                    player.sendMessage(ColorUtil.color("&cMinion Skins feature is currently disabled in config.yml."));
+                    return;
+                }
                 MinionSkinCreatorGUI.open(player, null);
                 return;
             } else if ("storage".equalsIgnoreCase(args[1])) {
+                if (!FeatureToggle.isStorageChestsEnabled()) {
+                    player.sendMessage(ColorUtil.color("&cMinion Storage chests feature is currently disabled in config.yml."));
+                    return;
+                }
                 MinionStorageCreatorGUI.open(player, null);
                 return;
             } else if ("fuel".equalsIgnoreCase(args[1])) {
+                if (!FeatureToggle.isFuelsEnabled()) {
+                    player.sendMessage(ColorUtil.color("&cMinion Fuels feature is currently disabled in config.yml."));
+                    return;
+                }
                 FuelCreatorGUI.open(player, null);
                 return;
             } else if ("upgrade".equalsIgnoreCase(args[1]) || "hopper".equalsIgnoreCase(args[1])) {
+                if (!FeatureToggle.isUpgradesEnabled()) {
+                    player.sendMessage(ColorUtil.color("&cMinion Upgrades feature is currently disabled in config.yml."));
+                    return;
+                }
                 com.minionx.gui.UpgradeCreatorGUI.open(player, null);
                 return;
             }
@@ -120,7 +137,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
     private void handleGive(CommandSender sender, String[] args) {
         if (!hasAdminPermission(sender)) {
-            sender.sendMessage(ColorUtil.color("&cYou do not have permission to use this command."));
+            sender.sendMessage(ColorUtil.color(MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to use this command.")));
             return;
         }
 
@@ -140,6 +157,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         
         // Check Minion Storage item (/minion give <player> storage <storage_id> [amount])
         if (itemArg.equalsIgnoreCase("storage") && args.length >= 4) {
+            if (!FeatureToggle.isStorageChestsEnabled()) {
+                sender.sendMessage(ColorUtil.color("&cMinion Storage chests feature is currently disabled in config.yml."));
+                return;
+            }
             String storageId = args[3].toLowerCase();
             CustomMinionStorage st = MinionStorageRegistry.get(storageId);
             if (st != null) {
@@ -171,6 +192,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         // 0. Check skin item (/minion give <player> skin <skin_id> or /minion give <player> <skin_id>)
         if (itemArg.equalsIgnoreCase("skin") && args.length >= 4) {
+            if (!FeatureToggle.isSkinsEnabled()) {
+                sender.sendMessage(ColorUtil.color("&cMinion Skins feature is currently disabled in config.yml."));
+                return;
+            }
             String skinId = args[3].toLowerCase();
             com.minionx.api.MinionSkin skin = com.minionx.api.MinionSkinRegistry.get(skinId);
             if (skin != null) {
@@ -422,7 +447,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(CommandSender sender) {
         if (!hasAdminPermission(sender)) {
-            sender.sendMessage(ColorUtil.color("&cYou do not have permission to use this command."));
+            sender.sendMessage(ColorUtil.color(MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to use this command.")));
             return;
         }
 
@@ -462,7 +487,16 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
-            return filter(List.of("minion", "skin", "storage", "fuel", "upgrade", "hopper"), args[1]);
+            List<String> sub = new ArrayList<>();
+            sub.add("minion");
+            if (FeatureToggle.isSkinsEnabled()) sub.add("skin");
+            if (FeatureToggle.isStorageChestsEnabled()) sub.add("storage");
+            if (FeatureToggle.isFuelsEnabled()) sub.add("fuel");
+            if (FeatureToggle.isUpgradesEnabled()) {
+                sub.add("upgrade");
+                if (FeatureToggle.isShippingEnabled()) sub.add("hopper");
+            }
+            return filter(sub, args[1]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("tier")) {
@@ -489,14 +523,24 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
             List<String> items = new ArrayList<>();
-            items.add("skin");
             for (MinionType t : MinionType.values()) {
                 items.add(t.name().toLowerCase());
             }
             items.addAll(MinionRegistry.getKeys());
-            items.addAll(FuelRegistry.getKeys());
-            items.addAll(UpgradeRegistry.getKeys());
-            items.addAll(com.minionx.api.MinionSkinRegistry.getKeys());
+            if (FeatureToggle.isSkinsEnabled()) {
+                items.add("skin");
+                items.addAll(com.minionx.api.MinionSkinRegistry.getKeys());
+            }
+            if (FeatureToggle.isStorageChestsEnabled()) {
+                items.add("storage");
+                items.addAll(MinionStorageRegistry.getKeys());
+            }
+            if (FeatureToggle.isFuelsEnabled()) {
+                items.addAll(FuelRegistry.getKeys());
+            }
+            if (FeatureToggle.isUpgradesEnabled()) {
+                items.addAll(UpgradeRegistry.getKeys());
+            }
             return filter(items, args[2]);
         }
 

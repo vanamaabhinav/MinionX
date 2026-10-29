@@ -37,7 +37,7 @@ public class MinionHologram {
         }
 
         FileConfiguration config = MinionX.getInstance() != null ? MinionX.getInstance().getConfig() : null;
-        String mode = config != null ? config.getString("nametags.mode", "ALWAYS").toUpperCase() : "ALWAYS";
+        String mode = com.minionx.util.FeatureToggle.getNametagMode();
         boolean isMainHoloEnabled = !("DISABLED".equals(mode) || "NONE".equals(mode) || "OFF".equals(mode));
         boolean hasDialogue = minion.hasActiveDialogue();
 
@@ -103,6 +103,11 @@ public class MinionHologram {
             }
         }
         if (liveDisplay != null) {
+            if ("TARGETED".equals(mode)) {
+                liveDisplay.setViewRange(0.1f);
+            } else {
+                liveDisplay.setViewRange(1.0f);
+            }
             liveDisplay.text(ColorUtil.component(combinedText));
             minion.setLastHologramText(combinedText);
             return;
@@ -121,6 +126,11 @@ public class MinionHologram {
             d.setBackgroundColor(Color.fromARGB(0, 0, 0, 0)); // transparent background
             d.setPersistent(true);
             d.setInvulnerable(true);
+            if ("TARGETED".equals(mode)) {
+                d.setViewRange(0.1f);
+            } else {
+                d.setViewRange(1.0f);
+            }
             d.text(ColorUtil.component(combinedText));
 
             d.getPersistentDataContainer().set(HOLOGRAM_KEY, PersistentDataType.STRING, minion.getMinionId().toString());

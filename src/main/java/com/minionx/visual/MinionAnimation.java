@@ -31,13 +31,19 @@ public class MinionAnimation {
         ArmorStand stand = getStand(minion);
         if (stand == null) return;
 
-        rotateTowards(minion, stand, targetBlock.getLocation());
-        animateArmSwing(stand);
+        if (com.minionx.util.FeatureToggle.isAnimationsEnabled()) {
+            rotateTowards(minion, stand, targetBlock.getLocation());
+            animateArmSwing(stand);
+        }
 
         Location soundLoc = targetBlock.getLocation().add(0.5, 0.5, 0.5);
         if (hasPlayerNearby(soundLoc)) {
-            soundLoc.getWorld().playSound(soundLoc, Sound.BLOCK_STONE_PLACE, 0.8f, 1.0f);
-            ServerCompatibilityUtil.spawnBlockBreakParticles(soundLoc, targetBlock.getBlockData(), 8, 0.2, 0.2, 0.2);
+            if (com.minionx.util.FeatureToggle.isSoundsEnabled()) {
+                soundLoc.getWorld().playSound(soundLoc, Sound.BLOCK_STONE_PLACE, 0.8f, 1.0f);
+            }
+            if (com.minionx.util.FeatureToggle.isParticlesEnabled()) {
+                ServerCompatibilityUtil.spawnBlockBreakParticles(soundLoc, targetBlock.getBlockData(), 8, 0.2, 0.2, 0.2);
+            }
         }
     }
 
@@ -49,13 +55,19 @@ public class MinionAnimation {
         ArmorStand stand = getStand(minion);
         if (stand == null) return;
 
-        rotateTowards(minion, stand, targetBlock.getLocation());
-        animateArmSwing(stand);
+        if (com.minionx.util.FeatureToggle.isAnimationsEnabled()) {
+            rotateTowards(minion, stand, targetBlock.getLocation());
+            animateArmSwing(stand);
+        }
 
         Location soundLoc = targetBlock.getLocation().add(0.5, 0.5, 0.5);
         if (hasPlayerNearby(soundLoc)) {
-            soundLoc.getWorld().playSound(soundLoc, Sound.BLOCK_STONE_BREAK, 1.0f, 1.0f);
-            ServerCompatibilityUtil.spawnBlockBreakParticles(soundLoc, targetBlock.getBlockData(), 15, 0.3, 0.3, 0.3);
+            if (com.minionx.util.FeatureToggle.isSoundsEnabled()) {
+                soundLoc.getWorld().playSound(soundLoc, Sound.BLOCK_STONE_BREAK, 1.0f, 1.0f);
+            }
+            if (com.minionx.util.FeatureToggle.isParticlesEnabled()) {
+                ServerCompatibilityUtil.spawnBlockBreakParticles(soundLoc, targetBlock.getBlockData(), 15, 0.3, 0.3, 0.3);
+            }
         }
     }
 

@@ -52,7 +52,7 @@ public class SymmetricalSlotCalculator {
 
         // Check config override
         try {
-            if (MinionX.getInstance() != null) {
+            if (MinionX.getInstance() != null && com.minionx.util.FeatureToggle.isCustomStorageLayoutsEnabled()) {
                 FileConfiguration cfg = MinionX.getInstance().getConfig();
                 if (cfg != null && cfg.isList("storage-layouts." + clamped)) {
                     List<Integer> custom = cfg.getIntegerList("storage-layouts." + clamped);

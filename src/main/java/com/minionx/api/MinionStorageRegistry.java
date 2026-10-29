@@ -20,6 +20,9 @@ public class MinionStorageRegistry {
 
     public static void load() {
         STORAGES.clear();
+        if (!com.minionx.util.FeatureToggle.isStorageChestsEnabled()) {
+            return;
+        }
         registerDefaults();
         loadCustomStorages();
     }

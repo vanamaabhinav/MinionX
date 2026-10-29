@@ -62,6 +62,14 @@ public class MinionPlaceListener implements Listener {
 
         Player player = event.getPlayer();
 
+        // Check placement permissions
+        if (!player.hasPermission("minionx.use") && !player.hasPermission("minionx.place")) {
+            String noPermMsg = MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to place minions!");
+            player.sendMessage(ColorUtil.color(noPermMsg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
         // Check Emergency Quarantine Mode
         if (QuarantineManager.isQuarantined() && !QuarantineManager.canBypass(player)) {
             player.sendMessage(ColorUtil.color("&c[Quarantine] Minion placement is disabled during emergency quarantine mode!"));
@@ -77,7 +85,7 @@ public class MinionPlaceListener implements Listener {
         PlayerLimitManager limitManager = MinionX.getInstance().getPlayerLimitManager();
         if (limitManager != null && !limitManager.canPlaceMore(player)) {
             int limit = limitManager.getEffectiveLimit(player);
-            String limitMsg = config.getString("messages.minion-limit-reached", "&cYou have reached your maximum minion limit of %limit%!")
+            String limitMsg = MinionX.getInstance().getMessage("minion-limit-reached", "&cYou have reached your maximum minion limit of %limit%!")
                     .replace("%limit%", String.valueOf(limit));
             player.sendMessage(ColorUtil.color(limitMsg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
@@ -87,7 +95,8 @@ public class MinionPlaceListener implements Listener {
         // Placement target is the block directly above clicked block
         Block placeBlock = clickedBlock.getRelative(BlockFace.UP);
         if (!placeBlock.getType().isAir()) {
-            player.sendMessage(ColorUtil.color("&cCannot place minion here! The space above must be clear."));
+            String blockedMsg = MinionX.getInstance().getMessage("area-blocked", "&cCannot place minion here! The space above must be clear.");
+            player.sendMessage(ColorUtil.color(blockedMsg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
@@ -95,7 +104,7 @@ public class MinionPlaceListener implements Listener {
         // Prevent placing multiple minions in the same block/slot
         Location targetLoc = placeBlock.getLocation();
         if (MinionX.getInstance().getMinionManager().getMinionAt(targetLoc) != null) {
-            String occupiedMsg = config.getString("messages.minion-already-exists", "&cThere is already a minion here! Only one minion may occupy a block.");
+            String occupiedMsg = MinionX.getInstance().getMessage("minion-already-exists", "&cThere is already a minion here! Only one minion may occupy a block.");
             player.sendMessage(ColorUtil.color(occupiedMsg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
@@ -105,7 +114,7 @@ public class MinionPlaceListener implements Listener {
             for (org.bukkit.entity.Entity nearby : targetLoc.getWorld().getNearbyEntities(targetLoc.clone().add(0.5, 0.5, 0.5), 0.6, 0.6, 0.6)) {
                 if (nearby instanceof org.bukkit.entity.ArmorStand as) {
                     if (as.getPersistentDataContainer().has(MinionVisual.MINION_ENTITY_KEY, org.bukkit.persistence.PersistentDataType.STRING)) {
-                        String occupiedMsg = config.getString("messages.minion-already-exists", "&cThere is already a minion here! Only one minion may occupy a block.");
+                        String occupiedMsg = MinionX.getInstance().getMessage("minion-already-exists", "&cThere is already a minion here! Only one minion may occupy a block.");
                         player.sendMessage(ColorUtil.color(occupiedMsg));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         return;
@@ -196,7 +205,7 @@ public class MinionPlaceListener implements Listener {
         }
 
         String name = minion.getDisplayName();
-        String placedMsg = config.getString("messages.placed", "&aYou placed a %minion%!")
+        String placedMsg = MinionX.getInstance().getMessage("placed", "&aYou placed a %minion%!")
                 .replace("%minion%", name + " Minion");
         player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color(placedMsg));
         player.playSound(minionLoc, Sound.BLOCK_ANVIL_USE, 0.7f, 1.2f);

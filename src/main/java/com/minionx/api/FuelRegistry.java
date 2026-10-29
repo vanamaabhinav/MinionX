@@ -24,6 +24,9 @@ public class FuelRegistry {
 
     public static void load(ConfigurationSection section) {
         FUELS.clear();
+        if (!com.minionx.util.FeatureToggle.isFuelsEnabled()) {
+            return;
+        }
 
         if (section != null) {
             for (String key : section.getKeys(false)) {
@@ -53,6 +56,9 @@ public class FuelRegistry {
     }
 
     private static void registerDefaults() {
+        if (!com.minionx.util.FeatureToggle.isFuelsEnabled()) {
+            return;
+        }
         registerDefaultIfMissing("coal", new CustomFuel("coal", ColorUtil.color("&fCoal"), Material.COAL, 0.05, 30 * 60 * 1000L,
                 ColorUtil.color(List.of("&7Increases minion speed by &a+5%&7.", "&7Duration: &e30 minutes")), false, 0));
         registerDefaultIfMissing("charcoal", new CustomFuel("charcoal", ColorUtil.color("&fCharcoal"), Material.CHARCOAL, 0.05, 30 * 60 * 1000L,

@@ -55,34 +55,53 @@ public class MinionGUI {
         inv.setItem(MinionGUIConfig.getHeadSlot(), createHeadItem(minion));
         inv.setItem(MinionGUIConfig.getNextTierSlot(), createNextTierInfoItem(minion));
 
-        // Left Column: Modifiers & Automation (Colored Panes)
-        // Slot 10: Minion Skin (Green Pane)
+        // Left Column: Modifiers & Automation (Colored Panes or Background Panes if Disabled)
+        // Slot 10: Minion Skin
         int skinSlot = MinionGUIConfig.getSkinSlot();
-        if (minion.hasSkin()) {
-            inv.setItem(skinSlot, createActiveSkinItem(minion.getSkin()));
+        if (com.minionx.util.FeatureToggle.isSkinsEnabled()) {
+            if (minion.hasSkin()) {
+                inv.setItem(skinSlot, createActiveSkinItem(minion.getSkin()));
+            } else {
+                inv.setItem(skinSlot, createEmptySkinPane());
+            }
         } else {
-            inv.setItem(skinSlot, createEmptySkinPane());
+            inv.setItem(skinSlot, createPane(Material.BLACK_STAINED_GLASS_PANE, " "));
         }
 
-        // Slot 19: Fuel (Orange Pane)
+        // Slot 19: Fuel
         int fuelSlot = MinionGUIConfig.getFuelSlot();
-        if (minion.isFuelActive()) {
-            inv.setItem(fuelSlot, createActiveFuelItem(minion));
+        if (com.minionx.util.FeatureToggle.isFuelsEnabled()) {
+            if (minion.isFuelActive()) {
+                inv.setItem(fuelSlot, createActiveFuelItem(minion));
+            } else {
+                inv.setItem(fuelSlot, createEmptyFuelPane());
+            }
         } else {
-            inv.setItem(fuelSlot, createEmptyFuelPane());
+            inv.setItem(fuelSlot, createPane(Material.BLACK_STAINED_GLASS_PANE, " "));
         }
 
-        // Slot 28: Automated Shipping (Yellow Pane or Equipped Hopper)
+        // Slot 28: Automated Shipping
         int shippingSlot = MinionGUIConfig.getAutomatedShippingSlot();
-        if (minion.getShippingId() != null) {
-            inv.setItem(shippingSlot, createActiveShippingItem(minion));
+        if (com.minionx.util.FeatureToggle.isShippingEnabled()) {
+            if (minion.getShippingId() != null) {
+                inv.setItem(shippingSlot, createActiveShippingItem(minion));
+            } else {
+                inv.setItem(shippingSlot, createShippingPane());
+            }
         } else {
-            inv.setItem(shippingSlot, createShippingPane());
+            inv.setItem(shippingSlot, createPane(Material.BLACK_STAINED_GLASS_PANE, " "));
         }
 
-        // Slots 37 & 46: Minion Upgrades (Blue Panes)
-        inv.setItem(MinionGUIConfig.getUpgrade1Slot(), createUpgradeSlotItem(minion.getCustomUpgrade1(), 1));
-        inv.setItem(MinionGUIConfig.getUpgrade2Slot(), createUpgradeSlotItem(minion.getCustomUpgrade2(), 2));
+        // Slots 37 & 46: Minion Upgrades
+        int upg1Slot = MinionGUIConfig.getUpgrade1Slot();
+        int upg2Slot = MinionGUIConfig.getUpgrade2Slot();
+        if (com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
+            inv.setItem(upg1Slot, createUpgradeSlotItem(minion.getCustomUpgrade1(), 1));
+            inv.setItem(upg2Slot, createUpgradeSlotItem(minion.getCustomUpgrade2(), 2));
+        } else {
+            inv.setItem(upg1Slot, createPane(Material.BLACK_STAINED_GLASS_PANE, " "));
+            inv.setItem(upg2Slot, createPane(Material.BLACK_STAINED_GLASS_PANE, " "));
+        }
 
         // Middle Grid: Storage (Slots 21-25, 30-34, 39-43)
         int[] storageSlots = MinionGUIConfig.getStorageSlots();

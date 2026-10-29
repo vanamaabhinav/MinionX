@@ -11,6 +11,7 @@ import com.minionx.hook.ProtectionHookManager;
 import com.minionx.hook.SkillHook;
 import com.minionx.item.MinionItemFactory;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.FeatureToggle;
 import com.minionx.util.UpgradeCostHelper;
 import com.minionx.visual.MinionHologram;
 import com.minionx.visual.MinionVisual;
@@ -89,7 +90,7 @@ public class MinionGUIListener implements Listener {
 
                 // Shift-click Fuel item -> auto-deposit into fuel socket
                 CustomFuel fuel = FuelRegistry.fromItemStack(clicked);
-                if (fuel != null) {
+                if (fuel != null && FeatureToggle.isFuelsEnabled()) {
                     event.setCancelled(true);
                     handleFuelDeposit(player, minion, clicked, clicked.getAmount());
                     return;
@@ -98,18 +99,22 @@ public class MinionGUIListener implements Listener {
                 // Shift-click Upgrade item -> auto-equip into first free upgrade slot OR automated shipping if auto-seller
                 CustomUpgrade upgrade = UpgradeRegistry.fromItemStack(clicked);
                 if (upgrade != null) {
-                    event.setCancelled(true);
                     if (upgrade.isAutoSeller()) {
-                        handleShippingShiftClick(player, minion, clicked, upgrade);
-                    } else {
+                        if (FeatureToggle.isShippingEnabled()) {
+                            event.setCancelled(true);
+                            handleShippingShiftClick(player, minion, clicked, upgrade);
+                            return;
+                        }
+                    } else if (FeatureToggle.isUpgradesEnabled()) {
+                        event.setCancelled(true);
                         handleUpgradeShiftClick(player, minion, clicked, upgrade);
+                        return;
                     }
-                    return;
                 }
 
                 // Shift-click Skin item -> auto-apply into skin slot
                 String skinId = com.minionx.item.MinionItemFactory.getSkinId(clicked);
-                if (skinId != null) {
+                if (skinId != null && FeatureToggle.isSkinsEnabled()) {
                     event.setCancelled(true);
                     handleSkinApply(player, minion, clicked, skinId);
                     return;
@@ -161,6 +166,7 @@ public class MinionGUIListener implements Listener {
 
         // Automated Shipping Slot Click (Slot 28)
         if (slot == MinionGUIConfig.getAutomatedShippingSlot()) {
+            if (!FeatureToggle.isShippingEnabled()) return;
             handleShippingSlotClick(player, minion, event);
             return;
         }
@@ -185,24 +191,28 @@ public class MinionGUIListener implements Listener {
 
         // Fuel Slot Click
         if (slot == MinionGUIConfig.getFuelSlot()) {
+            if (!FeatureToggle.isFuelsEnabled()) return;
             handleFuelSlot(player, minion, event);
             return;
         }
 
         // Upgrade Slot 1 Click
         if (slot == MinionGUIConfig.getUpgrade1Slot()) {
+            if (!FeatureToggle.isUpgradesEnabled()) return;
             handleUpgradeSlot(player, minion, 1, event);
             return;
         }
 
         // Upgrade Slot 2 Click
         if (slot == MinionGUIConfig.getUpgrade2Slot()) {
+            if (!FeatureToggle.isUpgradesEnabled()) return;
             handleUpgradeSlot(player, minion, 2, event);
             return;
         }
 
         // Minion Skin Slot Click
         if (slot == MinionGUIConfig.getSkinSlot()) {
+            if (!FeatureToggle.isSkinsEnabled()) return;
             handleSkinSlot(player, minion, event);
             return;
         }
@@ -288,7 +298,8 @@ public class MinionGUIListener implements Listener {
 
             // Check if player has any room at all
             if (player.getInventory().firstEmpty() == -1 && !hasStackableRoom(player, minion)) {
-                player.sendMessage(ColorUtil.color("&cYour inventory is full! Make space to collect items."));
+                String fullMsg = MinionX.getInstance().getMessage("inventory-full", "&cYour inventory is full! Make space to collect items.");
+                player.sendMessage(ColorUtil.color(fullMsg));
                 player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                 return;
             }
@@ -463,7 +474,9 @@ public class MinionGUIListener implements Listener {
     private void handleUpgrade(Player player, Minion minion) {
         int currentTier = minion.getTier();
         if (currentTier >= minion.getMaxTier()) {
-            player.sendMessage(ColorUtil.color("&cThis minion is already at the maximum tier (" + MinionTier.toRoman(minion.getMaxTier()) + ")!"));
+            String maxMsg = MinionX.getInstance().getMessage("already-max-tier", "&cThis minion is already at maximum tier (%tier%)!")
+                    .replace("%tier%", MinionTier.toRoman(minion.getMaxTier()));
+            player.sendMessage(ColorUtil.color(maxMsg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
@@ -471,7 +484,8 @@ public class MinionGUIListener implements Listener {
         UpgradeCostHelper.Requirement req = UpgradeCostHelper.getRequirement(minion);
 
         if (!UpgradeCostHelper.hasEnoughItems(player, req)) {
-            String template = MinionX.getInstance().getConfig().getString("messages.not-enough-items", "&cYou need %cost%x %material% to upgrade to Tier %tier%!");
+            String template = MinionX.getInstance().getMessage("not-enough-resources",
+                    MinionX.getInstance().getMessage("not-enough-items", "&cYou need %cost%x %material% to upgrade to Tier %tier%!"));
             String msg = template.replace("%cost%", String.valueOf(req.getRequiredAmount()))
                     .replace("%material%", req.getDisplayName())
                     .replace("%tier%", MinionTier.toRoman(currentTier + 1));
@@ -815,7 +829,10 @@ public class MinionGUIListener implements Listener {
                                             }
                                         });
                                         if (player.isOnline()) {
-                                            player.sendMessage(ColorUtil.color("&eYou picked up your " + minion.getDisplayName() + " Minion!"));
+                                            String pickupMsg = MinionX.getInstance().getMessage("picked-up", "&eYou picked up your %minion% Minion!")
+                                                    .replace("%minion%", minion.getDisplayName())
+                                                    .replace("%type%", minion.getDisplayName());
+                                            player.sendMessage(ColorUtil.color(pickupMsg));
                                             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
                                         }
                                     } else {
@@ -1196,8 +1213,7 @@ public class MinionGUIListener implements Listener {
 
             if (destroyOnRemoval) {
                 minion.setFuel((CustomFuel) null);
-                String template = MinionX.getInstance().getConfig()
-                        .getString("messages.fuel-burned-out", "&cThe active %fuel% burned out and was consumed!");
+                String template = MinionX.getInstance().getMessage("fuel-burned-out", "&cThe active %fuel% burned out and was consumed!");
                 player.sendMessage(ColorUtil.color(template.replace("%fuel%", currentFuel.getDisplayName())));
                 player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 1.2f);
             } else {
@@ -1217,8 +1233,7 @@ public class MinionGUIListener implements Listener {
 
         if (fuel.isPermanent()) {
             if (minion.isFuelPermanent()) {
-                String msg = MinionX.getInstance().getConfig()
-                        .getString("messages.cannot-stack-permanent-fuel", "&cThis minion already has permanent fuel installed!");
+                String msg = MinionX.getInstance().getMessage("cannot-stack-permanent-fuel", "&cThis minion already has permanent fuel installed!");
                 player.sendMessage(ColorUtil.color(msg));
                 player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                 return;
@@ -1241,8 +1256,7 @@ public class MinionGUIListener implements Listener {
             minion.extendFuel(fuel, actualDeposit);
             consumeItem(fuelItem, actualDeposit);
 
-            String template = MinionX.getInstance().getConfig()
-                    .getString("messages.fuel-extended", "&aAdded &f%amount%x %fuel%&a! Fuel duration extended to &e%time%&a.");
+            String template = MinionX.getInstance().getMessage("fuel-extended", "&aAdded &f%amount%x %fuel%&a! Fuel duration extended to &e%time%&a.");
             String msg = template.replace("%amount%", String.valueOf(actualDeposit))
                     .replace("%fuel%", fuel.getDisplayName())
                     .replace("%time%", minion.getFormattedFuelTimeRemaining());
@@ -1257,8 +1271,7 @@ public class MinionGUIListener implements Listener {
         consumeItem(fuelItem, actualDeposit);
         minion.setFuel(fuel, actualDeposit);
 
-        String template = MinionX.getInstance().getConfig()
-                .getString("messages.fuel-extended", "&aEquipped &f%amount%x %fuel%&a! Total duration: &e%time%&a.");
+        String template = MinionX.getInstance().getMessage("fuel-extended", "&aEquipped &f%amount%x %fuel%&a! Total duration: &e%time%&a.");
         String msg = template.replace("%amount%", String.valueOf(actualDeposit))
                 .replace("%fuel%", fuel.getDisplayName())
                 .replace("%time%", minion.getFormattedFuelTimeRemaining());
@@ -1279,8 +1292,7 @@ public class MinionGUIListener implements Listener {
             boolean destroyOnRemoval = MinionX.getInstance().getConfig()
                     .getBoolean("settings.destroy-temporary-fuel-on-removal", true);
             if (destroyOnRemoval) {
-                String template = MinionX.getInstance().getConfig()
-                        .getString("messages.fuel-burned-out", "&cThe previous %fuel% burned out and was consumed!");
+                String template = MinionX.getInstance().getMessage("fuel-burned-out", "&cThe previous %fuel% burned out and was consumed!");
                 player.sendMessage(ColorUtil.color(template.replace("%fuel%", oldFuel.getDisplayName())));
                 player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 0.8f, 1.2f);
             } else {

@@ -192,12 +192,20 @@ public class MinionX extends JavaPlugin {
     private org.bukkit.configuration.file.FileConfiguration minionsConfig;
     private org.bukkit.configuration.file.FileConfiguration skinsConfig;
 
-    public org.bukkit.configuration.file.FileConfiguration loadSubConfig(String fileName) {
+    public org.bukkit.configuration.file.FileConfiguration loadSubConfig(String fileName, boolean shouldSaveDefault) {
         java.io.File file = new java.io.File(getDataFolder(), fileName);
         if (!file.exists()) {
-            saveResource(fileName, false);
+            if (shouldSaveDefault) {
+                saveResource(fileName, false);
+            } else {
+                return new org.bukkit.configuration.file.YamlConfiguration();
+            }
         }
         return org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+    }
+
+    public org.bukkit.configuration.file.FileConfiguration loadSubConfig(String fileName) {
+        return loadSubConfig(fileName, true);
     }
 
     public void reloadAllConfigs() {
@@ -206,28 +214,44 @@ public class MinionX extends JavaPlugin {
     }
 
     public void loadRegistries() {
-        this.tiersConfig = loadSubConfig("tiers.yml");
-        this.fuelsConfig = loadSubConfig("fuels.yml");
-        this.upgradesConfig = loadSubConfig("upgrades.yml");
-        this.recipesConfig = loadSubConfig("recipes.yml");
-        this.messagesConfig = loadSubConfig("messages.yml");
-        this.minionsConfig = loadSubConfig("minions.yml");
-        this.skinsConfig = loadSubConfig("skins.yml");
+        com.minionx.util.FeatureToggle.reload();
+
+        this.tiersConfig = loadSubConfig("tiers.yml", true);
+        this.recipesConfig = loadSubConfig("recipes.yml", true);
+        this.messagesConfig = loadSubConfig("messages.yml", true);
+        this.minionsConfig = loadSubConfig("minions.yml", true);
+
+        boolean fuelsEnabled = com.minionx.util.FeatureToggle.isFuelsEnabled();
+        this.fuelsConfig = loadSubConfig("fuels.yml", fuelsEnabled);
+
+        boolean upgradesEnabled = com.minionx.util.FeatureToggle.isUpgradesEnabled();
+        this.upgradesConfig = loadSubConfig("upgrades.yml", upgradesEnabled);
+
+        boolean skinsEnabled = com.minionx.util.FeatureToggle.isSkinsEnabled();
+        this.skinsConfig = loadSubConfig("skins.yml", skinsEnabled);
 
         org.bukkit.configuration.ConfigurationSection tiersSec = tiersConfig.contains("tiers")
                 ? tiersConfig.getConfigurationSection("tiers")
                 : getConfig().getConfigurationSection("tiers");
         MinionTier.load(tiersSec);
 
-        org.bukkit.configuration.ConfigurationSection fuelsSec = fuelsConfig.contains("fuels")
-                ? fuelsConfig.getConfigurationSection("fuels")
-                : getConfig().getConfigurationSection("fuels");
-        FuelRegistry.load(fuelsSec);
+        if (fuelsEnabled) {
+            org.bukkit.configuration.ConfigurationSection fuelsSec = fuelsConfig.contains("fuels")
+                    ? fuelsConfig.getConfigurationSection("fuels")
+                    : getConfig().getConfigurationSection("fuels");
+            FuelRegistry.load(fuelsSec);
+        } else {
+            FuelRegistry.load(null);
+        }
 
-        org.bukkit.configuration.ConfigurationSection upgradesSec = upgradesConfig.contains("upgrades")
-                ? upgradesConfig.getConfigurationSection("upgrades")
-                : getConfig().getConfigurationSection("upgrades");
-        UpgradeRegistry.load(upgradesSec);
+        if (upgradesEnabled) {
+            org.bukkit.configuration.ConfigurationSection upgradesSec = upgradesConfig.contains("upgrades")
+                    ? upgradesConfig.getConfigurationSection("upgrades")
+                    : getConfig().getConfigurationSection("upgrades");
+            UpgradeRegistry.load(upgradesSec);
+        } else {
+            UpgradeRegistry.load(null);
+        }
 
         org.bukkit.configuration.ConfigurationSection recipesSec = recipesConfig.contains("compression-recipes")
                 ? recipesConfig.getConfigurationSection("compression-recipes")
@@ -236,10 +260,14 @@ public class MinionX extends JavaPlugin {
 
         MinionRegistry.load(minionsConfig);
 
-        org.bukkit.configuration.ConfigurationSection skinsSec = (skinsConfig != null && skinsConfig.contains("skins"))
-                ? skinsConfig.getConfigurationSection("skins")
-                : skinsConfig;
-        MinionSkinRegistry.load(skinsSec);
+        if (skinsEnabled) {
+            org.bukkit.configuration.ConfigurationSection skinsSec = (skinsConfig != null && skinsConfig.contains("skins"))
+                    ? skinsConfig.getConfigurationSection("skins")
+                    : skinsConfig;
+            MinionSkinRegistry.load(skinsSec);
+        } else {
+            MinionSkinRegistry.load((org.bukkit.configuration.ConfigurationSection) null);
+        }
 
         MinionStorageRegistry.load();
         PriceRegistry.load();
@@ -248,6 +276,14 @@ public class MinionX extends JavaPlugin {
     }
 
     public String getMessage(String path, String defaultValue) {
+        if ("not-enough-items".equals(path) || "not-enough-resources".equals(path)) {
+            if (messagesConfig != null && messagesConfig.contains("messages.not-enough-resources")) {
+                return messagesConfig.getString("messages.not-enough-resources", defaultValue);
+            }
+            if (getConfig() != null && getConfig().contains("messages.not-enough-resources")) {
+                return getConfig().getString("messages.not-enough-resources", defaultValue);
+            }
+        }
         if (messagesConfig != null && messagesConfig.contains("messages." + path)) {
             return messagesConfig.getString("messages." + path, defaultValue);
         }
@@ -256,6 +292,9 @@ public class MinionX extends JavaPlugin {
         }
         if (getConfig() != null && getConfig().contains("messages." + path)) {
             return getConfig().getString("messages." + path, defaultValue);
+        }
+        if (getConfig() != null && getConfig().contains(path)) {
+            return getConfig().getString(path, defaultValue);
         }
         return defaultValue;
     }

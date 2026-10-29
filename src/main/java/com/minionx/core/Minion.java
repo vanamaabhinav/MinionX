@@ -373,6 +373,9 @@ public class Minion {
     }
 
     public boolean hasSkin() {
+        if (!com.minionx.util.FeatureToggle.isSkinsEnabled()) {
+            return false;
+        }
         return skinId != null && getSkin() != null;
     }
 
@@ -389,6 +392,9 @@ public class Minion {
     }
 
     public boolean hasAutoSeller() {
+        if (!com.minionx.util.FeatureToggle.isShippingEnabled()) {
+            return false;
+        }
         CustomUpgrade u = getShippingUpgrade();
         return u != null && u.isAutoSeller();
     }
@@ -518,21 +524,23 @@ public class Minion {
         double baseTime = getBaseActionDelay();
         double totalBuff = 0.0;
 
-        if (isFuelActive()) {
+        if (com.minionx.util.FeatureToggle.isFuelsEnabled() && isFuelActive()) {
             CustomFuel f = getCustomFuel();
             if (f != null) {
                 totalBuff += f.getSpeedBuff();
             }
         }
 
-        CustomUpgrade u1 = getCustomUpgrade1();
-        if (u1 != null && u1.getSpeedBuff() > 0) {
-            totalBuff += u1.getSpeedBuff();
-        }
+        if (com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
+            CustomUpgrade u1 = getCustomUpgrade1();
+            if (u1 != null && u1.getSpeedBuff() > 0) {
+                totalBuff += u1.getSpeedBuff();
+            }
 
-        CustomUpgrade u2 = getCustomUpgrade2();
-        if (u2 != null && u2.getSpeedBuff() > 0) {
-            totalBuff += u2.getSpeedBuff();
+            CustomUpgrade u2 = getCustomUpgrade2();
+            if (u2 != null && u2.getSpeedBuff() > 0) {
+                totalBuff += u2.getSpeedBuff();
+            }
         }
 
         return baseTime / (1.0 + totalBuff);

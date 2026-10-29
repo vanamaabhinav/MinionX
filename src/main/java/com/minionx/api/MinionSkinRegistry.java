@@ -53,6 +53,9 @@ public class MinionSkinRegistry {
      */
     public static void loadBuiltinSkins() {
         SKINS.clear();
+        if (!com.minionx.util.FeatureToggle.isSkinsEnabled()) {
+            return;
+        }
 
         InputStream in = MinionSkinRegistry.class.getClassLoader().getResourceAsStream("minion_skins.json");
         if (in != null) {

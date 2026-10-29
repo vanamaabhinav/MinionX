@@ -29,6 +29,7 @@ messages:
   picked-up: "&eYou picked up your %minion%!"
   upgraded: "&aUpgraded %minion% to Tier %tier%!"
   not-enough-resources: "&cYou don't have enough resources to upgrade this minion!"
+  not-enough-items: "&cYou need %cost%x %material% to upgrade to Tier %tier%!"
   already-max-tier: "&cThis minion is already at maximum tier!"
   collected: "&aCollected %amount% items and &e+%xp% XP &afrom your minion!"
   inventory-full: "&cYour inventory is too full to collect all items!"

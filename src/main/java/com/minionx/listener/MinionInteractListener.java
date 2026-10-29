@@ -46,10 +46,18 @@ public class MinionInteractListener implements Listener {
 
         Player player = event.getPlayer();
 
+        // Check minion usage permission
+        if (!player.hasPermission("minionx.use")) {
+            String noPermMsg = MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to use minions!");
+            player.sendMessage(ColorUtil.color(noPermMsg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
         // Check island/owner access permissions
         if (!IslandHookManager.canAccessMinion(player, minion)) {
-            String noAccessMsg = MinionX.getInstance().getConfig().getString(
-                    "messages.no-minion-access-permission", "&cYou do not have permission to access this minion!");
+            String noAccessMsg = MinionX.getInstance().getMessage(
+                    "no-minion-access-permission", "&cYou do not have permission to access this minion!");
             player.sendMessage(ColorUtil.color(noAccessMsg));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;

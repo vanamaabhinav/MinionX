@@ -167,7 +167,7 @@ public class OperatorGUIListener implements Listener {
                 return;
             }
 
-            if (com.minionx.hook.GeyserHook.isBedrockPlayer(player) || event.isRightClick()) {
+            if ((com.minionx.util.FeatureToggle.isGeyserTouchFriendly() && com.minionx.hook.GeyserHook.isBedrockPlayer(player)) || event.isRightClick()) {
                 OperatorGUI.openTierBrowser(player, def);
             } else {
                 int tier = event.isShiftClick() ? 1 : def.getMaxTier();
