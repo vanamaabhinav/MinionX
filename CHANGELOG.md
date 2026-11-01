@@ -57,6 +57,7 @@ Previously unread or mismatched configuration options, messages, and permissions
 17. `messages.no-minion-access-permission`: Dispatched when unauthorized players interact with protected minion entities or linked storage.
 18. `minionx.use`: Checked in `MinionPlaceListener.java` and `MinionInteractListener.java`.
 19. `minionx.storage`: Checked in `MinionStorageListener.java` before placing or opening minion storage chests.
+20. `softdepend`: Declared explicit load-order list in `plugin.yml` for all 16 supported external plugins (Vault, PlaceholderAPI, GriefPrevention, BentoBox, Towny, Lands, AuraSkills, EcoSkills, SuperiorSkyblock2, EcoCollections, ItemsAdder, MMOItems, EcoItems, Geyser-Spigot, floodgate, MythicMobs).
 
 ---
 
