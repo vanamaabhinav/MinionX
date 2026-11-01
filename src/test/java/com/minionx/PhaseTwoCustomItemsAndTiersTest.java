@@ -117,19 +117,19 @@ public class PhaseTwoCustomItemsAndTiersTest {
     }
 
     @Test
-    @DisplayName("Release versioning should strictly adhere to v1.0.2 for deployment")
+    @DisplayName("Release versioning should strictly adhere to v1.0.3 for deployment")
     void testReleaseVersioning() throws Exception {
         // Check plugin.yml
         File pluginYml = new File("src/main/resources/plugin.yml");
         assertTrue(pluginYml.exists());
         String pluginContent = Files.readString(pluginYml.toPath());
-        assertTrue(pluginContent.contains("version: 1.0.2"), "plugin.yml version should be 1.0.2");
+        assertTrue(pluginContent.contains("version: 1.0.3"), "plugin.yml version should be 1.0.3");
 
         // Check pom.xml
         File pomXml = new File("pom.xml");
         assertTrue(pomXml.exists());
         String pomContent = Files.readString(pomXml.toPath());
-        assertTrue(pomContent.contains("<version>1.0.2</version>"), "pom.xml version should be 1.0.2");
+        assertTrue(pomContent.contains("<version>1.0.3</version>"), "pom.xml version should be 1.0.3");
     }
 
     @Test

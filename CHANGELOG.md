@@ -4,6 +4,33 @@ All notable changes to **MinionX** are documented in this file.
 
 ---
 
+## [1.0.3] - 2026-11-01
+
+### Grounded Overview for Buyers & Server Owners
+> **MinionX v1.0.3** introduces native island claim protection and team access integration for **SuperiorSkyblock2**.
+>
+> On servers running SuperiorSkyblock2, minion placement is now checked against island ownership, preventing non-members from placing minions on other players' islands. When configured in `security.access-mode: TEAM_ACCESS`, island co-op members and teammates can access minion menus, insert fuel, and collect harvested items, while preserving owner-only protection against unauthorized minion dismantling.
+
+---
+
+### Key Highlights & Technical Changes
+
+#### 1. Native SuperiorSkyblock2 Claim Protection (`ProtectionHookManager`)
+- Added reflective island boundary and membership checking via `SuperiorSkyblockAPI.getIslandAt(location)`.
+- **Placement Enforcement**: Prevents non-members from placing minions on SuperiorSkyblock2 islands (`ProtectionHookManager.canPlaceMinion`).
+- **Team Access & Co-op Support**: In `security.access-mode: TEAM_ACCESS`, queries `Island.isMember(SuperiorPlayer)` and `Island.isCoop(SuperiorPlayer)` to allow island team members to open minion GUIs and deposit fuel (`ProtectionHookManager.canAccessMinion`).
+- **Co-op Dismantle Security**: Prevents teammates and visitors from picking up minions unless `security.allow-team-pickup: true` or `security.access-mode: FULL_COOP` is explicitly enabled.
+- **Fail-Safe Reflection**: Automatically detects the presence of SuperiorSkyblock2 and gracefully falls back to default Bukkit protections and owner security if the plugin is absent.
+
+---
+
+### Verification & Technical Metrics
+- **Test Suite**: 241 unit tests passed across 35 test classes (`100% pass rate`).
+- **Compiler Checks**: Compiled with `javac 21 -parameters -proc:none -Xlint:all` (0 warnings, 0 errors).
+- **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
+
+---
+
 ## [1.0.2] - 2026-10-30
 
 ### Grounded Overview for Buyers & Server Owners
@@ -61,8 +88,8 @@ Previously unread or mismatched configuration options, messages, and permissions
 
 ---
 
-### Verification & Technical Metrics
+### Verification & Technical Metrics (v1.0.2)
 - **Test Suite**: 236 unit tests passed across 34 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac 21 -parameters -proc:none -Xlint:all` (0 warnings, 0 errors).
 - **Artifact Versioning**: Bumped to `1.0.2` across `plugin.yml`, `pom.xml`, and test suites.
-- **Git State**: Clean commit on branch `v1.0.2`. Not merged into `main`.
+- **Git State**: Clean commit on branch `v1.0.2`. Merged into `main`.

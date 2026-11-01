@@ -7,7 +7,7 @@
 [![Paper](https://img.shields.io/badge/Platform-Paper%20%7C%20Purpur%20%7C%20Pufferfish-00a8ff?style=for-the-badge&logo=curseforge)](https://papermc.io)
 [![Minecraft Version](https://img.shields.io/badge/Minecraft-1.20.4%20%E2%80%93%201.21+-brightgreen?style=for-the-badge&logo=minecraft)](https://www.minecraft.net)
 [![Java Version](https://img.shields.io/badge/Java-21%20LTS-orange?style=for-the-badge&logo=openjdk)](https://adoptium.net)
-[![Status](https://img.shields.io/badge/Release-v1.0.2-blueviolet?style=for-the-badge)](https://github.com/vanamaabhinav/MinionX)
+[![Status](https://img.shields.io/badge/Release-v1.0.3-blueviolet?style=for-the-badge)](https://github.com/vanamaabhinav/MinionX)
 
 [Explore Full Wiki](docs/WIKI.md) • [Administrator Manual](docs/DOCUMENTATION.md) • [Report Issue](https://github.com/vanamaabhinav/MinionX/issues)
 

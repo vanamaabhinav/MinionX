@@ -13,7 +13,7 @@ import java.util.UUID;
 
 /**
  * Universal protection hook manager for land claim and protection plugins:
- * GriefPrevention, BentoBox, Towny, Lands,
+ * GriefPrevention, BentoBox, Towny, Lands, SuperiorSkyblock2,
  * with cached reflection handles and secure owner-only fallback.
  */
 public class ProtectionHookManager {
@@ -22,6 +22,7 @@ public class ProtectionHookManager {
     private static boolean griefPreventionAvailable = false;
     private static boolean townyAvailable = false;
     private static boolean landsAvailable = false;
+    private static boolean superiorSkyblockAvailable = false;
 
     // --- Cached Reflection Handles ---
     // GriefPrevention
@@ -48,6 +49,13 @@ public class ProtectionHookManager {
     private static Method landsCanBuild = null;
     private static Method landsCanAccess = null;
 
+    // SuperiorSkyblock2
+    private static Class<?> ssApiClass = null;
+    private static Method ssGetIslandAt = null;
+    private static Method ssGetPlayer = null;
+    private static Method ssIslandIsMember = null;
+    private static Method ssIslandIsCoop = null;
+
     static {
         checkHooks();
     }
@@ -57,10 +65,15 @@ public class ProtectionHookManager {
         initBentoBox();
         initTowny();
         initLands();
+        initSuperiorSkyblock();
     }
 
     private static void initGriefPrevention() {
-        griefPreventionAvailable = Bukkit.getPluginManager().isPluginEnabled("GriefPrevention");
+        try {
+            griefPreventionAvailable = Bukkit.getPluginManager() != null && Bukkit.getPluginManager().isPluginEnabled("GriefPrevention");
+        } catch (Throwable t) {
+            griefPreventionAvailable = false;
+        }
         if (!griefPreventionAvailable) return;
         try {
             Class<?> gpClass = Class.forName("me.ryanhamshire.GriefPrevention.GriefPrevention");
@@ -80,7 +93,11 @@ public class ProtectionHookManager {
     }
 
     private static void initBentoBox() {
-        bentoBoxAvailable = Bukkit.getPluginManager().isPluginEnabled("BentoBox");
+        try {
+            bentoBoxAvailable = Bukkit.getPluginManager() != null && Bukkit.getPluginManager().isPluginEnabled("BentoBox");
+        } catch (Throwable t) {
+            bentoBoxAvailable = false;
+        }
         if (!bentoBoxAvailable) return;
         try {
             Class<?> bentoClass = Class.forName("world.bentobox.bentobox.BentoBox");
@@ -101,7 +118,11 @@ public class ProtectionHookManager {
     }
 
     private static void initTowny() {
-        townyAvailable = Bukkit.getPluginManager().isPluginEnabled("Towny");
+        try {
+            townyAvailable = Bukkit.getPluginManager() != null && Bukkit.getPluginManager().isPluginEnabled("Towny");
+        } catch (Throwable t) {
+            townyAvailable = false;
+        }
         if (!townyAvailable) return;
         try {
             Class<?> townyApiClass = Class.forName("com.palmergames.bukkit.towny.TownyAPI");
@@ -117,7 +138,11 @@ public class ProtectionHookManager {
     }
 
     private static void initLands() {
-        landsAvailable = Bukkit.getPluginManager().isPluginEnabled("Lands");
+        try {
+            landsAvailable = Bukkit.getPluginManager() != null && Bukkit.getPluginManager().isPluginEnabled("Lands");
+        } catch (Throwable t) {
+            landsAvailable = false;
+        }
         if (!landsAvailable) return;
         try {
             Class<?> landsIntegrationClass = Class.forName("me.angeschossen.lands.api.integration.LandsIntegration");
@@ -134,6 +159,71 @@ public class ProtectionHookManager {
             landsAvailable = false;
             landsIntegration = null;
         }
+    }
+
+    private static void initSuperiorSkyblock() {
+        try {
+            superiorSkyblockAvailable = Bukkit.getPluginManager() != null && Bukkit.getPluginManager().isPluginEnabled("SuperiorSkyblock2");
+        } catch (Throwable t) {
+            superiorSkyblockAvailable = false;
+        }
+        if (!superiorSkyblockAvailable) return;
+        try {
+            ssApiClass = Class.forName("com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI");
+            ssGetIslandAt = ssApiClass.getMethod("getIslandAt", Location.class);
+
+            // Supports getPlayer(Player) or getPlayer(UUID)
+            try {
+                ssGetPlayer = ssApiClass.getMethod("getPlayer", Player.class);
+            } catch (NoSuchMethodException e) {
+                ssGetPlayer = ssApiClass.getMethod("getPlayer", UUID.class);
+            }
+
+            Class<?> superiorPlayerClass = Class.forName("com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer");
+            Class<?> islandClass = Class.forName("com.bgsoftware.superiorskyblock.api.island.Island");
+
+            ssIslandIsMember = islandClass.getMethod("isMember", superiorPlayerClass);
+            try {
+                ssIslandIsCoop = islandClass.getMethod("isCoop", superiorPlayerClass);
+            } catch (NoSuchMethodException ignored) {
+                ssIslandIsCoop = null;
+            }
+        } catch (Throwable t) {
+            superiorSkyblockAvailable = false;
+            ssApiClass = null;
+            ssGetIslandAt = null;
+            ssGetPlayer = null;
+            ssIslandIsMember = null;
+            ssIslandIsCoop = null;
+        }
+    }
+
+    private static Object getSuperiorPlayer(Player player) {
+        if (ssGetPlayer == null || player == null) return null;
+        try {
+            if (ssGetPlayer.getParameterTypes()[0].equals(Player.class)) {
+                return ssGetPlayer.invoke(null, player);
+            } else {
+                return ssGetPlayer.invoke(null, player.getUniqueId());
+            }
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static boolean isSuperiorMemberOrCoop(Object island, Player player) {
+        if (island == null || player == null || ssIslandIsMember == null) return false;
+        try {
+            Object sPlayer = getSuperiorPlayer(player);
+            if (sPlayer == null) return false;
+            if ((boolean) ssIslandIsMember.invoke(island, sPlayer)) {
+                return true;
+            }
+            if (ssIslandIsCoop != null && (boolean) ssIslandIsCoop.invoke(island, sPlayer)) {
+                return true;
+            }
+        } catch (Throwable ignored) {}
+        return false;
     }
 
     /**
@@ -181,6 +271,16 @@ public class ProtectionHookManager {
                 Object area = landsGetArea.invoke(landsIntegration, location);
                 if (area != null) {
                     return (boolean) landsCanBuild.invoke(area, player, location);
+                }
+            } catch (Throwable ignored) {}
+        }
+
+        // 5. SuperiorSkyblock2 check
+        if (superiorSkyblockAvailable && ssGetIslandAt != null) {
+            try {
+                Object island = ssGetIslandAt.invoke(null, location);
+                if (island != null) {
+                    return isSuperiorMemberOrCoop(island, player);
                 }
             } catch (Throwable ignored) {}
         }
@@ -262,6 +362,16 @@ public class ProtectionHookManager {
             } catch (Throwable ignored) {}
         }
 
+        // 5. SuperiorSkyblock2 team/co-op check
+        if (superiorSkyblockAvailable && ssGetIslandAt != null) {
+            try {
+                Object island = ssGetIslandAt.invoke(null, loc);
+                if (island != null) {
+                    return isSuperiorMemberOrCoop(island, player);
+                }
+            } catch (Throwable ignored) {}
+        }
+
         return false;
     }
 
@@ -296,5 +406,26 @@ public class ProtectionHookManager {
         }
 
         return false;
+    }
+
+    // Diagnostics / Accessors
+    public static boolean isBentoBoxAvailable() {
+        return bentoBoxAvailable;
+    }
+
+    public static boolean isGriefPreventionAvailable() {
+        return griefPreventionAvailable;
+    }
+
+    public static boolean isTownyAvailable() {
+        return townyAvailable;
+    }
+
+    public static boolean isLandsAvailable() {
+        return landsAvailable;
+    }
+
+    public static boolean isSuperiorSkyblockAvailable() {
+        return superiorSkyblockAvailable;
     }
 }
