@@ -7,25 +7,34 @@ All notable changes to **MinionX** are documented in this file.
 ## [1.0.3] - 2026-11-01
 
 ### Grounded Overview for Buyers & Server Owners
-> **MinionX v1.0.3** introduces native island claim protection and team access integration for **SuperiorSkyblock2**.
+> **MinionX v1.0.3** introduces native island claim protection and team access integration for **SuperiorSkyblock2**, along with zero-allocation reflection optimizations for minion collection and land protection checks.
 >
-> On servers running SuperiorSkyblock2, minion placement is now checked against island ownership, preventing non-members from placing minions on other players' islands. When configured in `security.access-mode: TEAM_ACCESS`, island co-op members and teammates can access minion menus, insert fuel, and collect harvested items, while preserving owner-only protection against unauthorized minion dismantling.
+> On servers running SuperiorSkyblock2, minion placement is now checked against island ownership, preventing non-members from placing minions on other players' islands and preventing placement in SkyBlock wilderness. When configured in `security.access-mode: TEAM_ACCESS`, island co-op members and teammates can access minion menus, insert fuel, and collect harvested items, while preserving owner-only protection against unauthorized minion dismantling.
 
 ---
 
 ### Key Highlights & Technical Changes
 
 #### 1. Native SuperiorSkyblock2 Claim Protection (`ProtectionHookManager`)
-- Added reflective island boundary and membership checking via `SuperiorSkyblockAPI.getIslandAt(location)`.
+- **Reflective Island Lookup**: Added reflective island boundary and membership checking via `SuperiorSkyblockAPI.getIslandAt(location)`.
 - **Placement Enforcement**: Prevents non-members from placing minions on SuperiorSkyblock2 islands (`ProtectionHookManager.canPlaceMinion`).
+- **SkyBlock Wilderness Guarding**: Integrates with SuperiorSkyblock's `GridManager.isIslandsWorld(World)` to prevent players from placing minions outside islands in designated SkyBlock worlds.
 - **Team Access & Co-op Support**: In `security.access-mode: TEAM_ACCESS`, queries `Island.isMember(SuperiorPlayer)` and `Island.isCoop(SuperiorPlayer)` to allow island team members to open minion GUIs and deposit fuel (`ProtectionHookManager.canAccessMinion`).
 - **Co-op Dismantle Security**: Prevents teammates and visitors from picking up minions unless `security.allow-team-pickup: true` or `security.access-mode: FULL_COOP` is explicitly enabled.
-- **Fail-Safe Reflection**: Automatically detects the presence of SuperiorSkyblock2 and gracefully falls back to default Bukkit protections and owner security if the plugin is absent.
+- **Fail-Safe Reflection & Clean Reloads**: Automatically detects SuperiorSkyblock2 and gracefully falls back to default Bukkit protections if absent. Nulls cached reflection handles on disable to prevent ClassLoader leaks across server reloads.
+
+#### 2. Zero-Allocation Reflection Optimization (`CollectionsHook` & `ProtectionHookManager`)
+- **Collections Hook Caching**: Cached reflective method handles for EcoCollections (`EcoCollectionsAPI.addProgress`) and SuperiorSkyblock2 (`SuperiorSkyblockAPI.getPlayer`, `SuperiorPlayer.getIsland`, `Island.handleBlockBreak`) during plugin initialization.
+- **Eliminated Per-Harvest Lookups**: Replaced per-tick `Class.forName` and `Class.getMethod` lookups on minion harvests with static cached invocations, removing JVM classloader synchronization overhead and heap allocations during mass minion operation.
+- **Cached Parameter Types**: Cached `getPlayer` UUID/Player signature flags to eliminate repeated `Method.getParameterTypes()` array cloning on minion access and placement checks.
+
+#### 3. Backwards Compatibility Delegate (`IslandHookManager`)
+- Added `canPickupMinion(Player player, Minion minion)` delegating to `ProtectionHookManager` to maintain binary and source compatibility for external addons referencing `IslandHookManager`.
 
 ---
 
 ### Verification & Technical Metrics
-- **Test Suite**: 241 unit tests passed across 35 test classes (`100% pass rate`).
+- **Test Suite**: 244 unit tests passed across 35 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac 21 -parameters -proc:none -Xlint:all` (0 warnings, 0 errors).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
 

@@ -7,16 +7,26 @@ import org.bukkit.entity.Player;
 
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Universal Collections Integration Hook.
- * Supports EcoCollections, SuperiorSkyblock2 Collections, and custom collection providers.
+ * Supports EcoCollections, SuperiorSkyblock2 Collections, and custom collection providers
+ * with cached reflection handles for zero-allocation performance on minion harvest cycles.
  */
 public class CollectionsHook {
 
     private static boolean ecoCollectionsAvailable = false;
     private static boolean superiorSkyblockAvailable = false;
+
+    // --- Cached Reflection Handles ---
+    private static Method ecoAddProgress = null;
+
+    private static Method ssGetPlayer = null;
+    private static Method ssGetIsland = null;
+    private static Method ssHandleBlockBreak = null;
+    private static boolean ssGetPlayerTakesUuid = false;
 
     public interface CollectionProvider {
         void onCollect(Player player, Minion minion, Material material, int amount);
@@ -29,8 +39,64 @@ public class CollectionsHook {
     }
 
     public static void checkHooks() {
-        ecoCollectionsAvailable = Bukkit.getPluginManager().isPluginEnabled("EcoCollections");
-        superiorSkyblockAvailable = Bukkit.getPluginManager().isPluginEnabled("SuperiorSkyblock2");
+        initEcoCollections();
+        initSuperiorSkyblock();
+    }
+
+    private static void initEcoCollections() {
+        try {
+            ecoCollectionsAvailable = Bukkit.getPluginManager() != null && Bukkit.getPluginManager().isPluginEnabled("EcoCollections");
+        } catch (Throwable t) {
+            ecoCollectionsAvailable = false;
+        }
+        if (!ecoCollectionsAvailable) {
+            ecoAddProgress = null;
+            return;
+        }
+        try {
+            Class<?> apiClass = Class.forName("com.willfp.ecocollections.api.EcoCollectionsAPI");
+            ecoAddProgress = apiClass.getMethod("addProgress", Player.class, Material.class, int.class);
+        } catch (Throwable t) {
+            ecoCollectionsAvailable = false;
+            ecoAddProgress = null;
+        }
+    }
+
+    private static void initSuperiorSkyblock() {
+        try {
+            superiorSkyblockAvailable = Bukkit.getPluginManager() != null && Bukkit.getPluginManager().isPluginEnabled("SuperiorSkyblock2");
+        } catch (Throwable t) {
+            superiorSkyblockAvailable = false;
+        }
+        if (!superiorSkyblockAvailable) {
+            ssGetPlayer = null;
+            ssGetIsland = null;
+            ssHandleBlockBreak = null;
+            ssGetPlayerTakesUuid = false;
+            return;
+        }
+        try {
+            Class<?> ssClass = Class.forName("com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI");
+            try {
+                ssGetPlayer = ssClass.getMethod("getPlayer", Player.class);
+                ssGetPlayerTakesUuid = false;
+            } catch (NoSuchMethodException e) {
+                ssGetPlayer = ssClass.getMethod("getPlayer", UUID.class);
+                ssGetPlayerTakesUuid = true;
+            }
+
+            Class<?> superiorPlayerClass = Class.forName("com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer");
+            ssGetIsland = superiorPlayerClass.getMethod("getIsland");
+
+            Class<?> islandClass = Class.forName("com.bgsoftware.superiorskyblock.api.island.Island");
+            ssHandleBlockBreak = islandClass.getMethod("handleBlockBreak", Material.class, int.class);
+        } catch (Throwable t) {
+            superiorSkyblockAvailable = false;
+            ssGetPlayer = null;
+            ssGetIsland = null;
+            ssHandleBlockBreak = null;
+            ssGetPlayerTakesUuid = false;
+        }
     }
 
     public static void registerProvider(CollectionProvider provider) {
@@ -45,27 +111,23 @@ public class CollectionsHook {
     public static void recordCollection(Player player, Minion minion, Material material, int amount) {
         if (player == null || minion == null || material == null || amount <= 0) return;
 
-        // 1. EcoCollections integration (reflection-safe)
-        if (ecoCollectionsAvailable) {
+        // 1. EcoCollections integration (cached reflection)
+        if (ecoCollectionsAvailable && ecoAddProgress != null) {
             try {
-                Class<?> apiClass = Class.forName("com.willfp.ecocollections.api.EcoCollectionsAPI");
-                Method addProgress = apiClass.getMethod("addProgress", Player.class, Material.class, int.class);
-                addProgress.invoke(null, player, material, amount);
+                ecoAddProgress.invoke(null, player, material, amount);
             } catch (Throwable ignored) {}
         }
 
-        // 2. SuperiorSkyblock2 Collections integration (reflection-safe)
-        if (superiorSkyblockAvailable) {
+        // 2. SuperiorSkyblock2 Collections integration (cached reflection)
+        if (superiorSkyblockAvailable && ssGetPlayer != null && ssGetIsland != null && ssHandleBlockBreak != null) {
             try {
-                Class<?> ssClass = Class.forName("com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI");
-                Method getPlayerMethod = ssClass.getMethod("getPlayer", Player.class);
-                Object ssPlayer = getPlayerMethod.invoke(null, player);
+                Object ssPlayer = ssGetPlayerTakesUuid
+                        ? ssGetPlayer.invoke(null, player.getUniqueId())
+                        : ssGetPlayer.invoke(null, player);
                 if (ssPlayer != null) {
-                    Method getIslandMethod = ssPlayer.getClass().getMethod("getIsland");
-                    Object island = getIslandMethod.invoke(ssPlayer);
+                    Object island = ssGetIsland.invoke(ssPlayer);
                     if (island != null) {
-                        Method handleBlock = island.getClass().getMethod("handleBlockBreak", Material.class, int.class);
-                        handleBlock.invoke(island, material, amount);
+                        ssHandleBlockBreak.invoke(island, material, amount);
                     }
                 }
             } catch (Throwable ignored) {}
@@ -79,5 +141,13 @@ public class CollectionsHook {
                 Bukkit.getLogger().warning("[MinionX] Error in custom CollectionProvider: " + t.getMessage());
             }
         }
+    }
+
+    public static boolean isEcoCollectionsAvailable() {
+        return ecoCollectionsAvailable;
+    }
+
+    public static boolean isSuperiorSkyblockAvailable() {
+        return superiorSkyblockAvailable;
     }
 }

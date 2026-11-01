@@ -5,6 +5,7 @@ import com.minionx.core.Minion;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Field;
@@ -51,10 +52,13 @@ public class ProtectionHookManager {
 
     // SuperiorSkyblock2
     private static Class<?> ssApiClass = null;
+    private static Object ssGridManager = null;
     private static Method ssGetIslandAt = null;
     private static Method ssGetPlayer = null;
+    private static Method ssIsIslandsWorld = null;
     private static Method ssIslandIsMember = null;
     private static Method ssIslandIsCoop = null;
+    private static boolean ssGetPlayerTakesUuid = false;
 
     static {
         checkHooks();
@@ -74,7 +78,13 @@ public class ProtectionHookManager {
         } catch (Throwable t) {
             griefPreventionAvailable = false;
         }
-        if (!griefPreventionAvailable) return;
+        if (!griefPreventionAvailable) {
+            gpDataStore = null;
+            gpGetClaimAt = null;
+            gpAllowBuild = null;
+            gpAllowContainers = null;
+            return;
+        }
         try {
             Class<?> gpClass = Class.forName("me.ryanhamshire.GriefPrevention.GriefPrevention");
             Field instanceField = gpClass.getField("instance");
@@ -89,6 +99,9 @@ public class ProtectionHookManager {
         } catch (Throwable t) {
             griefPreventionAvailable = false;
             gpDataStore = null;
+            gpGetClaimAt = null;
+            gpAllowBuild = null;
+            gpAllowContainers = null;
         }
     }
 
@@ -98,7 +111,14 @@ public class ProtectionHookManager {
         } catch (Throwable t) {
             bentoBoxAvailable = false;
         }
-        if (!bentoBoxAvailable) return;
+        if (!bentoBoxAvailable) {
+            bentoIslandsManager = null;
+            bentoGetIslandAt = null;
+            bentoOptionalIsPresent = null;
+            bentoOptionalGet = null;
+            bentoIslandIsMember = null;
+            return;
+        }
         try {
             Class<?> bentoClass = Class.forName("world.bentobox.bentobox.BentoBox");
             Object bentoInstance = bentoClass.getMethod("getInstance").invoke(null);
@@ -114,6 +134,10 @@ public class ProtectionHookManager {
         } catch (Throwable t) {
             bentoBoxAvailable = false;
             bentoIslandsManager = null;
+            bentoGetIslandAt = null;
+            bentoOptionalIsPresent = null;
+            bentoOptionalGet = null;
+            bentoIslandIsMember = null;
         }
     }
 
@@ -123,7 +147,12 @@ public class ProtectionHookManager {
         } catch (Throwable t) {
             townyAvailable = false;
         }
-        if (!townyAvailable) return;
+        if (!townyAvailable) {
+            townyApi = null;
+            townyGetTownBlock = null;
+            townyCanPlayerBuild = null;
+            return;
+        }
         try {
             Class<?> townyApiClass = Class.forName("com.palmergames.bukkit.towny.TownyAPI");
             townyApi = townyApiClass.getMethod("getInstance").invoke(null);
@@ -134,6 +163,8 @@ public class ProtectionHookManager {
         } catch (Throwable t) {
             townyAvailable = false;
             townyApi = null;
+            townyGetTownBlock = null;
+            townyCanPlayerBuild = null;
         }
     }
 
@@ -143,7 +174,13 @@ public class ProtectionHookManager {
         } catch (Throwable t) {
             landsAvailable = false;
         }
-        if (!landsAvailable) return;
+        if (!landsAvailable) {
+            landsIntegration = null;
+            landsGetArea = null;
+            landsCanBuild = null;
+            landsCanAccess = null;
+            return;
+        }
         try {
             Class<?> landsIntegrationClass = Class.forName("me.angeschossen.lands.api.integration.LandsIntegration");
             if (MinionX.getInstance() != null) {
@@ -154,10 +191,14 @@ public class ProtectionHookManager {
                 landsCanAccess = areaClass.getMethod("canAccess", Player.class, Location.class);
             } else {
                 landsAvailable = false;
+                landsIntegration = null;
             }
         } catch (Throwable t) {
             landsAvailable = false;
             landsIntegration = null;
+            landsGetArea = null;
+            landsCanBuild = null;
+            landsCanAccess = null;
         }
     }
 
@@ -167,16 +208,40 @@ public class ProtectionHookManager {
         } catch (Throwable t) {
             superiorSkyblockAvailable = false;
         }
-        if (!superiorSkyblockAvailable) return;
+        if (!superiorSkyblockAvailable) {
+            ssApiClass = null;
+            ssGridManager = null;
+            ssGetIslandAt = null;
+            ssGetPlayer = null;
+            ssIsIslandsWorld = null;
+            ssIslandIsMember = null;
+            ssIslandIsCoop = null;
+            ssGetPlayerTakesUuid = false;
+            return;
+        }
         try {
             ssApiClass = Class.forName("com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI");
             ssGetIslandAt = ssApiClass.getMethod("getIslandAt", Location.class);
 
+            // Optional GridManager integration for world checking
+            try {
+                Method getGrid = ssApiClass.getMethod("getGrid");
+                ssGridManager = getGrid.invoke(null);
+                if (ssGridManager != null) {
+                    ssIsIslandsWorld = ssGridManager.getClass().getMethod("isIslandsWorld", World.class);
+                }
+            } catch (Throwable ignored) {
+                ssGridManager = null;
+                ssIsIslandsWorld = null;
+            }
+
             // Supports getPlayer(Player) or getPlayer(UUID)
             try {
                 ssGetPlayer = ssApiClass.getMethod("getPlayer", Player.class);
+                ssGetPlayerTakesUuid = false;
             } catch (NoSuchMethodException e) {
                 ssGetPlayer = ssApiClass.getMethod("getPlayer", UUID.class);
+                ssGetPlayerTakesUuid = true;
             }
 
             Class<?> superiorPlayerClass = Class.forName("com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer");
@@ -191,21 +256,22 @@ public class ProtectionHookManager {
         } catch (Throwable t) {
             superiorSkyblockAvailable = false;
             ssApiClass = null;
+            ssGridManager = null;
             ssGetIslandAt = null;
             ssGetPlayer = null;
+            ssIsIslandsWorld = null;
             ssIslandIsMember = null;
             ssIslandIsCoop = null;
+            ssGetPlayerTakesUuid = false;
         }
     }
 
     private static Object getSuperiorPlayer(Player player) {
         if (ssGetPlayer == null || player == null) return null;
         try {
-            if (ssGetPlayer.getParameterTypes()[0].equals(Player.class)) {
-                return ssGetPlayer.invoke(null, player);
-            } else {
-                return ssGetPlayer.invoke(null, player.getUniqueId());
-            }
+            return ssGetPlayerTakesUuid
+                    ? ssGetPlayer.invoke(null, player.getUniqueId())
+                    : ssGetPlayer.invoke(null, player);
         } catch (Throwable ignored) {
             return null;
         }
@@ -278,9 +344,20 @@ public class ProtectionHookManager {
         // 5. SuperiorSkyblock2 check
         if (superiorSkyblockAvailable && ssGetIslandAt != null) {
             try {
-                Object island = ssGetIslandAt.invoke(null, location);
-                if (island != null) {
-                    return isSuperiorMemberOrCoop(island, player);
+                // If in a configured SuperiorSkyblock island world, enforce island boundaries
+                if (location.getWorld() != null && ssGridManager != null && ssIsIslandsWorld != null) {
+                    boolean isIslandWorld = (boolean) ssIsIslandsWorld.invoke(ssGridManager, location.getWorld());
+                    if (isIslandWorld) {
+                        Object island = ssGetIslandAt.invoke(null, location);
+                        if (island == null || !isSuperiorMemberOrCoop(island, player)) {
+                            return false; // Deny placement in wilderness or on stranger islands
+                        }
+                    }
+                } else {
+                    Object island = ssGetIslandAt.invoke(null, location);
+                    if (island != null && !isSuperiorMemberOrCoop(island, player)) {
+                        return false;
+                    }
                 }
             } catch (Throwable ignored) {}
         }

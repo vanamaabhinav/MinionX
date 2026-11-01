@@ -20,4 +20,8 @@ public class IslandHookManager {
     public static boolean canAccessMinion(Player player, Minion minion) {
         return ProtectionHookManager.canAccessMinion(player, minion);
     }
+
+    public static boolean canPickupMinion(Player player, Minion minion) {
+        return ProtectionHookManager.canPickupMinion(player, minion);
+    }
 }

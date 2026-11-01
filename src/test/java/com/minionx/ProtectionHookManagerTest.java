@@ -2,8 +2,12 @@ package com.minionx;
 
 import com.minionx.api.MinionType;
 import com.minionx.core.Minion;
+import com.minionx.hook.CollectionsHook;
+import com.minionx.hook.IslandHookManager;
 import com.minionx.hook.ProtectionHookManager;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,12 +35,13 @@ public class ProtectionHookManagerTest {
         strangerId = UUID.randomUUID();
         testLoc = new Location(null, 100, 65, 100);
         ProtectionHookManager.checkHooks();
+        CollectionsHook.checkHooks();
     }
 
     @AfterEach
     public void tearDown() {
-        // Reset hooks to clean state
         ProtectionHookManager.checkHooks();
+        CollectionsHook.checkHooks();
     }
 
     @Test
@@ -93,10 +98,8 @@ public class ProtectionHookManagerTest {
     public void testSimulatedSuperiorSkyblockProtectionReflection() throws Exception {
         Player coopPlayer = createMockPlayer(COOP_MEMBER_UUID, false);
         Player strangerPlayer = createMockPlayer(strangerId, false);
-        // Minion created by AUTHORIZED_UUID
         Minion minion = new Minion(UUID.randomUUID(), AUTHORIZED_UUID, MinionType.IRON, 3, testLoc);
 
-        // Inject simulated SuperiorSkyblock2 handles via reflection
         Field availableField = ProtectionHookManager.class.getDeclaredField("superiorSkyblockAvailable");
         availableField.setAccessible(true);
         Field getIslandAtField = ProtectionHookManager.class.getDeclaredField("ssGetIslandAt");
@@ -133,7 +136,6 @@ public class ProtectionHookManagerTest {
                     "Non-member stranger must be denied GUI access to minion on island");
 
         } finally {
-            // Restore fields to clean state
             availableField.set(null, false);
             getIslandAtField.set(null, null);
             getPlayerField.set(null, null);
@@ -142,41 +144,102 @@ public class ProtectionHookManagerTest {
         }
     }
 
-    // Helper to create lightweight dynamic proxy for org.bukkit.entity.Player
+    @Test
+    @DisplayName("Simulated SuperiorSkyblock2 prevents placement in SkyBlock wilderness")
+    public void testSimulatedSuperiorSkyblockWildernessCheck() throws Exception {
+        Player normalPlayer = createMockPlayer(strangerId, false);
+        Player adminPlayer = createMockPlayer(strangerId, true);
+
+        World mockWorld = createMockWorld("superior_skyblock_world");
+        Location wildernessLoc = new Location(mockWorld, 500, 65, 500);
+
+        Field availableField = ProtectionHookManager.class.getDeclaredField("superiorSkyblockAvailable");
+        availableField.setAccessible(true);
+        Field gridManagerField = ProtectionHookManager.class.getDeclaredField("ssGridManager");
+        gridManagerField.setAccessible(true);
+        Field isIslandsWorldField = ProtectionHookManager.class.getDeclaredField("ssIsIslandsWorld");
+        isIslandsWorldField.setAccessible(true);
+        Field getIslandAtField = ProtectionHookManager.class.getDeclaredField("ssGetIslandAt");
+        getIslandAtField.setAccessible(true);
+
+        try {
+            availableField.set(null, true);
+            gridManagerField.set(null, new MockGridManager());
+            isIslandsWorldField.set(null, MockGridManager.class.getMethod("isIslandsWorld", World.class));
+            // In wilderness, getIslandAt returns null
+            getIslandAtField.set(null, MockSuperiorSkyblockApi.class.getMethod("getWildernessIslandAt", Location.class));
+
+            assertFalse(ProtectionHookManager.canPlaceMinion(normalPlayer, wildernessLoc),
+                    "Normal player must NOT be allowed to place minions in SkyBlock wilderness");
+            assertTrue(ProtectionHookManager.canPlaceMinion(adminPlayer, wildernessLoc),
+                    "Admin must bypass wilderness placement restrictions");
+        } finally {
+            availableField.set(null, false);
+            gridManagerField.set(null, null);
+            isIslandsWorldField.set(null, null);
+            getIslandAtField.set(null, null);
+        }
+    }
+
+    @Test
+    @DisplayName("IslandHookManager backwards compatibility delegates to ProtectionHookManager")
+    public void testIslandHookManagerDelegation() {
+        Player adminPlayer = createMockPlayer(strangerId, true);
+        Minion minion = new Minion(UUID.randomUUID(), AUTHORIZED_UUID, MinionType.DIAMOND, 1, testLoc);
+
+        assertDoesNotThrow(IslandHookManager::checkHooks);
+        assertTrue(IslandHookManager.canPlaceMinion(adminPlayer, testLoc));
+        assertTrue(IslandHookManager.canAccessMinion(adminPlayer, minion));
+        assertTrue(IslandHookManager.canPickupMinion(adminPlayer, minion));
+    }
+
+    @Test
+    @DisplayName("CollectionsHook executes safely without errors or exceptions")
+    public void testCollectionsHookReflectionSafety() {
+        Player player = createMockPlayer(AUTHORIZED_UUID, false);
+        Minion minion = new Minion(UUID.randomUUID(), AUTHORIZED_UUID, MinionType.IRON, 1, testLoc);
+
+        assertDoesNotThrow(CollectionsHook::checkHooks);
+        assertDoesNotThrow(() -> CollectionsHook.recordCollection(player, minion, Material.COBBLESTONE, 1));
+        assertDoesNotThrow(() -> CollectionsHook.recordCollection(null, minion, Material.IRON_INGOT, 5));
+    }
+
     private Player createMockPlayer(UUID uuid, boolean isAdmin) {
         return (Player) Proxy.newProxyInstance(
                 Player.class.getClassLoader(),
                 new Class<?>[]{Player.class},
                 (proxy, method, args) -> {
                     String name = method.getName();
-                    if ("getUniqueId".equals(name)) {
-                        return uuid;
-                    }
+                    if ("getUniqueId".equals(name)) return uuid;
                     if ("hasPermission".equals(name) && args != null && args.length > 0) {
-                        String perm = String.valueOf(args[0]);
-                        if ("minionx.admin".equalsIgnoreCase(perm)) {
-                            return isAdmin;
-                        }
-                        return false;
+                        return "minionx.admin".equalsIgnoreCase(String.valueOf(args[0])) && isAdmin;
                     }
-                    if ("isOp".equals(name)) {
-                        return isAdmin;
-                    }
-                    if ("getName".equals(name)) {
-                        return "TestPlayer_" + uuid.toString().substring(0, 4);
-                    }
-                    if ("toString".equals(name)) {
-                        return "MockPlayer[" + uuid + "]";
-                    }
+                    if ("isOp".equals(name)) return isAdmin;
+                    if ("getName".equals(name)) return "TestPlayer_" + uuid.toString().substring(0, 4);
+                    if ("toString".equals(name)) return "MockPlayer[" + uuid + "]";
                     return null;
                 }
         );
     }
 
-    // Mock reflection helper classes
+    private World createMockWorld(String name) {
+        return (World) Proxy.newProxyInstance(
+                World.class.getClassLoader(),
+                new Class<?>[]{World.class},
+                (proxy, method, args) -> {
+                    if ("getName".equals(method.getName())) return name;
+                    return null;
+                }
+        );
+    }
+
     public static class MockSuperiorSkyblockApi {
         public static Object getIslandAt(Location loc) {
             return new MockSuperiorIsland();
+        }
+
+        public static Object getWildernessIslandAt(Location loc) {
+            return null; // Wilderness outside of islands
         }
 
         public static Object getPlayer(Player player) {
@@ -197,6 +260,12 @@ public class ProtectionHookManagerTest {
                 return ProtectionHookManagerTest.COOP_MEMBER_UUID.equals(p.getUniqueId());
             }
             return false;
+        }
+    }
+
+    public static class MockGridManager {
+        public boolean isIslandsWorld(World world) {
+            return world != null && "superior_skyblock_world".equals(world.getName());
         }
     }
 }
