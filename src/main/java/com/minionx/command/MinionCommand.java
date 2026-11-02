@@ -393,6 +393,14 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         plugin.reloadConfig();
+        com.minionx.hook.ProtectionHookManager.checkHooks();
+        com.minionx.hook.EconomyHook.setupEconomy();
+        com.minionx.hook.SkillHook.checkHooks();
+        com.minionx.hook.CollectionsHook.checkHooks();
+        com.minionx.hook.CustomItemHook.checkHooks();
+        com.minionx.hook.GeyserHook.checkHooks();
+        com.minionx.hook.MythicMobsHook.checkHooks();
+        com.minionx.core.PlaceholderUtil.init(plugin);
         plugin.loadRegistries();
         sender.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aConfiguration reloaded successfully (" +
                 FuelRegistry.getKeys().size() + " fuels, " + UpgradeRegistry.getKeys().size() + " upgrades, " +

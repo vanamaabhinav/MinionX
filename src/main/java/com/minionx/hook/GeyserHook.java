@@ -8,35 +8,88 @@ import java.util.UUID;
 
 /**
  * Hook providing seamless cross-platform support for GeyserMC & Floodgate Bedrock players.
- * Dynamically detects Bedrock clients to adapt touch/controller GUI navigation,
- * custom skull translations, and click event handling without hard dependencies.
+ * Dynamically detects Bedrock clients via Floodgate 2.0+ (isFloodgatePlayer) or GeyserApi (isBedrockPlayer)
+ * to adapt touch/controller GUI navigation, custom skull translations, and click event handling without hard dependencies.
  */
 public class GeyserHook {
 
     private static Boolean floodgatePresent = null;
-    private static Boolean geyserPresent = null;
-    private static Method isFloodgateIdMethod = null;
     private static Object floodgateInstance = null;
+    private static Method isFloodgatePlayerMethod = null;
+
+    private static Boolean geyserPresent = null;
+    private static Object geyserApiInstance = null;
+    private static Method geyserIsBedrockMethod = null;
+
+    static {
+        checkHooks();
+    }
+
+    public static synchronized void checkHooks() {
+        initFloodgate();
+        initGeyser();
+    }
+
+    private static void initFloodgate() {
+        floodgatePresent = false;
+        floodgateInstance = null;
+        isFloodgatePlayerMethod = null;
+
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) return;
+
+        try {
+            if (Bukkit.getPluginManager().getPlugin("floodgate") != null ||
+                Bukkit.getPluginManager().isPluginEnabled("floodgate")) {
+                Class<?> apiClass = Class.forName("org.geysermc.floodgate.api.FloodgateApi");
+                Method getInstance = apiClass.getMethod("getInstance");
+                floodgateInstance = getInstance.invoke(null);
+
+                // Try modern Floodgate 2.0+ method first: isFloodgatePlayer(UUID)
+                try {
+                    isFloodgatePlayerMethod = apiClass.getMethod("isFloodgatePlayer", UUID.class);
+                    floodgatePresent = true;
+                } catch (NoSuchMethodException e) {
+                    // Fallback to legacy 1.0 method: isFloodgateId(UUID)
+                    try {
+                        isFloodgatePlayerMethod = apiClass.getMethod("isFloodgateId", UUID.class);
+                        floodgatePresent = true;
+                    } catch (NoSuchMethodException ignored) {}
+                }
+            }
+        } catch (Throwable t) {
+            floodgatePresent = false;
+        }
+    }
+
+    private static void initGeyser() {
+        geyserPresent = false;
+        geyserApiInstance = null;
+        geyserIsBedrockMethod = null;
+
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) return;
+
+        try {
+            if (Bukkit.getPluginManager().getPlugin("Geyser-Spigot") != null ||
+                Bukkit.getPluginManager().isPluginEnabled("Geyser-Spigot")) {
+                Class<?> apiClass = Class.forName("org.geysermc.geyser.api.GeyserApi");
+                Method apiMethod = apiClass.getMethod("api");
+                geyserApiInstance = apiMethod.invoke(null);
+                if (geyserApiInstance != null) {
+                    geyserIsBedrockMethod = geyserApiInstance.getClass().getMethod("isBedrockPlayer", UUID.class);
+                    geyserPresent = true;
+                }
+            }
+        } catch (Throwable t) {
+            geyserPresent = false;
+        }
+    }
 
     /**
      * Checks if Floodgate is loaded on the server.
      */
     public static boolean isFloodgateAvailable() {
         if (floodgatePresent == null) {
-            try {
-                if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) {
-                    return false;
-                }
-                floodgatePresent = Bukkit.getPluginManager().getPlugin("floodgate") != null;
-                if (floodgatePresent) {
-                    Class<?> apiClass = Class.forName("org.geysermc.floodgate.api.FloodgateApi");
-                    Method getInstance = apiClass.getMethod("getInstance");
-                    floodgateInstance = getInstance.invoke(null);
-                    isFloodgateIdMethod = apiClass.getMethod("isFloodgateId", UUID.class);
-                }
-            } catch (Throwable t) {
-                floodgatePresent = false;
-            }
+            checkHooks();
         }
         return floodgatePresent != null && floodgatePresent;
     }
@@ -46,14 +99,7 @@ public class GeyserHook {
      */
     public static boolean isGeyserAvailable() {
         if (geyserPresent == null) {
-            try {
-                if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) {
-                    return false;
-                }
-                geyserPresent = Bukkit.getPluginManager().getPlugin("Geyser-Spigot") != null;
-            } catch (Throwable t) {
-                geyserPresent = false;
-            }
+            checkHooks();
         }
         return geyserPresent != null && geyserPresent;
     }
@@ -78,12 +124,25 @@ public class GeyserHook {
      */
     public static boolean isBedrockPlayer(UUID uuid) {
         if (uuid == null) return false;
-        if (!isFloodgateAvailable()) return false;
-        if (isFloodgateIdMethod != null && floodgateInstance != null) {
+
+        // 1. Try FloodgateApi
+        if (isFloodgateAvailable() && isFloodgatePlayerMethod != null && floodgateInstance != null) {
             try {
-                return (boolean) isFloodgateIdMethod.invoke(floodgateInstance, uuid);
+                if ((boolean) isFloodgatePlayerMethod.invoke(floodgateInstance, uuid)) {
+                    return true;
+                }
             } catch (Throwable ignored) {}
         }
+
+        // 2. Try GeyserApi
+        if (isGeyserAvailable() && geyserIsBedrockMethod != null && geyserApiInstance != null) {
+            try {
+                if ((boolean) geyserIsBedrockMethod.invoke(geyserApiInstance, uuid)) {
+                    return true;
+                }
+            } catch (Throwable ignored) {}
+        }
+
         return false;
     }
 

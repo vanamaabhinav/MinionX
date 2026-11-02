@@ -7,9 +7,11 @@ All notable changes to **MinionX** are documented in this file.
 ## [1.0.3] - 2026-11-01
 
 ### Grounded Overview for Buyers & Server Owners
-> **MinionX v1.0.3** introduces native island claim protection and team access integration for **SuperiorSkyblock2**, along with critical security and performance overhauls across all supported land protection providers (**BentoBox**, **Towny**, **Lands**, and **GriefPrevention**).
+> **MinionX v1.0.3** introduces native island claim protection and team access integration for **SuperiorSkyblock2**, along with critical security, compatibility, and performance overhauls across all supported soft dependencies (**Vault**, **PlaceholderAPI**, **Geyser-Spigot**, **floodgate**, **MythicMobs**, **AuraSkills**, **EcoSkills**, **EcoCollections**, **ItemsAdder**, **MMOItems**, **EcoItems**, **BentoBox**, **Towny**, **Lands**, and **GriefPrevention**).
 >
-> On servers running SuperiorSkyblock2 or BentoBox, minion placement is now strictly checked against island boundaries, preventing non-members from placing minions on other players' islands and closing void/wilderness placement exploits. Towny integration has been re-engineered using canonical `PlayerCacheUtil` permissions, fixing a startup failure where Towny silently disabled itself. Across all claim plugins, placement checking now uses a pure negative-guard veto chain that prevents premature bypasses when multiple protection plugins are active.
+> On servers running SuperiorSkyblock2 or BentoBox, minion placement is now strictly checked against island boundaries, preventing non-members from placing minions on other players' islands and closing void/wilderness placement exploits. Towny integration has been re-engineered using canonical `PlayerCacheUtil` permissions, fixing a startup failure where Towny silently disabled itself.
+>
+> Across all non-protection soft dependencies, Vault integration now supports canonical `OfflinePlayer` parameter signatures, eliminating silent transaction failures on strict economy providers. A native `PlaceholderExpansion` registers `%minionx_...%` placeholders with PlaceholderAPI for scoreboards, tab lists, and chat. Cross-platform Bedrock detection supports modern Floodgate 2.0+ (`isFloodgatePlayer`) and standalone `GeyserApi`. Combat minions support modern MythicMobs v5 (`MythicBukkit.inst().getAPIHelper()`) and legacy v4, and all hook lookups utilize zero-allocation cached reflection handles refreshed on startup and reload.
 
 ---
 
@@ -30,20 +32,31 @@ All notable changes to **MinionX** are documented in this file.
 - **Lands 6.x/7.x Trust Resolution**: Added modern Lands compatibility for `Area.isTrusted(UUID)` alongside legacy `canBuild`/`canAccess`, ensuring continuous protection across all Lands release generations.
 - **Pure Negative-Guard Veto Chain**: Converted `canPlaceMinion` across all 5 providers into a non-short-circuiting veto chain. A plugin only vetoes when an unauthorized action is detected in its domain; authorized actions continue through remaining providers to verify overlapping regions before permitting placement.
 
-#### 3. Zero-Allocation Reflection Optimization (`CollectionsHook` & `ProtectionHookManager`)
+#### 3. Soft-Dependencies Audit & Cross-Version Hardening
+- **Vault Economy Method Resolution (`EconomyHook`)**: Resolved parameter signature mismatch where `EconomyHook` was querying `Player.class`, whereas Vault's `net.milkbowl.vault.economy.Economy` declares `OfflinePlayer.class`. Implemented tiered parameter lookup (`OfflinePlayer` -> `Player` -> `String`) and cached reflection handles, eliminating `NoSuchMethodException` and silent transaction failures.
+- **Native PlaceholderAPI Expansion (`MinionXPlaceholderExpansion`)**: Registered native `minionx` expansion with PlaceholderAPI exposing `%minionx_placed%`, `%minionx_limit%`, `%minionx_available%`, `%minionx_bonus%`, and `%minionx_quarantine_status%` for external scoreboards, TAB, chat, and menus.
+- **Cached PlaceholderAPI Reflection (`PlaceholderUtil`)**: Cached `PlaceholderAPI.setPlaceholders` reflection calls to eliminate per-string classloader contention and heap allocation during high-frequency parsing.
+- **Cross-Platform Bedrock Detection (`GeyserHook`)**: Updated Floodgate API reflection to target canonical Floodgate 2.0+ `isFloodgatePlayer(UUID)` with fallback to legacy `isFloodgateId(UUID)`. Integrated `org.geysermc.geyser.api.GeyserApi.api().isBedrockPlayer(UUID)` for standalone Geyser-Spigot instances.
+- **Combat Mob Spawning Resilience (`MythicMobsHook`)**: Added modern MythicMobs v5 resolution via `MythicBukkit.inst().getAPIHelper().spawnMythicMob(String, Location)` returning Bukkit `Entity` directly, with fallbacks to `MythicBukkit.get().getMobManager()` and legacy MythicMobs v4 (`MythicMobs.inst().getAPIHelper()`).
+- **Skills Hook Caching & AureliumSkills Fallback (`SkillHook`)**: Cached reflection handles for AuraSkills and EcoSkills. Added fallback support for legacy AureliumSkills (`com.archyx.aureliumskills.api.AureliumSkillsApi`) and server null guards.
+- **Custom Item Reverse Identification (`CustomItemHook`)**: Added cached reflection handles and reverse item detection (`isCustomItem` / `identifyCustomItem`) for ItemsAdder, MMOItems, and EcoItems.
+- **Lifecycle Hook Refreshing (`MinionX` & `MinionCommand`)**: Wired all hook detection logic into `MinionX.onEnable()` and `/minion reload` (`checkHooks()`), ensuring dynamic plugin reloads and late-loading dependencies are detected without restarting the server.
+
+#### 4. Zero-Allocation Reflection Optimization (`CollectionsHook` & `ProtectionHookManager`)
 - **Collections Hook Caching**: Cached reflective method handles for EcoCollections (`EcoCollectionsAPI.addProgress`) and SuperiorSkyblock2 (`SuperiorSkyblockAPI.getPlayer`, `SuperiorPlayer.getIsland`, `Island.handleBlockBreak`) during plugin initialization.
 - **Eliminated Per-Harvest Lookups**: Replaced per-tick `Class.forName` and `Class.getMethod` lookups on minion harvests with static cached invocations, removing JVM classloader synchronization overhead and heap allocations during mass minion operation.
 - **Cached Parameter Types**: Cached `getPlayer` UUID/Player signature flags to eliminate repeated `Method.getParameterTypes()` array cloning on minion access and placement checks.
 
-#### 4. Backwards Compatibility Delegate (`IslandHookManager`)
+#### 5. Backwards Compatibility Delegate (`IslandHookManager`)
 - Added `canPickupMinion(Player player, Minion minion)` delegating to `ProtectionHookManager` to maintain binary and source compatibility for external addons referencing `IslandHookManager`.
 
 ---
 
 ### Verification & Technical Metrics
-- **Test Suite**: 248 unit tests passed across 35 test classes (`100% pass rate`).
-- **Compiler Checks**: Compiled with `javac 21 -parameters -proc:none -Xlint:all` (0 warnings, 0 errors).
+- **Test Suite**: 257 unit tests passed across 36 test classes (`100% pass rate`).
+- **Compiler Checks**: Compiled with `javac 21 -parameters -proc:none -Xlint:deprecation -Xlint:unchecked` (0 errors).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
+- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (499,555 bytes).
 
 ---
 

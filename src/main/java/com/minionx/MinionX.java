@@ -49,6 +49,11 @@ public class MinionX extends JavaPlugin {
         ProtectionHookManager.checkHooks();
         EconomyHook.setupEconomy();
         SkillHook.checkHooks();
+        com.minionx.hook.CollectionsHook.checkHooks();
+        com.minionx.hook.CustomItemHook.checkHooks();
+        com.minionx.hook.GeyserHook.checkHooks();
+        com.minionx.hook.MythicMobsHook.checkHooks();
+        com.minionx.core.PlaceholderUtil.init(this);
 
         // Load dynamic custom tiers, fuels, upgrades, compression recipes, and custom minions
         loadRegistries();
@@ -127,6 +132,9 @@ public class MinionX extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Unregister PlaceholderAPI expansion if present
+        com.minionx.core.PlaceholderUtil.shutdown();
+
         // Cancel tasks
         if (minionTickTask != null) {
             minionTickTask.cancel();

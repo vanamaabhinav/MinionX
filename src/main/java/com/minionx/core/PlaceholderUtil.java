@@ -9,16 +9,56 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import java.lang.reflect.Method;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Utility for parsing placeholders and evaluating mathematical expressions in minion commands.
- * Supports player placement limits, available slots, and minion statistics.
+ * Supports player placement limits, available slots, and minion statistics with cached PlaceholderAPI handles.
  */
 public class PlaceholderUtil {
 
     private static final Pattern MATH_PATTERN = Pattern.compile("\\{([^}]+)\\}");
+
+    private static Method papiSetPlaceholders = null;
+    private static MinionXPlaceholderExpansion expansionInstance = null;
+
+    static {
+        init(null);
+    }
+
+    public static synchronized void init(MinionX plugin) {
+        papiSetPlaceholders = null;
+
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) {
+            return;
+        }
+
+        if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            try {
+                Class<?> papiClass = Class.forName("me.clip.placeholderapi.PlaceholderAPI");
+                papiSetPlaceholders = papiClass.getMethod("setPlaceholders", Player.class, String.class);
+
+                if (plugin != null && expansionInstance == null) {
+                    try {
+                        expansionInstance = new MinionXPlaceholderExpansion(plugin);
+                        expansionInstance.register();
+                    } catch (Throwable ignored) {}
+                }
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    public static synchronized void shutdown() {
+        if (expansionInstance != null) {
+            try {
+                expansionInstance.unregister();
+            } catch (Throwable ignored) {}
+            expansionInstance = null;
+        }
+        papiSetPlaceholders = null;
+    }
 
     public static String parse(String input, Player player, Minion minion, Material itemMaterial, int amount) {
         if (input == null) return "";
@@ -29,7 +69,6 @@ public class PlaceholderUtil {
         boolean isQuar = QuarantineManager.isQuarantined();
         result = result.replace("%minions_quarantine_status%", isQuar ? "&cQUARANTINED" : "&aNORMAL")
                        .replace("%minion_is_quarantined%", String.valueOf(isQuar));
-
 
         // Player placeholders
         if (player != null) {
@@ -62,7 +101,6 @@ public class PlaceholderUtil {
 
         // Minion placeholders
         if (minion != null) {
-            
             // Minion Storage placeholders
             boolean hasStorage = minion.hasLinkedStorage();
             CustomMinionStorage st = minion.getLinkedStorage();
@@ -98,12 +136,10 @@ public class PlaceholderUtil {
         // Evaluate inline math expressions inside {expression}, e.g. {amount * 2.5}
         result = evaluateMathBlocks(result, amount);
 
-        // Optional PlaceholderAPI hook via reflection (soft-depend)
-        if (player != null && Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+        // Optional PlaceholderAPI hook via cached reflection (soft-depend)
+        if (player != null && papiSetPlaceholders != null) {
             try {
-                Class<?> papiClass = Class.forName("me.clip.placeholderapi.PlaceholderAPI");
-                java.lang.reflect.Method method = papiClass.getMethod("setPlaceholders", Player.class, String.class);
-                result = (String) method.invoke(null, player, result);
+                result = (String) papiSetPlaceholders.invoke(null, player, result);
             } catch (Throwable ignored) {}
         }
 
