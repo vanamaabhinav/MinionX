@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -123,13 +123,11 @@ public class ProtectionHookManagerTest {
             isMemberField.set(null, dummyIsMember);
             isCoopField.set(null, dummyIsCoop);
 
-            // Test Placement
             assertTrue(ProtectionHookManager.canPlaceMinion(coopPlayer, testLoc),
                     "Island co-op member must be permitted to place minions on the island");
             assertFalse(ProtectionHookManager.canPlaceMinion(strangerPlayer, testLoc),
                     "Non-island member must be prevented from placing minions on SuperiorSkyblock2 island");
 
-            // Test Access under TEAM_ACCESS mode (minion belongs to AUTHORIZED_UUID, player is co-op)
             assertTrue(ProtectionHookManager.canAccessMinion(coopPlayer, minion),
                     "Island co-op member must have GUI access under TEAM_ACCESS mode");
             assertFalse(ProtectionHookManager.canAccessMinion(strangerPlayer, minion),
@@ -166,7 +164,6 @@ public class ProtectionHookManagerTest {
             availableField.set(null, true);
             gridManagerField.set(null, new MockGridManager());
             isIslandsWorldField.set(null, MockGridManager.class.getMethod("isIslandsWorld", World.class));
-            // In wilderness, getIslandAt returns null
             getIslandAtField.set(null, MockSuperiorSkyblockApi.class.getMethod("getWildernessIslandAt", Location.class));
 
             assertFalse(ProtectionHookManager.canPlaceMinion(normalPlayer, wildernessLoc),
@@ -178,6 +175,194 @@ public class ProtectionHookManagerTest {
             gridManagerField.set(null, null);
             isIslandsWorldField.set(null, null);
             getIslandAtField.set(null, null);
+        }
+    }
+
+    @Test
+    @DisplayName("BentoBox simulation: Guards against wilderness placement and recognizes co-op ranks")
+    public void testBentoBoxCoopAndWildernessGuard() throws Exception {
+        Player coopPlayer = createMockPlayer(COOP_MEMBER_UUID, false);
+        Player strangerPlayer = createMockPlayer(strangerId, false);
+        Minion minion = new Minion(UUID.randomUUID(), AUTHORIZED_UUID, MinionType.IRON, 1, testLoc);
+
+        World bentoWorld = createMockWorld("bskyblock_world");
+        Location islandLoc = new Location(bentoWorld, 100, 65, 100);
+        Location wildernessLoc = new Location(bentoWorld, 9000, 65, 9000);
+
+        Field availableField = ProtectionHookManager.class.getDeclaredField("bentoBoxAvailable");
+        availableField.setAccessible(true);
+        Field islandsManagerField = ProtectionHookManager.class.getDeclaredField("bentoIslandsManager");
+        islandsManagerField.setAccessible(true);
+        Field getIslandAtField = ProtectionHookManager.class.getDeclaredField("bentoGetIslandAt");
+        getIslandAtField.setAccessible(true);
+        Field isPresentField = ProtectionHookManager.class.getDeclaredField("bentoOptionalIsPresent");
+        isPresentField.setAccessible(true);
+        Field optionalGetField = ProtectionHookManager.class.getDeclaredField("bentoOptionalGet");
+        optionalGetField.setAccessible(true);
+        Field isMemberField = ProtectionHookManager.class.getDeclaredField("bentoIslandIsMember");
+        isMemberField.setAccessible(true);
+        Field getMembersField = ProtectionHookManager.class.getDeclaredField("bentoIslandGetMembers");
+        getMembersField.setAccessible(true);
+        Field iwmField = ProtectionHookManager.class.getDeclaredField("bentoIwm");
+        iwmField.setAccessible(true);
+        Field inWorldField = ProtectionHookManager.class.getDeclaredField("bentoInWorld");
+        inWorldField.setAccessible(true);
+
+        try {
+            availableField.set(null, true);
+            islandsManagerField.set(null, new MockBentoIslandsManager());
+            getIslandAtField.set(null, MockBentoIslandsManager.class.getMethod("getIslandAt", Location.class));
+            isPresentField.set(null, MockOptional.class.getMethod("isPresent"));
+            optionalGetField.set(null, MockOptional.class.getMethod("get"));
+            isMemberField.set(null, MockBentoIsland.class.getMethod("isMember", UUID.class));
+            getMembersField.set(null, MockBentoIsland.class.getMethod("getMembers"));
+            iwmField.set(null, new MockBentoIwm());
+            inWorldField.set(null, MockBentoIwm.class.getMethod("inWorld", World.class));
+
+            // Test 1: Wilderness in BentoBox world is denied
+            assertFalse(ProtectionHookManager.canPlaceMinion(strangerPlayer, wildernessLoc),
+                    "Placing minion in BentoBox wilderness must be denied");
+
+            // Test 2: Coop member (rank 100) on island is authorized
+            assertTrue(ProtectionHookManager.canPlaceMinion(coopPlayer, islandLoc),
+                    "BentoBox co-op member must be allowed to place on island");
+            assertTrue(ProtectionHookManager.canAccessMinion(coopPlayer, minion),
+                    "BentoBox co-op member must be allowed team access to minion GUI");
+
+            // Test 3: Stranger on island is rejected
+            assertFalse(ProtectionHookManager.canPlaceMinion(strangerPlayer, islandLoc),
+                    "Stranger must be rejected on BentoBox island");
+            assertFalse(ProtectionHookManager.canAccessMinion(strangerPlayer, minion),
+                    "Stranger must be denied access to minion on BentoBox island");
+
+        } finally {
+            availableField.set(null, false);
+            islandsManagerField.set(null, null);
+            getIslandAtField.set(null, null);
+            isPresentField.set(null, null);
+            optionalGetField.set(null, null);
+            isMemberField.set(null, null);
+            getMembersField.set(null, null);
+            iwmField.set(null, null);
+            inWorldField.set(null, null);
+        }
+    }
+
+    @Test
+    @DisplayName("Towny simulation: PlayerCacheUtil permission enforcement for build and switch actions")
+    public void testTownyPlayerCachePermission() throws Exception {
+        Player residentPlayer = createMockPlayer(AUTHORIZED_UUID, false);
+        Player strangerPlayer = createMockPlayer(strangerId, false);
+        Minion minion = new Minion(UUID.randomUUID(), AUTHORIZED_UUID, MinionType.IRON, 1, testLoc);
+
+        Field availableField = ProtectionHookManager.class.getDeclaredField("townyAvailable");
+        availableField.setAccessible(true);
+        Field getCachePermField = ProtectionHookManager.class.getDeclaredField("townyGetCachePermission");
+        getCachePermField.setAccessible(true);
+        Field actionBuildField = ProtectionHookManager.class.getDeclaredField("townyActionBuild");
+        actionBuildField.setAccessible(true);
+        Field actionSwitchField = ProtectionHookManager.class.getDeclaredField("townyActionSwitch");
+        actionSwitchField.setAccessible(true);
+
+        try {
+            availableField.set(null, true);
+            Method dummyCachePerm = MockTownyPlayerCacheUtil.class.getMethod("getCachePermission",
+                    Player.class, Location.class, Material.class, Object.class);
+            getCachePermField.set(null, dummyCachePerm);
+            actionBuildField.set(null, "BUILD");
+            actionSwitchField.set(null, "SWITCH");
+
+            // Placement test
+            assertTrue(ProtectionHookManager.canPlaceMinion(residentPlayer, testLoc),
+                    "Town resident with BUILD permission must be allowed to place");
+            assertFalse(ProtectionHookManager.canPlaceMinion(strangerPlayer, testLoc),
+                    "Stranger lacking BUILD permission must be denied placement");
+
+            // Access test
+            assertTrue(ProtectionHookManager.canAccessMinion(residentPlayer, minion),
+                    "Town resident with SWITCH permission must be granted team access");
+            assertFalse(ProtectionHookManager.canAccessMinion(strangerPlayer, minion),
+                    "Stranger lacking SWITCH permission must be denied team access");
+
+        } finally {
+            availableField.set(null, false);
+            getCachePermField.set(null, null);
+            actionBuildField.set(null, null);
+            actionSwitchField.set(null, null);
+        }
+    }
+
+    @Test
+    @DisplayName("Lands simulation: Modern Area isTrusted and permission enforcement")
+    public void testLandsAreaTrustAndNegativeGuard() throws Exception {
+        Player trustedPlayer = createMockPlayer(AUTHORIZED_UUID, false);
+        Player strangerPlayer = createMockPlayer(strangerId, false);
+        Minion minion = new Minion(UUID.randomUUID(), AUTHORIZED_UUID, MinionType.IRON, 1, testLoc);
+
+        Field availableField = ProtectionHookManager.class.getDeclaredField("landsAvailable");
+        availableField.setAccessible(true);
+        Field integrationField = ProtectionHookManager.class.getDeclaredField("landsIntegration");
+        integrationField.setAccessible(true);
+        Field getAreaField = ProtectionHookManager.class.getDeclaredField("landsGetArea");
+        getAreaField.setAccessible(true);
+        Field isTrustedField = ProtectionHookManager.class.getDeclaredField("landsIsTrusted");
+        isTrustedField.setAccessible(true);
+
+        try {
+            availableField.set(null, true);
+            integrationField.set(null, new MockLandsIntegration());
+            getAreaField.set(null, MockLandsIntegration.class.getMethod("getArea", Location.class));
+            isTrustedField.set(null, MockLandsArea.class.getMethod("isTrusted", UUID.class));
+
+            assertTrue(ProtectionHookManager.canPlaceMinion(trustedPlayer, testLoc),
+                    "Trusted Lands member must be permitted to place minions");
+            assertFalse(ProtectionHookManager.canPlaceMinion(strangerPlayer, testLoc),
+                    "Non-trusted player must be denied minion placement in Lands area");
+
+            assertTrue(ProtectionHookManager.canAccessMinion(trustedPlayer, minion),
+                    "Trusted Lands member must be granted minion GUI access");
+            assertFalse(ProtectionHookManager.canAccessMinion(strangerPlayer, minion),
+                    "Non-trusted player must be denied minion GUI access in Lands area");
+
+        } finally {
+            availableField.set(null, false);
+            integrationField.set(null, null);
+            getAreaField.set(null, null);
+            isTrustedField.set(null, null);
+        }
+    }
+
+    @Test
+    @DisplayName("Veto Chain: Multiple plugins active must NOT short-circuit prematurely if one denies")
+    public void testVetoChainNoShortCircuit() throws Exception {
+        Player testPlayer = createMockPlayer(strangerId, false);
+
+        Field bentoAvailable = ProtectionHookManager.class.getDeclaredField("bentoBoxAvailable");
+        bentoAvailable.setAccessible(true);
+        Field townyAvailable = ProtectionHookManager.class.getDeclaredField("townyAvailable");
+        townyAvailable.setAccessible(true);
+        Field townyGetCachePerm = ProtectionHookManager.class.getDeclaredField("townyGetCachePermission");
+        townyGetCachePerm.setAccessible(true);
+        Field townyActionBuild = ProtectionHookManager.class.getDeclaredField("townyActionBuild");
+        townyActionBuild.setAccessible(true);
+
+        try {
+            // BentoBox is absent/neutral
+            bentoAvailable.set(null, false);
+
+            // Towny is present and explicitly denies build
+            townyAvailable.set(null, true);
+            townyGetCachePerm.set(null, MockTownyPlayerCacheUtil.class.getMethod("getCachePermission",
+                    Player.class, Location.class, Material.class, Object.class));
+            townyActionBuild.set(null, "BUILD");
+
+            assertFalse(ProtectionHookManager.canPlaceMinion(testPlayer, testLoc),
+                    "Towny veto must be respected even when other plugins are neutral");
+        } finally {
+            bentoAvailable.set(null, false);
+            townyAvailable.set(null, false);
+            townyGetCachePerm.set(null, null);
+            townyActionBuild.set(null, null);
         }
     }
 
@@ -233,13 +418,15 @@ public class ProtectionHookManagerTest {
         );
     }
 
+    // --- Mock Classes for Testing ---
+
     public static class MockSuperiorSkyblockApi {
         public static Object getIslandAt(Location loc) {
             return new MockSuperiorIsland();
         }
 
         public static Object getWildernessIslandAt(Location loc) {
-            return null; // Wilderness outside of islands
+            return null;
         }
 
         public static Object getPlayer(Player player) {
@@ -266,6 +453,60 @@ public class ProtectionHookManagerTest {
     public static class MockGridManager {
         public boolean isIslandsWorld(World world) {
             return world != null && "superior_skyblock_world".equals(world.getName());
+        }
+    }
+
+    public static class MockBentoIslandsManager {
+        public static Object getIslandAt(Location loc) {
+            if (loc != null && loc.getX() > 5000) {
+                return new MockOptional(null); // Wilderness
+            }
+            return new MockOptional(new MockBentoIsland());
+        }
+    }
+
+    public static class MockOptional {
+        private final Object value;
+        public MockOptional(Object value) { this.value = value; }
+        public boolean isPresent() { return value != null; }
+        public Object get() { return value; }
+    }
+
+    public static class MockBentoIsland {
+        public boolean isMember(UUID uuid) {
+            return ProtectionHookManagerTest.AUTHORIZED_UUID.equals(uuid);
+        }
+
+        public Map<UUID, Integer> getMembers() {
+            Map<UUID, Integer> map = new HashMap<>();
+            map.put(ProtectionHookManagerTest.AUTHORIZED_UUID, 1000); // Owner
+            map.put(ProtectionHookManagerTest.COOP_MEMBER_UUID, 100);  // Coop
+            return map;
+        }
+    }
+
+    public static class MockBentoIwm {
+        public boolean inWorld(World world) {
+            return world != null && "bskyblock_world".equals(world.getName());
+        }
+    }
+
+    public static class MockTownyPlayerCacheUtil {
+        public static boolean getCachePermission(Player player, Location loc, Material mat, Object action) {
+            if (player == null) return false;
+            return ProtectionHookManagerTest.AUTHORIZED_UUID.equals(player.getUniqueId());
+        }
+    }
+
+    public static class MockLandsIntegration {
+        public static Object getArea(Location loc) {
+            return new MockLandsArea();
+        }
+    }
+
+    public static class MockLandsArea {
+        public boolean isTrusted(UUID uuid) {
+            return ProtectionHookManagerTest.AUTHORIZED_UUID.equals(uuid);
         }
     }
 }

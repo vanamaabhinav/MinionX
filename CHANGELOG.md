@@ -7,9 +7,9 @@ All notable changes to **MinionX** are documented in this file.
 ## [1.0.3] - 2026-11-01
 
 ### Grounded Overview for Buyers & Server Owners
-> **MinionX v1.0.3** introduces native island claim protection and team access integration for **SuperiorSkyblock2**, along with zero-allocation reflection optimizations for minion collection and land protection checks.
+> **MinionX v1.0.3** introduces native island claim protection and team access integration for **SuperiorSkyblock2**, along with critical security and performance overhauls across all supported land protection providers (**BentoBox**, **Towny**, **Lands**, and **GriefPrevention**).
 >
-> On servers running SuperiorSkyblock2, minion placement is now checked against island ownership, preventing non-members from placing minions on other players' islands and preventing placement in SkyBlock wilderness. When configured in `security.access-mode: TEAM_ACCESS`, island co-op members and teammates can access minion menus, insert fuel, and collect harvested items, while preserving owner-only protection against unauthorized minion dismantling.
+> On servers running SuperiorSkyblock2 or BentoBox, minion placement is now strictly checked against island boundaries, preventing non-members from placing minions on other players' islands and closing void/wilderness placement exploits. Towny integration has been re-engineered using canonical `PlayerCacheUtil` permissions, fixing a startup failure where Towny silently disabled itself. Across all claim plugins, placement checking now uses a pure negative-guard veto chain that prevents premature bypasses when multiple protection plugins are active.
 
 ---
 
@@ -23,18 +23,25 @@ All notable changes to **MinionX** are documented in this file.
 - **Co-op Dismantle Security**: Prevents teammates and visitors from picking up minions unless `security.allow-team-pickup: true` or `security.access-mode: FULL_COOP` is explicitly enabled.
 - **Fail-Safe Reflection & Clean Reloads**: Automatically detects SuperiorSkyblock2 and gracefully falls back to default Bukkit protections if absent. Nulls cached reflection handles on disable to prevent ClassLoader leaks across server reloads.
 
-#### 2. Zero-Allocation Reflection Optimization (`CollectionsHook` & `ProtectionHookManager`)
+#### 2. Protection Soft-Dependency Overhaul & Bug Fixes
+- **Towny Runtime Activation (`PlayerCacheUtil`)**: Resolved a critical issue where `TownBlock.canPlayerBuild` failed with `NoSuchMethodException` on startup. Implemented Towny's canonical `PlayerCacheUtil.getCachePermission` targeting `ActionType.BUILD` for placement and `ActionType.SWITCH` for GUI container access.
+- **BentoBox Wilderness Guarding (`IWM`)**: Hooked BentoBox's `IslandWorldManager.inWorld(World)`. In BentoBox island worlds where no island exists (`isPresent() == false`), placement is now vetoed to prevent void/wilderness minion exploits.
+- **BentoBox Co-op & Trusted Access**: Extended island membership checks to inspect `Island.getMembers()`, allowing players with Coop (rank 100) or Trusted (rank 200) status to place minions and access GUI menus under `TEAM_ACCESS`.
+- **Lands 6.x/7.x Trust Resolution**: Added modern Lands compatibility for `Area.isTrusted(UUID)` alongside legacy `canBuild`/`canAccess`, ensuring continuous protection across all Lands release generations.
+- **Pure Negative-Guard Veto Chain**: Converted `canPlaceMinion` across all 5 providers into a non-short-circuiting veto chain. A plugin only vetoes when an unauthorized action is detected in its domain; authorized actions continue through remaining providers to verify overlapping regions before permitting placement.
+
+#### 3. Zero-Allocation Reflection Optimization (`CollectionsHook` & `ProtectionHookManager`)
 - **Collections Hook Caching**: Cached reflective method handles for EcoCollections (`EcoCollectionsAPI.addProgress`) and SuperiorSkyblock2 (`SuperiorSkyblockAPI.getPlayer`, `SuperiorPlayer.getIsland`, `Island.handleBlockBreak`) during plugin initialization.
 - **Eliminated Per-Harvest Lookups**: Replaced per-tick `Class.forName` and `Class.getMethod` lookups on minion harvests with static cached invocations, removing JVM classloader synchronization overhead and heap allocations during mass minion operation.
 - **Cached Parameter Types**: Cached `getPlayer` UUID/Player signature flags to eliminate repeated `Method.getParameterTypes()` array cloning on minion access and placement checks.
 
-#### 3. Backwards Compatibility Delegate (`IslandHookManager`)
+#### 4. Backwards Compatibility Delegate (`IslandHookManager`)
 - Added `canPickupMinion(Player player, Minion minion)` delegating to `ProtectionHookManager` to maintain binary and source compatibility for external addons referencing `IslandHookManager`.
 
 ---
 
 ### Verification & Technical Metrics
-- **Test Suite**: 244 unit tests passed across 35 test classes (`100% pass rate`).
+- **Test Suite**: 248 unit tests passed across 35 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac 21 -parameters -proc:none -Xlint:all` (0 warnings, 0 errors).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
 

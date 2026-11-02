@@ -34,21 +34,25 @@ public class ProtectionHookManager {
 
     // BentoBox
     private static Object bentoIslandsManager = null;
+    private static Object bentoIwm = null;
+    private static Method bentoInWorld = null;
     private static Method bentoGetIslandAt = null;
     private static Method bentoOptionalIsPresent = null;
     private static Method bentoOptionalGet = null;
     private static Method bentoIslandIsMember = null;
+    private static Method bentoIslandGetMembers = null;
 
-    // Towny
-    private static Object townyApi = null;
-    private static Method townyGetTownBlock = null;
-    private static Method townyCanPlayerBuild = null;
+    // Towny (PlayerCacheUtil canonical API)
+    private static Method townyGetCachePermission = null;
+    private static Object townyActionBuild = null;
+    private static Object townyActionSwitch = null;
 
     // Lands
     private static Object landsIntegration = null;
     private static Method landsGetArea = null;
     private static Method landsCanBuild = null;
     private static Method landsCanAccess = null;
+    private static Method landsIsTrusted = null;
 
     // SuperiorSkyblock2
     private static Class<?> ssApiClass = null;
@@ -113,10 +117,13 @@ public class ProtectionHookManager {
         }
         if (!bentoBoxAvailable) {
             bentoIslandsManager = null;
+            bentoIwm = null;
+            bentoInWorld = null;
             bentoGetIslandAt = null;
             bentoOptionalIsPresent = null;
             bentoOptionalGet = null;
             bentoIslandIsMember = null;
+            bentoIslandGetMembers = null;
             return;
         }
         try {
@@ -125,20 +132,55 @@ public class ProtectionHookManager {
             bentoIslandsManager = bentoInstance.getClass().getMethod("getIslands").invoke(bentoInstance);
             bentoGetIslandAt = bentoIslandsManager.getClass().getMethod("getIslandAt", Location.class);
 
+            try {
+                Object iwm = bentoInstance.getClass().getMethod("getIWM").invoke(bentoInstance);
+                if (iwm != null) {
+                    bentoIwm = iwm;
+                    bentoInWorld = iwm.getClass().getMethod("inWorld", World.class);
+                }
+            } catch (Throwable ignored) {
+                bentoIwm = null;
+                bentoInWorld = null;
+            }
+
             Class<?> optionalClass = Class.forName("java.util.Optional");
             bentoOptionalIsPresent = optionalClass.getMethod("isPresent");
             bentoOptionalGet = optionalClass.getMethod("get");
 
             Class<?> islandClass = Class.forName("world.bentobox.bentobox.database.objects.Island");
             bentoIslandIsMember = islandClass.getMethod("isMember", UUID.class);
+            try {
+                bentoIslandGetMembers = islandClass.getMethod("getMembers");
+            } catch (Throwable ignored) {
+                bentoIslandGetMembers = null;
+            }
         } catch (Throwable t) {
             bentoBoxAvailable = false;
             bentoIslandsManager = null;
+            bentoIwm = null;
+            bentoInWorld = null;
             bentoGetIslandAt = null;
             bentoOptionalIsPresent = null;
             bentoOptionalGet = null;
             bentoIslandIsMember = null;
+            bentoIslandGetMembers = null;
         }
+    }
+
+    private static boolean isBentoIslandMemberOrCoop(Object island, UUID playerUuid) {
+        if (island == null || playerUuid == null) return false;
+        try {
+            if (bentoIslandIsMember != null && (boolean) bentoIslandIsMember.invoke(island, playerUuid)) {
+                return true;
+            }
+            if (bentoIslandGetMembers != null) {
+                Object membersMap = bentoIslandGetMembers.invoke(island);
+                if (membersMap instanceof java.util.Map<?, ?> map) {
+                    return map.containsKey(playerUuid);
+                }
+            }
+        } catch (Throwable ignored) {}
+        return false;
     }
 
     private static void initTowny() {
@@ -148,23 +190,35 @@ public class ProtectionHookManager {
             townyAvailable = false;
         }
         if (!townyAvailable) {
-            townyApi = null;
-            townyGetTownBlock = null;
-            townyCanPlayerBuild = null;
+            townyGetCachePermission = null;
+            townyActionBuild = null;
+            townyActionSwitch = null;
             return;
         }
         try {
-            Class<?> townyApiClass = Class.forName("com.palmergames.bukkit.towny.TownyAPI");
-            townyApi = townyApiClass.getMethod("getInstance").invoke(null);
-            townyGetTownBlock = townyApiClass.getMethod("getTownBlock", Location.class);
+            Class<?> playerCacheUtilClass = Class.forName("com.palmergames.bukkit.towny.utils.PlayerCacheUtil");
+            Class<?> actionTypeClass = Class.forName("com.palmergames.bukkit.towny.object.TownyPermission$ActionType");
+            townyActionBuild = Enum.valueOf((Class<Enum>) actionTypeClass, "BUILD");
+            try {
+                townyActionSwitch = Enum.valueOf((Class<Enum>) actionTypeClass, "SWITCH");
+            } catch (Throwable t) {
+                townyActionSwitch = Enum.valueOf((Class<Enum>) actionTypeClass, "ITEM_USE");
+            }
 
-            Class<?> townBlockClass = Class.forName("com.palmergames.bukkit.towny.object.TownBlock");
-            townyCanPlayerBuild = townBlockClass.getMethod("canPlayerBuild", Player.class);
+            for (Method m : playerCacheUtilClass.getMethods()) {
+                if ("getCachePermission".equals(m.getName())) {
+                    Class<?>[] p = m.getParameterTypes();
+                    if (p.length == 4 && p[0].equals(Player.class) && p[1].equals(Location.class) && p[2].equals(Material.class) && p[3].equals(actionTypeClass)) {
+                        townyGetCachePermission = m;
+                        break;
+                    }
+                }
+            }
         } catch (Throwable t) {
             townyAvailable = false;
-            townyApi = null;
-            townyGetTownBlock = null;
-            townyCanPlayerBuild = null;
+            townyGetCachePermission = null;
+            townyActionBuild = null;
+            townyActionSwitch = null;
         }
     }
 
@@ -179,16 +233,48 @@ public class ProtectionHookManager {
             landsGetArea = null;
             landsCanBuild = null;
             landsCanAccess = null;
+            landsIsTrusted = null;
             return;
         }
         try {
             Class<?> landsIntegrationClass = Class.forName("me.angeschossen.lands.api.integration.LandsIntegration");
             if (MinionX.getInstance() != null) {
-                landsIntegration = landsIntegrationClass.getConstructor(org.bukkit.plugin.Plugin.class).newInstance(MinionX.getInstance());
-                landsGetArea = landsIntegrationClass.getMethod("getArea", Location.class);
+                try {
+                    // Modern Lands: LandsIntegration.of(Plugin)
+                    Method ofMethod = landsIntegrationClass.getMethod("of", org.bukkit.plugin.Plugin.class);
+                    landsIntegration = ofMethod.invoke(null, MinionX.getInstance());
+                } catch (NoSuchMethodException e) {
+                    // Legacy Lands: new LandsIntegration(Plugin)
+                    landsIntegration = landsIntegrationClass.getConstructor(org.bukkit.plugin.Plugin.class).newInstance(MinionX.getInstance());
+                }
+
+                try {
+                    landsGetArea = landsIntegrationClass.getMethod("getArea", Location.class);
+                } catch (NoSuchMethodException e) {
+                    landsGetArea = landsIntegrationClass.getMethod("getAreaByLoc", Location.class);
+                }
+
                 Class<?> areaClass = Class.forName("me.angeschossen.lands.api.land.Area");
-                landsCanBuild = areaClass.getMethod("canBuild", Player.class, Location.class);
-                landsCanAccess = areaClass.getMethod("canAccess", Player.class, Location.class);
+
+                // Legacy canBuild / canAccess
+                try {
+                    landsCanBuild = areaClass.getMethod("canBuild", Player.class, Location.class);
+                    landsCanAccess = areaClass.getMethod("canAccess", Player.class, Location.class);
+                } catch (NoSuchMethodException ignored) {
+                    landsCanBuild = null;
+                    landsCanAccess = null;
+                }
+
+                // Modern Lands: isTrusted(UUID) or isTrusted(Player)
+                try {
+                    landsIsTrusted = areaClass.getMethod("isTrusted", UUID.class);
+                } catch (NoSuchMethodException e) {
+                    try {
+                        landsIsTrusted = areaClass.getMethod("isTrusted", Player.class);
+                    } catch (NoSuchMethodException ignored) {
+                        landsIsTrusted = null;
+                    }
+                }
             } else {
                 landsAvailable = false;
                 landsIntegration = null;
@@ -199,7 +285,28 @@ public class ProtectionHookManager {
             landsGetArea = null;
             landsCanBuild = null;
             landsCanAccess = null;
+            landsIsTrusted = null;
         }
+    }
+
+    private static boolean isLandsAuthorized(Object area, Player player, Location location, boolean isBuild) {
+        if (area == null || player == null) return false;
+        try {
+            if (isBuild && landsCanBuild != null) {
+                return (boolean) landsCanBuild.invoke(area, player, location);
+            }
+            if (!isBuild && landsCanAccess != null) {
+                return (boolean) landsCanAccess.invoke(area, player, location);
+            }
+            if (landsIsTrusted != null) {
+                if (landsIsTrusted.getParameterTypes()[0].equals(UUID.class)) {
+                    return (boolean) landsIsTrusted.invoke(area, player.getUniqueId());
+                } else {
+                    return (boolean) landsIsTrusted.invoke(area, player);
+                }
+            }
+        } catch (Throwable ignored) {}
+        return false;
     }
 
     private static void initSuperiorSkyblock() {
@@ -294,6 +401,7 @@ public class ProtectionHookManager {
 
     /**
      * Determines whether a player is authorized to place a minion at a location.
+     * Follows the negative guard veto pattern across all registered providers.
      */
     public static boolean canPlaceMinion(Player player, Location location) {
         if (player == null || location == null) return false;
@@ -310,41 +418,56 @@ public class ProtectionHookManager {
             } catch (Throwable ignored) {}
         }
 
-        // 2. BentoBox Island check
+        // 2. BentoBox Island check (with wilderness & co-op guarding)
         if (bentoBoxAvailable && bentoIslandsManager != null && bentoGetIslandAt != null) {
             try {
-                Object optionalIsland = bentoGetIslandAt.invoke(bentoIslandsManager, location);
-                if (optionalIsland != null && (boolean) bentoOptionalIsPresent.invoke(optionalIsland)) {
-                    Object island = bentoOptionalGet.invoke(optionalIsland);
-                    return (boolean) bentoIslandIsMember.invoke(island, player.getUniqueId());
+                if (location.getWorld() != null && bentoIwm != null && bentoInWorld != null) {
+                    boolean isBentoWorld = (boolean) bentoInWorld.invoke(bentoIwm, location.getWorld());
+                    if (isBentoWorld) {
+                        Object optionalIsland = bentoGetIslandAt.invoke(bentoIslandsManager, location);
+                        if (optionalIsland == null || !(boolean) bentoOptionalIsPresent.invoke(optionalIsland)) {
+                            return false; // Deny placement in BentoBox SkyBlock wilderness
+                        }
+                        Object island = bentoOptionalGet.invoke(optionalIsland);
+                        if (!isBentoIslandMemberOrCoop(island, player.getUniqueId())) {
+                            return false;
+                        }
+                    }
+                } else {
+                    Object optionalIsland = bentoGetIslandAt.invoke(bentoIslandsManager, location);
+                    if (optionalIsland != null && (boolean) bentoOptionalIsPresent.invoke(optionalIsland)) {
+                        Object island = bentoOptionalGet.invoke(optionalIsland);
+                        if (!isBentoIslandMemberOrCoop(island, player.getUniqueId())) {
+                            return false;
+                        }
+                    }
                 }
             } catch (Throwable ignored) {}
         }
 
-        // 3. Towny check
-        if (townyAvailable && townyApi != null && townyGetTownBlock != null) {
+        // 3. Towny check (PlayerCacheUtil canonical permission)
+        if (townyAvailable && townyGetCachePermission != null && townyActionBuild != null) {
             try {
-                Object townBlock = townyGetTownBlock.invoke(townyApi, location);
-                if (townBlock != null && townyCanPlayerBuild != null) {
-                    return (boolean) townyCanPlayerBuild.invoke(townBlock, player);
+                boolean canBuild = (boolean) townyGetCachePermission.invoke(null, player, location, Material.STONE, townyActionBuild);
+                if (!canBuild) {
+                    return false;
                 }
             } catch (Throwable ignored) {}
         }
 
-        // 4. Lands check
-        if (landsAvailable && landsIntegration != null && landsGetArea != null && landsCanBuild != null) {
+        // 4. Lands check (Area trust / build permission)
+        if (landsAvailable && landsIntegration != null && landsGetArea != null) {
             try {
                 Object area = landsGetArea.invoke(landsIntegration, location);
-                if (area != null) {
-                    return (boolean) landsCanBuild.invoke(area, player, location);
+                if (area != null && !isLandsAuthorized(area, player, location, true)) {
+                    return false;
                 }
             } catch (Throwable ignored) {}
         }
 
-        // 5. SuperiorSkyblock2 check
+        // 5. SuperiorSkyblock2 check (with wilderness & co-op guarding)
         if (superiorSkyblockAvailable && ssGetIslandAt != null) {
             try {
-                // If in a configured SuperiorSkyblock island world, enforce island boundaries
                 if (location.getWorld() != null && ssGridManager != null && ssIsIslandsWorld != null) {
                     boolean isIslandWorld = (boolean) ssIsIslandsWorld.invoke(ssGridManager, location.getWorld());
                     if (isIslandWorld) {
@@ -367,6 +490,7 @@ public class ProtectionHookManager {
 
     /**
      * Determines whether a player is authorized to access and open the GUI of a minion.
+     * Follows the affirmative team authorization pattern across all registered providers.
      */
     public static boolean canAccessMinion(Player player, Minion minion) {
         if (player == null || minion == null) return false;
@@ -403,38 +527,40 @@ public class ProtectionHookManager {
                 Object claim = gpGetClaimAt.invoke(gpDataStore, loc, false, null);
                 if (claim != null) {
                     Object denyReason = gpAllowContainers.invoke(claim, player);
-                    return denyReason == null;
+                    if (denyReason == null) return true;
                 }
             } catch (Throwable ignored) {}
         }
 
-        // 2. BentoBox Island team member check
+        // 2. BentoBox Island team member / co-op check
         if (bentoBoxAvailable && bentoIslandsManager != null && bentoGetIslandAt != null) {
             try {
                 Object optionalIsland = bentoGetIslandAt.invoke(bentoIslandsManager, loc);
                 if (optionalIsland != null && (boolean) bentoOptionalIsPresent.invoke(optionalIsland)) {
                     Object island = bentoOptionalGet.invoke(optionalIsland);
-                    return (boolean) bentoIslandIsMember.invoke(island, player.getUniqueId());
+                    if (isBentoIslandMemberOrCoop(island, player.getUniqueId())) {
+                        return true;
+                    }
                 }
             } catch (Throwable ignored) {}
         }
 
         // 3. Lands team/access check
-        if (landsAvailable && landsIntegration != null && landsGetArea != null && landsCanAccess != null) {
+        if (landsAvailable && landsIntegration != null && landsGetArea != null) {
             try {
                 Object area = landsGetArea.invoke(landsIntegration, loc);
-                if (area != null) {
-                    return (boolean) landsCanAccess.invoke(area, player, loc);
+                if (area != null && isLandsAuthorized(area, player, loc, false)) {
+                    return true;
                 }
             } catch (Throwable ignored) {}
         }
 
-        // 4. Towny check
-        if (townyAvailable && townyApi != null && townyGetTownBlock != null && townyCanPlayerBuild != null) {
+        // 4. Towny container/switch check
+        if (townyAvailable && townyGetCachePermission != null && townyActionSwitch != null) {
             try {
-                Object townBlock = townyGetTownBlock.invoke(townyApi, loc);
-                if (townBlock != null) {
-                    return (boolean) townyCanPlayerBuild.invoke(townBlock, player);
+                boolean canSwitch = (boolean) townyGetCachePermission.invoke(null, player, loc, Material.CHEST, townyActionSwitch);
+                if (canSwitch) {
+                    return true;
                 }
             } catch (Throwable ignored) {}
         }
@@ -443,8 +569,8 @@ public class ProtectionHookManager {
         if (superiorSkyblockAvailable && ssGetIslandAt != null) {
             try {
                 Object island = ssGetIslandAt.invoke(null, loc);
-                if (island != null) {
-                    return isSuperiorMemberOrCoop(island, player);
+                if (island != null && isSuperiorMemberOrCoop(island, player)) {
+                    return true;
                 }
             } catch (Throwable ignored) {}
         }
