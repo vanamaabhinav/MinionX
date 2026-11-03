@@ -50,13 +50,25 @@ All notable changes to **MinionX** are documented in this file.
 #### 5. Backwards Compatibility Delegate (`IslandHookManager`)
 - Added `canPickupMinion(Player player, Minion minion)` delegating to `ProtectionHookManager` to maintain binary and source compatibility for external addons referencing `IslandHookManager`.
 
+#### 6. Native WorldGuard 7.x Region Protection & Perimeter Guarding
+- **WorldGuard 7.x Integration (`Flags.BUILD` & `Flags.INTERACT`)**: Added reflective WorldGuard 7.x support checking `RegionQuery.testState(...)` for `Flags.BUILD` during minion placement and `Flags.INTERACT` during GUI container access. Protects server spawns, warzones, and admin regions.
+- **Minion Operational Area Guarding**: Upgraded `ProtectionHookManager.canPlaceMinion(player, location, radius)` to evaluate both the center placement block and the 8 boundary points of the minion's working area (default 5x5, radius 2). Prevents players from placing minions near claim edges to exploit neighboring claims or wilderness.
+- **Admin & Bypass Permissions**: Respects `minionx.admin`, `minionx.bypass.protection`, and `worldguard.region.bypass.*` to allow server operators to manage minions globally.
+- **Native Custom Item Pricing (`PriceRegistry`)**: Integrated `CustomItemHook.identifyCustomItem(item)` directly into `PriceRegistry.getPrice(ItemStack item)`, allowing ItemsAdder, MMOItems, and EcoItems custom items to match configured prices by their native plugin namespaced ID.
+
+#### 7. Compiler Warnings Remediation & Tooling Configuration
+- **Clean `-Xlint:all` Compilation (0 Warnings)**:
+  - Fixed Paper 1.20+ `getDescription()` deprecation in `MinionXPlaceholderExpansion.java` using `getPluginMeta().getVersion()` with backwards-compatible fallback.
+  - Eliminated unchecked raw cast warnings in `ProtectionHookManager.java` for Towny `ActionType` by invoking `valueOf` dynamically via reflection.
+- **Git Line-Ending Normalization (`.gitattributes`)**: Added root `.gitattributes` file to standardize LF normalization on text sources and binary handling on `.jar` files, eliminating Windows Git conversion warnings.
+
 ---
 
 ### Verification & Technical Metrics
-- **Test Suite**: 257 unit tests passed across 36 test classes (`100% pass rate`).
-- **Compiler Checks**: Compiled with `javac 21 -parameters -proc:none -Xlint:deprecation -Xlint:unchecked` (0 errors).
+- **Test Suite**: 259 unit tests passed across 36 test classes (`100% pass rate`).
+- **Compiler Checks**: Compiled with `javac 21 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
-- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (499,555 bytes).
+- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (500,900 bytes).
 
 ---
 

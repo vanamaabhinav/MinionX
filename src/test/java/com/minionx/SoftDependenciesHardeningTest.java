@@ -1,15 +1,19 @@
 package com.minionx;
 
+import com.minionx.api.PriceRegistry;
 import com.minionx.core.MinionXPlaceholderExpansion;
 import com.minionx.core.PlaceholderUtil;
-import com.minionx.core.PlayerLimitManager;
 import com.minionx.hook.CustomItemHook;
 import com.minionx.hook.EconomyHook;
 import com.minionx.hook.GeyserHook;
+import com.minionx.hook.IslandHookManager;
 import com.minionx.hook.MythicMobsHook;
+import com.minionx.hook.ProtectionHookManager;
 import com.minionx.hook.SkillHook;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
@@ -25,7 +29,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Verification test suite for soft dependencies hardening:
  * Vault (OfflinePlayer, Player, and String signatures),
- * Geyser & Floodgate, MythicMobs, SkillHook, CustomItemHook, and PlaceholderAPI expansion.
+ * Geyser & Floodgate, MythicMobs, SkillHook, CustomItemHook,
+ * WorldGuard 7.x, minion area protection, and PlaceholderAPI expansion.
  */
 public class SoftDependenciesHardeningTest {
 
@@ -258,5 +263,68 @@ public class SoftDependenciesHardeningTest {
             PlaceholderUtil.shutdown();
         });
     }
-}
 
+    // =========================================================================
+    // 7. WORLDGUARD & PERIMETER / AREA PROTECTION
+    // =========================================================================
+
+    @Test
+    @DisplayName("WorldGuard & ProtectionHookManager: Area/perimeter checking and admin bypass")
+    void testAreaProtectionAndBypass() {
+        assertDoesNotThrow(() -> {
+            ProtectionHookManager.checkHooks();
+            assertFalse(ProtectionHookManager.isWorldGuardAvailable());
+
+            // Mock world
+            World mockWorld = (World) Proxy.newProxyInstance(
+                    World.class.getClassLoader(),
+                    new Class<?>[]{World.class},
+                    (proxy, method, args) -> {
+                        if ("getName".equals(method.getName())) return "world";
+                        return null;
+                    }
+            );
+
+            Location loc = new Location(mockWorld, 100, 64, 100);
+
+            // Default placement (checks 5x5 area with radius 2)
+            assertTrue(ProtectionHookManager.canPlaceMinion(mockPlayer, loc));
+            assertTrue(ProtectionHookManager.canPlaceMinion(mockPlayer, loc, 2));
+            assertTrue(ProtectionHookManager.canPlaceMinion(mockPlayer, loc, 4));
+
+            // Null checks
+            assertFalse(ProtectionHookManager.canPlaceMinion(null, loc));
+            assertFalse(ProtectionHookManager.canPlaceMinion(mockPlayer, null));
+
+            // IslandHookManager delegation
+            assertTrue(IslandHookManager.canPlaceMinion(mockPlayer, loc));
+            assertTrue(IslandHookManager.canPlaceMinion(mockPlayer, loc, 2));
+
+            // Admin bypass player
+            Player adminPlayer = (Player) Proxy.newProxyInstance(
+                    Player.class.getClassLoader(),
+                    new Class<?>[]{Player.class, OfflinePlayer.class},
+                    (proxy, method, args) -> {
+                        if ("hasPermission".equals(method.getName())) {
+                            String p = (String) args[0];
+                            return "minionx.admin".equals(p) || "worldguard.region.bypass.*".equals(p);
+                        }
+                        if ("getUniqueId".equals(method.getName())) return UUID.randomUUID();
+                        return null;
+                    }
+            );
+            assertTrue(ProtectionHookManager.canPlaceMinion(adminPlayer, loc));
+            assertTrue(ProtectionHookManager.canPlaceMinion(adminPlayer, loc, 5));
+        });
+    }
+
+    @Test
+    @DisplayName("PriceRegistry: Custom item native ID pricing integration")
+    void testPriceRegistryNativeCustomPricing() {
+        PriceRegistry.setPrice("CUSTOM_TEST_ITEM", 150.0);
+        assertEquals(150.0, PriceRegistry.getPrice("CUSTOM_TEST_ITEM"), 0.001);
+
+        ItemStack diamond = new ItemStack(Material.DIAMOND, 1);
+        assertEquals(8.0, PriceRegistry.getPrice(diamond), 0.001);
+    }
+}

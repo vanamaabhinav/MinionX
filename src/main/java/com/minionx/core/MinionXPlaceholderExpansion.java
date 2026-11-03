@@ -31,8 +31,16 @@ public class MinionXPlaceholderExpansion extends PlaceholderExpansion {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public @NotNull String getVersion() {
-        return plugin != null ? plugin.getDescription().getVersion() : "1.0.3";
+        if (plugin != null) {
+            try {
+                return plugin.getPluginMeta().getVersion();
+            } catch (Throwable ignored) {
+                return plugin.getDescription().getVersion();
+            }
+        }
+        return "1.0.3";
     }
 
     @Override

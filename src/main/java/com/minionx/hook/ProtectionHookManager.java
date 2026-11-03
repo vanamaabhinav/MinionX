@@ -8,17 +8,19 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.UUID;
 
 /**
  * Universal protection hook manager for land claim and protection plugins:
- * GriefPrevention, BentoBox, Towny, Lands, SuperiorSkyblock2,
- * with cached reflection handles and secure owner-only fallback.
+ * WorldGuard, GriefPrevention, BentoBox, Towny, Lands, SuperiorSkyblock2,
+ * with cached reflection handles, perimeter/area verification, and secure owner-only fallback.
  */
 public class ProtectionHookManager {
 
+    private static boolean worldGuardAvailable = false;
     private static boolean bentoBoxAvailable = false;
     private static boolean griefPreventionAvailable = false;
     private static boolean townyAvailable = false;
@@ -26,6 +28,15 @@ public class ProtectionHookManager {
     private static boolean superiorSkyblockAvailable = false;
 
     // --- Cached Reflection Handles ---
+    // WorldGuard 7.x
+    private static Object wgRegionContainer = null;
+    private static Method wgCreateQuery = null;
+    private static Method wgAdaptLocation = null;
+    private static Method wgWrapPlayer = null;
+    private static Object wgFlagBuild = null;
+    private static Object wgFlagInteract = null;
+    private static Method wgTestState = null;
+
     // GriefPrevention
     private static Object gpDataStore = null;
     private static Method gpGetClaimAt = null;
@@ -68,12 +79,112 @@ public class ProtectionHookManager {
         checkHooks();
     }
 
-    public static void checkHooks() {
+    public static synchronized void checkHooks() {
+        initWorldGuard();
         initGriefPrevention();
         initBentoBox();
         initTowny();
         initLands();
         initSuperiorSkyblock();
+    }
+
+    private static void initWorldGuard() {
+        try {
+            worldGuardAvailable = Bukkit.getPluginManager() != null && Bukkit.getPluginManager().isPluginEnabled("WorldGuard");
+        } catch (Throwable t) {
+            worldGuardAvailable = false;
+        }
+        if (!worldGuardAvailable) {
+            wgRegionContainer = null;
+            wgCreateQuery = null;
+            wgAdaptLocation = null;
+            wgWrapPlayer = null;
+            wgFlagBuild = null;
+            wgFlagInteract = null;
+            wgTestState = null;
+            return;
+        }
+        try {
+            Class<?> wgClass = Class.forName("com.sk89q.worldguard.WorldGuard");
+            Method getInstance = wgClass.getMethod("getInstance");
+            Object wgInstance = getInstance.invoke(null);
+            Method getPlatform = wgClass.getMethod("getPlatform");
+            Object platform = getPlatform.invoke(wgInstance);
+            Method getRegionContainer = platform.getClass().getMethod("getRegionContainer");
+            wgRegionContainer = getRegionContainer.invoke(platform);
+            wgCreateQuery = wgRegionContainer.getClass().getMethod("createQuery");
+
+            Class<?> adapterClass = Class.forName("com.sk89q.worldedit.bukkit.BukkitAdapter");
+            wgAdaptLocation = adapterClass.getMethod("adapt", Location.class);
+
+            Class<?> wgpClass = Class.forName("com.sk89q.worldguard.bukkit.WorldGuardPlugin");
+            Method inst = wgpClass.getMethod("inst");
+            Object wgpInstance = inst.invoke(null);
+            wgWrapPlayer = wgpClass.getMethod("wrapPlayer", Player.class);
+
+            Class<?> flagsClass = Class.forName("com.sk89q.worldguard.protection.flags.Flags");
+            wgFlagBuild = flagsClass.getField("BUILD").get(null);
+            wgFlagInteract = flagsClass.getField("INTERACT").get(null);
+
+            Class<?> queryClass = Class.forName("com.sk89q.worldguard.protection.regions.RegionQuery");
+            Class<?> weLocClass = Class.forName("com.sk89q.worldedit.util.Location");
+            Class<?> localPlayerClass = Class.forName("com.sk89q.worldguard.LocalPlayer");
+            Class<?> stateFlagArrayClass = Class.forName("[Lcom.sk89q.worldguard.protection.flags.StateFlag;");
+
+            try {
+                wgTestState = queryClass.getMethod("testState", weLocClass, localPlayerClass, stateFlagArrayClass);
+            } catch (NoSuchMethodException e) {
+                for (Method m : queryClass.getMethods()) {
+                    if ("testState".equals(m.getName()) && m.getParameterCount() >= 3) {
+                        wgTestState = m;
+                        break;
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            worldGuardAvailable = false;
+            wgRegionContainer = null;
+            wgCreateQuery = null;
+            wgAdaptLocation = null;
+            wgWrapPlayer = null;
+            wgFlagBuild = null;
+            wgFlagInteract = null;
+            wgTestState = null;
+        }
+    }
+
+    private static boolean checkWorldGuardBuild(Player player, Location location) {
+        if (!worldGuardAvailable || wgRegionContainer == null || wgCreateQuery == null ||
+            wgAdaptLocation == null || wgWrapPlayer == null || wgFlagBuild == null || wgTestState == null) {
+            return true;
+        }
+        try {
+            Object query = wgCreateQuery.invoke(wgRegionContainer);
+            Object adaptedLoc = wgAdaptLocation.invoke(null, location);
+            Object localPlayer = wgWrapPlayer.invoke(null, player);
+            Object flagsArray = Array.newInstance(wgFlagBuild.getClass(), 1);
+            Array.set(flagsArray, 0, wgFlagBuild);
+            return (boolean) wgTestState.invoke(query, adaptedLoc, localPlayer, flagsArray);
+        } catch (Throwable ignored) {
+            return true;
+        }
+    }
+
+    private static boolean checkWorldGuardAccess(Player player, Location location) {
+        if (!worldGuardAvailable || wgRegionContainer == null || wgCreateQuery == null ||
+            wgAdaptLocation == null || wgWrapPlayer == null || wgFlagInteract == null || wgTestState == null) {
+            return true;
+        }
+        try {
+            Object query = wgCreateQuery.invoke(wgRegionContainer);
+            Object adaptedLoc = wgAdaptLocation.invoke(null, location);
+            Object localPlayer = wgWrapPlayer.invoke(null, player);
+            Object flagsArray = Array.newInstance(wgFlagInteract.getClass(), 1);
+            Array.set(flagsArray, 0, wgFlagInteract);
+            return (boolean) wgTestState.invoke(query, adaptedLoc, localPlayer, flagsArray);
+        } catch (Throwable ignored) {
+            return true;
+        }
     }
 
     private static void initGriefPrevention() {
@@ -167,16 +278,19 @@ public class ProtectionHookManager {
         }
     }
 
-    private static boolean isBentoIslandMemberOrCoop(Object island, UUID playerUuid) {
-        if (island == null || playerUuid == null) return false;
+    private static boolean isBentoIslandMemberOrCoop(Object island, UUID uuid) {
+        if (island == null || uuid == null) return false;
         try {
-            if (bentoIslandIsMember != null && (boolean) bentoIslandIsMember.invoke(island, playerUuid)) {
+            if (bentoIslandIsMember != null && (boolean) bentoIslandIsMember.invoke(island, uuid)) {
                 return true;
             }
             if (bentoIslandGetMembers != null) {
-                Object membersMap = bentoIslandGetMembers.invoke(island);
-                if (membersMap instanceof java.util.Map<?, ?> map) {
-                    return map.containsKey(playerUuid);
+                Object membersObj = bentoIslandGetMembers.invoke(island);
+                if (membersObj instanceof java.util.Map<?, ?> map) {
+                    Object rankObj = map.get(uuid);
+                    if (rankObj instanceof Number rank) {
+                        return rank.intValue() >= 100;
+                    }
                 }
             }
         } catch (Throwable ignored) {}
@@ -198,11 +312,12 @@ public class ProtectionHookManager {
         try {
             Class<?> playerCacheUtilClass = Class.forName("com.palmergames.bukkit.towny.utils.PlayerCacheUtil");
             Class<?> actionTypeClass = Class.forName("com.palmergames.bukkit.towny.object.TownyPermission$ActionType");
-            townyActionBuild = Enum.valueOf((Class<Enum>) actionTypeClass, "BUILD");
+            Method valueOfMethod = actionTypeClass.getMethod("valueOf", String.class);
+            townyActionBuild = valueOfMethod.invoke(null, "BUILD");
             try {
-                townyActionSwitch = Enum.valueOf((Class<Enum>) actionTypeClass, "SWITCH");
+                townyActionSwitch = valueOfMethod.invoke(null, "SWITCH");
             } catch (Throwable t) {
-                townyActionSwitch = Enum.valueOf((Class<Enum>) actionTypeClass, "ITEM_USE");
+                townyActionSwitch = valueOfMethod.invoke(null, "ITEM_USE");
             }
 
             for (Method m : playerCacheUtilClass.getMethods()) {
@@ -237,26 +352,16 @@ public class ProtectionHookManager {
             return;
         }
         try {
-            Class<?> landsIntegrationClass = Class.forName("me.angeschossen.lands.api.integration.LandsIntegration");
+            Class<?> landsClass = Class.forName("me.angeschossen.lands.api.integration.LandsIntegration");
             if (MinionX.getInstance() != null) {
-                try {
-                    // Modern Lands: LandsIntegration.of(Plugin)
-                    Method ofMethod = landsIntegrationClass.getMethod("of", org.bukkit.plugin.Plugin.class);
-                    landsIntegration = ofMethod.invoke(null, MinionX.getInstance());
-                } catch (NoSuchMethodException e) {
-                    // Legacy Lands: new LandsIntegration(Plugin)
-                    landsIntegration = landsIntegrationClass.getConstructor(org.bukkit.plugin.Plugin.class).newInstance(MinionX.getInstance());
-                }
+                Method ofMethod = landsClass.getMethod("of", org.bukkit.plugin.Plugin.class);
+                landsIntegration = ofMethod.invoke(null, MinionX.getInstance());
+            }
 
-                try {
-                    landsGetArea = landsIntegrationClass.getMethod("getArea", Location.class);
-                } catch (NoSuchMethodException e) {
-                    landsGetArea = landsIntegrationClass.getMethod("getAreaByLoc", Location.class);
-                }
-
+            if (landsIntegration != null) {
+                landsGetArea = landsIntegration.getClass().getMethod("getArea", Location.class);
                 Class<?> areaClass = Class.forName("me.angeschossen.lands.api.land.Area");
 
-                // Legacy canBuild / canAccess
                 try {
                     landsCanBuild = areaClass.getMethod("canBuild", Player.class, Location.class);
                     landsCanAccess = areaClass.getMethod("canAccess", Player.class, Location.class);
@@ -265,7 +370,6 @@ public class ProtectionHookManager {
                     landsCanAccess = null;
                 }
 
-                // Modern Lands: isTrusted(UUID) or isTrusted(Player)
                 try {
                     landsIsTrusted = areaClass.getMethod("isTrusted", UUID.class);
                 } catch (NoSuchMethodException e) {
@@ -330,7 +434,6 @@ public class ProtectionHookManager {
             ssApiClass = Class.forName("com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI");
             ssGetIslandAt = ssApiClass.getMethod("getIslandAt", Location.class);
 
-            // Optional GridManager integration for world checking
             try {
                 Method getGrid = ssApiClass.getMethod("getGrid");
                 ssGridManager = getGrid.invoke(null);
@@ -342,7 +445,6 @@ public class ProtectionHookManager {
                 ssIsIslandsWorld = null;
             }
 
-            // Supports getPlayer(Player) or getPlayer(UUID)
             try {
                 ssGetPlayer = ssApiClass.getMethod("getPlayer", Player.class);
                 ssGetPlayerTakesUuid = false;
@@ -373,6 +475,15 @@ public class ProtectionHookManager {
         }
     }
 
+    private static boolean hasPermission(Player player, String permission) {
+        if (player == null || permission == null) return false;
+        try {
+            return Boolean.TRUE.equals(player.hasPermission(permission));
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     private static Object getSuperiorPlayer(Player player) {
         if (ssGetPlayer == null || player == null) return null;
         try {
@@ -400,12 +511,69 @@ public class ProtectionHookManager {
     }
 
     /**
-     * Determines whether a player is authorized to place a minion at a location.
-     * Follows the negative guard veto pattern across all registered providers.
+     * Determines whether a player is authorized to place a minion at a location,
+     * checking the default 5x5 minion operational area (radius = 2).
      */
     public static boolean canPlaceMinion(Player player, Location location) {
+        return canPlaceMinion(player, location, 2);
+    }
+
+    /**
+     * Determines whether a player is authorized to place a minion at a location,
+     * verifying both the center placement block and the outer perimeter of the minion's working area.
+     * Follows the negative guard veto pattern across all registered providers.
+     */
+    public static boolean canPlaceMinion(Player player, Location location, int radius) {
         if (player == null || location == null) return false;
-        if (player.hasPermission("minionx.admin")) return true;
+
+        // Admin & permission bypass
+        if (hasPermission(player, "minionx.admin") ||
+            hasPermission(player, "minionx.bypass.protection") ||
+            hasPermission(player, "worldguard.region.bypass.*")) {
+            return true;
+        }
+
+        // 1. Check center placement point
+        if (!canPlaceSinglePoint(player, location)) {
+            return false;
+        }
+
+        // 2. Check outer perimeter of minion operational working area (prevents border griefing)
+        if (radius > 0 && location.getWorld() != null) {
+            World world = location.getWorld();
+            double x = location.getX();
+            double y = location.getY();
+            double z = location.getZ();
+
+            Location[] perimeter = new Location[] {
+                new Location(world, x - radius, y, z - radius),
+                new Location(world, x + radius, y, z - radius),
+                new Location(world, x - radius, y, z + radius),
+                new Location(world, x + radius, y, z + radius),
+                new Location(world, x - radius, y, z),
+                new Location(world, x + radius, y, z),
+                new Location(world, x, y, z - radius),
+                new Location(world, x, y, z + radius)
+            };
+
+            for (Location p : perimeter) {
+                if (!canPlaceSinglePoint(player, p)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Internal point check testing whether an individual block coordinate is permitted across all active claim systems.
+     */
+    private static boolean canPlaceSinglePoint(Player player, Location location) {
+        // 0. WorldGuard 7.x region check
+        if (worldGuardAvailable && !checkWorldGuardBuild(player, location)) {
+            return false;
+        }
 
         // 1. GriefPrevention claim check
         if (griefPreventionAvailable && gpDataStore != null && gpGetClaimAt != null && gpAllowBuild != null) {
@@ -494,7 +662,11 @@ public class ProtectionHookManager {
      */
     public static boolean canAccessMinion(Player player, Minion minion) {
         if (player == null || minion == null) return false;
-        if (player.hasPermission("minionx.admin")) return true;
+        if (hasPermission(player, "minionx.admin") ||
+            hasPermission(player, "minionx.bypass.protection") ||
+            hasPermission(player, "worldguard.region.bypass.*")) {
+            return true;
+        }
 
         // Owner can always access their minion
         if (minion.getOwnerId() != null && player.getUniqueId().equals(minion.getOwnerId())) {
@@ -515,6 +687,11 @@ public class ProtectionHookManager {
 
         Location loc = minion.getLocation();
         if (loc == null) return false;
+
+        // WorldGuard region access check (Flags.INTERACT)
+        if (worldGuardAvailable && !checkWorldGuardAccess(player, loc)) {
+            return false;
+        }
 
         // If unowned legacy minion, allow access only if player has build rights at that location
         if (minion.getOwnerId() == null) {
@@ -584,7 +761,11 @@ public class ProtectionHookManager {
      */
     public static boolean canPickupMinion(Player player, Minion minion) {
         if (player == null || minion == null) return false;
-        if (player.hasPermission("minionx.admin")) return true;
+        if (hasPermission(player, "minionx.admin") ||
+            hasPermission(player, "minionx.bypass.protection") ||
+            hasPermission(player, "worldguard.region.bypass.*")) {
+            return true;
+        }
 
         // Owner can always pick up their minion
         if (minion.getOwnerId() != null && player.getUniqueId().equals(minion.getOwnerId())) {
@@ -612,6 +793,10 @@ public class ProtectionHookManager {
     }
 
     // Diagnostics / Accessors
+    public static boolean isWorldGuardAvailable() {
+        return worldGuardAvailable;
+    }
+
     public static boolean isBentoBoxAvailable() {
         return bentoBoxAvailable;
     }

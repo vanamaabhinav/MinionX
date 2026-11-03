@@ -11,6 +11,7 @@ softdepend:
   - BentoBox
   - Towny
   - Lands
+  - WorldGuard
   - AuraSkills
   - EcoSkills
   - SuperiorSkyblock2

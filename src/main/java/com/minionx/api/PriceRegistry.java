@@ -206,6 +206,17 @@ public class PriceRegistry {
             } catch (Throwable ignored) {}
         }
 
+        // 2d. Match by native custom item hook ID (ItemsAdder, MMOItems, EcoItems)
+        try {
+            String customId = CustomItemHook.identifyCustomItem(item);
+            if (customId != null) {
+                String upperCustomId = customId.toUpperCase();
+                if (PRICES.containsKey(upperCustomId)) {
+                    return PRICES.get(upperCustomId);
+                }
+            }
+        } catch (Throwable ignored) {}
+
         // 3. Match against Compression Recipes (Super Compactor compressed enchanted items)
         try {
             for (CompressionManager.CompressionRecipe recipe : CompressionManager.getAllRecipes()) {
@@ -232,6 +243,11 @@ public class PriceRegistry {
     public static double getPrice(Material material) {
         if (material == null || material.isAir()) return 0.0;
         return PRICES.getOrDefault(material.name().toUpperCase(), defaultPrice);
+    }
+
+    public static double getPrice(String key) {
+        if (key == null || key.trim().isEmpty()) return 0.0;
+        return PRICES.getOrDefault(key.toUpperCase(), defaultPrice);
     }
 
     public static void setPrice(Material material, double price) {

@@ -17,6 +17,10 @@ public class IslandHookManager {
         return ProtectionHookManager.canPlaceMinion(player, location);
     }
 
+    public static boolean canPlaceMinion(Player player, Location location, int radius) {
+        return ProtectionHookManager.canPlaceMinion(player, location, radius);
+    }
+
     public static boolean canAccessMinion(Player player, Minion minion) {
         return ProtectionHookManager.canAccessMinion(player, minion);
     }
