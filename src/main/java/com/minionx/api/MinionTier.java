@@ -67,8 +67,9 @@ public class MinionTier {
                 try {
                     int tier = Integer.parseInt(key);
                     ConfigurationSection tSec = section.getConfigurationSection(key);
-                    if (tSec == null)
+                    if (tSec == null) {
                         continue;
+                    }
 
                     double delay = tSec.getDouble("action-delay", 14.0);
                     int slots = tSec.getInt("storage-slots", 1);
@@ -78,13 +79,16 @@ public class MinionTier {
                     if (tSec.isList("upgrade-requirements")) {
                         for (Map<?, ?> rMap : tSec.getMapList("upgrade-requirements")) {
                             UpgradeRequirement r = UpgradeRequirement.fromConfig(rMap);
-                            if (r != null) reqs.add(r);
+                            if (r != null) {
+                                reqs.add(r);
+                            }
                         }
                     }
 
                     TIERS.put(tier, new TierData(delay, slots, cost, reqs));
-                    if (tier > highest)
+                    if (tier > highest) {
                         highest = tier;
+                    }
                 } catch (NumberFormatException ignored) {
                 }
             }
@@ -130,8 +134,9 @@ public class MinionTier {
     }
 
     public static int getUpgradeCost(int currentTier) {
-        if (currentTier >= maxTier)
+        if (currentTier >= maxTier) {
             return 0;
+        }
         TierData data = TIERS.get(currentTier);
         return data != null ? data.getUpgradeCost() : 0;
     }
@@ -142,8 +147,9 @@ public class MinionTier {
             maxTier = tier;
         }
 
-        if (com.minionx.MinionX.getInstance() == null)
+        if (com.minionx.MinionX.getInstance() == null) {
             return;
+        }
         java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "tiers.yml");
         if (file.getParentFile() != null && !file.getParentFile().exists()) {
             file.getParentFile().mkdirs();
@@ -174,18 +180,21 @@ public class MinionTier {
     }
 
     public static boolean removeTier(int tier) {
-        if (tier <= 12)
+        if (tier <= 12) {
             return false; // Preserve default 12 tiers
+        }
         TIERS.remove(tier);
         int highest = 1;
         for (int t : TIERS.keySet()) {
-            if (t > highest)
+            if (t > highest) {
                 highest = t;
+            }
         }
         maxTier = highest;
 
-        if (com.minionx.MinionX.getInstance() == null)
+        if (com.minionx.MinionX.getInstance() == null) {
             return true;
+        }
         java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "tiers.yml");
         if (file.exists()) {
             org.bukkit.configuration.file.YamlConfiguration config = org.bukkit.configuration.file.YamlConfiguration
@@ -200,8 +209,9 @@ public class MinionTier {
     }
 
     public static String toRoman(int tier) {
-        if (tier <= 0)
+        if (tier <= 0) {
             return String.valueOf(tier);
+        }
         int[] values = { 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 };
         String[] symbols = { "M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I" };
         StringBuilder sb = new StringBuilder();

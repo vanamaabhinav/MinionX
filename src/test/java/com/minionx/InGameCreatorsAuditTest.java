@@ -7,7 +7,6 @@ import com.minionx.gui.MinionCreatorListener;
 import com.minionx.gui.MinionCreatorSession;
 import com.minionx.gui.MinionStorageCreatorSession;
 import com.minionx.gui.UpgradeCreatorSession;
-import com.minionx.util.UpgradeCostHelper;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
