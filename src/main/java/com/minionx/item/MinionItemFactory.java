@@ -4,7 +4,6 @@ import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.MinionX;
 import com.minionx.api.*;
-import com.minionx.api.MinionSkin;
 import com.minionx.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;

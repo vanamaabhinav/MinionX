@@ -29,6 +29,7 @@ public class ProtectionHookManager {
 
     // --- Cached Reflection Handles ---
     // WorldGuard 7.x
+    private static Object wgPluginInstance = null;
     private static Object wgRegionContainer = null;
     private static Method wgCreateQuery = null;
     private static Method wgAdaptLocation = null;
@@ -94,6 +95,7 @@ public class ProtectionHookManager {
             worldGuardAvailable = false;
         }
         if (!worldGuardAvailable) {
+            wgPluginInstance = null;
             wgRegionContainer = null;
             wgCreateQuery = null;
             wgAdaptLocation = null;
@@ -118,7 +120,7 @@ public class ProtectionHookManager {
 
             Class<?> wgpClass = Class.forName("com.sk89q.worldguard.bukkit.WorldGuardPlugin");
             Method inst = wgpClass.getMethod("inst");
-            Object wgpInstance = inst.invoke(null);
+            wgPluginInstance = inst.invoke(null);
             wgWrapPlayer = wgpClass.getMethod("wrapPlayer", Player.class);
 
             Class<?> flagsClass = Class.forName("com.sk89q.worldguard.protection.flags.Flags");
@@ -142,6 +144,7 @@ public class ProtectionHookManager {
             }
         } catch (Throwable t) {
             worldGuardAvailable = false;
+            wgPluginInstance = null;
             wgRegionContainer = null;
             wgCreateQuery = null;
             wgAdaptLocation = null;
@@ -160,7 +163,7 @@ public class ProtectionHookManager {
         try {
             Object query = wgCreateQuery.invoke(wgRegionContainer);
             Object adaptedLoc = wgAdaptLocation.invoke(null, location);
-            Object localPlayer = wgWrapPlayer.invoke(null, player);
+            Object localPlayer = wgWrapPlayer.invoke(wgPluginInstance, player);
             Object flagsArray = Array.newInstance(wgFlagBuild.getClass(), 1);
             Array.set(flagsArray, 0, wgFlagBuild);
             return (boolean) wgTestState.invoke(query, adaptedLoc, localPlayer, flagsArray);
@@ -177,7 +180,7 @@ public class ProtectionHookManager {
         try {
             Object query = wgCreateQuery.invoke(wgRegionContainer);
             Object adaptedLoc = wgAdaptLocation.invoke(null, location);
-            Object localPlayer = wgWrapPlayer.invoke(null, player);
+            Object localPlayer = wgWrapPlayer.invoke(wgPluginInstance, player);
             Object flagsArray = Array.newInstance(wgFlagInteract.getClass(), 1);
             Array.set(flagsArray, 0, wgFlagInteract);
             return (boolean) wgTestState.invoke(query, adaptedLoc, localPlayer, flagsArray);
