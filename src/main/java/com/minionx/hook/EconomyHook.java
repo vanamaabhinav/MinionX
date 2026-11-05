@@ -14,7 +14,6 @@ import java.lang.reflect.Method;
 public class EconomyHook {
 
     private static Object vaultEconomy = null;
-    private static boolean royaleEconomyDirect = false;
 
     // --- Cached Reflection Handles ---
     private static Method cachedGetBalance = null;
@@ -55,7 +54,6 @@ public class EconomyHook {
                         vaultEconomy = rsp.getProvider();
                     }
                 }
-                royaleEconomyDirect = Bukkit.getPluginManager() != null && Bukkit.getPluginManager().isPluginEnabled("RoyaleEconomy");
             } catch (Throwable ignored) {}
         }
         cacheMethods();
@@ -157,7 +155,7 @@ public class EconomyHook {
         if (vaultEconomy == null && Bukkit.getServer() != null) {
             setupEconomy();
         }
-        return vaultEconomy != null || royaleEconomyDirect;
+        return vaultEconomy != null;
     }
 
     public static double getBalance(Player player) {

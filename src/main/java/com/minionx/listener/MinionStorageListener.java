@@ -167,6 +167,16 @@ public class MinionStorageListener implements Listener {
             }
         }
 
+        // Verify player is authorized to access and modify this minion
+        if (!ProtectionHookManager.canAccessMinion(player, targetMinion)) {
+            event.setCancelled(true);
+            String noAccessMsg = MinionX.getInstance().getMessage(
+                    "no-minion-access-permission", "&cYou do not have permission to modify or link storage to this minion!");
+            player.sendMessage(ColorUtil.color(noAccessMsg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
         // Fire MinionStorageLinkEvent
         com.minionx.api.event.MinionStorageLinkEvent linkEvent = new com.minionx.api.event.MinionStorageLinkEvent(player, targetMinion, block.getLocation(), true);
         org.bukkit.Bukkit.getPluginManager().callEvent(linkEvent);

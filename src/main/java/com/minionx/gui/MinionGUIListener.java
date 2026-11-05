@@ -1357,6 +1357,18 @@ public class MinionGUIListener implements Listener {
                 return;
             }
 
+            if (upgrade.getAreaExpansion() > 0 && minion.getLocation() != null) {
+                int otherExp = (slotNum == 1 ? (minion.getCustomUpgrade2() != null ? minion.getCustomUpgrade2().getAreaExpansion() : 0)
+                                             : (minion.getCustomUpgrade1() != null ? minion.getCustomUpgrade1().getAreaExpansion() : 0));
+                int prospectiveRadius = 2 + otherExp + upgrade.getAreaExpansion();
+                if (!ProtectionHookManager.canPlaceMinion(player, minion.getLocation(), prospectiveRadius)) {
+                    int dim = prospectiveRadius * 2 + 1;
+                    player.sendMessage(ColorUtil.color("&cCannot equip expander! The expanded operational area (" + dim + "x" + dim + ") reaches into a protected region."));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                    return;
+                }
+            }
+
             CustomUpgrade previous = slotNum == 1 ? minion.getCustomUpgrade1() : minion.getCustomUpgrade2();
             if (previous != null) {
                 player.getInventory().addItem(MinionItemFactory.createUpgradeItem(previous));

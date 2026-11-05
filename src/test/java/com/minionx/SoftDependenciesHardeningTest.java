@@ -324,7 +324,51 @@ public class SoftDependenciesHardeningTest {
         PriceRegistry.setPrice("CUSTOM_TEST_ITEM", 150.0);
         assertEquals(150.0, PriceRegistry.getPrice("CUSTOM_TEST_ITEM"), 0.001);
 
+        // Multi-segment test: "itemsadder:custom_ores:ruby" -> matches "RUBY" or "CUSTOM_ORES:RUBY"
+        PriceRegistry.setPrice("RUBY", 75.0);
+        assertEquals(75.0, PriceRegistry.getPrice("RUBY"), 0.001);
+
         ItemStack diamond = new ItemStack(Material.DIAMOND, 1);
         assertEquals(8.0, PriceRegistry.getPrice(diamond), 0.001);
+    }
+
+    @Test
+    @DisplayName("ProtectionHookManager: Negative and zero radius sanitization")
+    void testRadiusSanitization() {
+        World mockWorld = (World) Proxy.newProxyInstance(
+                World.class.getClassLoader(),
+                new Class<?>[]{World.class},
+                (proxy, method, args) -> "world".equals(method.getName()) ? "world" : null
+        );
+        Location loc = new Location(mockWorld, 0, 64, 0);
+
+        assertDoesNotThrow(() -> {
+            assertTrue(ProtectionHookManager.canPlaceMinion(mockPlayer, loc, -5));
+            assertTrue(ProtectionHookManager.canPlaceMinion(mockPlayer, loc, 0));
+            assertTrue(ProtectionHookManager.canPlaceMinion(mockPlayer, loc, 3));
+        });
+    }
+
+    @Test
+    @DisplayName("ProtectionHookManager & EconomyHook: Comprehensive null argument safety")
+    void testOverallNullArgumentSafety() {
+        assertDoesNotThrow(() -> {
+            assertFalse(ProtectionHookManager.canPlaceMinion(null, null));
+            assertFalse(ProtectionHookManager.canPlaceMinion(mockPlayer, null, 2));
+            assertFalse(ProtectionHookManager.canPlaceMinion(null, new Location(null, 0, 0, 0), 2));
+            assertFalse(ProtectionHookManager.canAccessMinion(null, null));
+            assertFalse(ProtectionHookManager.canAccessMinion(mockPlayer, null));
+            assertFalse(ProtectionHookManager.canPickupMinion(null, null));
+            assertFalse(ProtectionHookManager.canPickupMinion(mockPlayer, null));
+
+            // Economy without provider
+            EconomyHook.setVaultEconomy(null);
+            assertFalse(EconomyHook.hasEconomy());
+            assertEquals(0.0, EconomyHook.getBalance(mockPlayer), 0.001);
+            assertTrue(EconomyHook.has(mockPlayer, 0.0));
+            assertFalse(EconomyHook.has(mockPlayer, 50.0));
+            assertFalse(EconomyHook.withdraw(mockPlayer, 50.0));
+            assertTrue(EconomyHook.depositWithResult(mockPlayer, 50.0).isSuccess());
+        });
     }
 }

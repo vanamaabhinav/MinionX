@@ -214,6 +214,20 @@ public class PriceRegistry {
                 if (PRICES.containsKey(upperCustomId)) {
                     return PRICES.get(upperCustomId);
                 }
+                int firstColon = upperCustomId.indexOf(':');
+                if (firstColon != -1 && firstColon < upperCustomId.length() - 1) {
+                    String sub = upperCustomId.substring(firstColon + 1);
+                    if (PRICES.containsKey(sub)) {
+                        return PRICES.get(sub);
+                    }
+                    int secondColon = sub.indexOf(':');
+                    if (secondColon != -1 && secondColon < sub.length() - 1) {
+                        String shortId = sub.substring(secondColon + 1);
+                        if (PRICES.containsKey(shortId)) {
+                            return PRICES.get(shortId);
+                        }
+                    }
+                }
             }
         } catch (Throwable ignored) {}
 

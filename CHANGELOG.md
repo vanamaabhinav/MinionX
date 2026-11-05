@@ -62,13 +62,20 @@ All notable changes to **MinionX** are documented in this file.
   - Eliminated unchecked raw cast warnings in `ProtectionHookManager.java` for Towny `ActionType` by invoking `valueOf` dynamically via reflection.
 - **Git Line-Ending Normalization (`.gitattributes`)**: Added root `.gitattributes` file to standardize LF normalization on text sources and binary handling on `.jar` files, eliminating Windows Git conversion warnings.
 
+#### 8. Final Dependencies Audit & Redundant Code Cleanup
+- **Expander Upgrade Boundary Guarding (`MinionGUIListener`)**: Equipping a Minion Expander dynamically calculates the prospective working radius (`2 + expansion`) and verifies that the enlarged perimeter does not encroach into an unauthorized claim or region via `ProtectionHookManager.canPlaceMinion`.
+- **Minion Storage Linking Authorization (`MinionStorageListener`)**: Placing a custom Minion Storage chest adjacent to a minion now verifies `ProtectionHookManager.canAccessMinion(player, targetMinion)` before linking, preventing unauthorized players from linking chests to other players' minions.
+- **Redundant Code Removal (`EconomyHook` & `ProtectionHookManager`)**: Removed dead `royaleEconomyDirect` field in `EconomyHook` and removed unreferenced static field `ssApiClass` in `ProtectionHookManager`.
+- **Direct Hook Invocation (`MinionInteractListener`)**: Replaced internal legacy `IslandHookManager` delegation with direct `ProtectionHookManager.canAccessMinion` call while retaining `IslandHookManager` for external compatibility.
+- **Multi-Variant Custom Item Price Matching (`PriceRegistry`)**: Enhanced `getPrice(ItemStack)` to check full namespaced IDs (`itemsadder:custom_ores:ruby`), plugin-trimmed IDs (`custom_ores:ruby`), and short IDs (`ruby`).
+
 ---
 
 ### Verification & Technical Metrics
-- **Test Suite**: 259 unit tests passed across 36 test classes (`100% pass rate`).
+- **Test Suite**: 261 unit tests passed across 36 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac 21 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
-- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (500,900 bytes).
+- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (501,282 bytes).
 
 ---
 

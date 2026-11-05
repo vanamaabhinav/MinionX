@@ -66,7 +66,6 @@ public class ProtectionHookManager {
     private static Method landsIsTrusted = null;
 
     // SuperiorSkyblock2
-    private static Class<?> ssApiClass = null;
     private static Object ssGridManager = null;
     private static Method ssGetIslandAt = null;
     private static Method ssGetPlayer = null;
@@ -420,7 +419,6 @@ public class ProtectionHookManager {
             superiorSkyblockAvailable = false;
         }
         if (!superiorSkyblockAvailable) {
-            ssApiClass = null;
             ssGridManager = null;
             ssGetIslandAt = null;
             ssGetPlayer = null;
@@ -431,7 +429,7 @@ public class ProtectionHookManager {
             return;
         }
         try {
-            ssApiClass = Class.forName("com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI");
+            Class<?> ssApiClass = Class.forName("com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI");
             ssGetIslandAt = ssApiClass.getMethod("getIslandAt", Location.class);
 
             try {
@@ -464,7 +462,6 @@ public class ProtectionHookManager {
             }
         } catch (Throwable t) {
             superiorSkyblockAvailable = false;
-            ssApiClass = null;
             ssGridManager = null;
             ssGetIslandAt = null;
             ssGetPlayer = null;
@@ -538,22 +535,24 @@ public class ProtectionHookManager {
             return false;
         }
 
+        int r = Math.max(0, radius);
+
         // 2. Check outer perimeter of minion operational working area (prevents border griefing)
-        if (radius > 0 && location.getWorld() != null) {
+        if (r > 0 && location.getWorld() != null) {
             World world = location.getWorld();
             double x = location.getX();
             double y = location.getY();
             double z = location.getZ();
 
             Location[] perimeter = new Location[] {
-                new Location(world, x - radius, y, z - radius),
-                new Location(world, x + radius, y, z - radius),
-                new Location(world, x - radius, y, z + radius),
-                new Location(world, x + radius, y, z + radius),
-                new Location(world, x - radius, y, z),
-                new Location(world, x + radius, y, z),
-                new Location(world, x, y, z - radius),
-                new Location(world, x, y, z + radius)
+                new Location(world, x - r, y, z - r),
+                new Location(world, x + r, y, z - r),
+                new Location(world, x - r, y, z + r),
+                new Location(world, x + r, y, z + r),
+                new Location(world, x - r, y, z),
+                new Location(world, x + r, y, z),
+                new Location(world, x, y, z - r),
+                new Location(world, x, y, z + r)
             };
 
             for (Location p : perimeter) {

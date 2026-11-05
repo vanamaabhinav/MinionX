@@ -4,7 +4,7 @@ import com.minionx.MinionX;
 import com.minionx.core.Minion;
 import com.minionx.core.OfflineCoordinator;
 import com.minionx.gui.MinionGUI;
-import com.minionx.hook.IslandHookManager;
+import com.minionx.hook.ProtectionHookManager;
 import com.minionx.util.ColorUtil;
 import com.minionx.visual.MinionHologram;
 import com.minionx.visual.MinionVisual;
@@ -54,8 +54,8 @@ public class MinionInteractListener implements Listener {
             return;
         }
 
-        // Check island/owner access permissions
-        if (!IslandHookManager.canAccessMinion(player, minion)) {
+        // Check protection/owner access permissions
+        if (!ProtectionHookManager.canAccessMinion(player, minion)) {
             String noAccessMsg = MinionX.getInstance().getMessage(
                     "no-minion-access-permission", "&cYou do not have permission to access this minion!");
             player.sendMessage(ColorUtil.color(noAccessMsg));
