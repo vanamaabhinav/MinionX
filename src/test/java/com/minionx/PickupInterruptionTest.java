@@ -87,9 +87,9 @@ public class PickupInterruptionTest {
         try (MinionStorage restartStorage = new MinionStorage(null, tempDir)) {
             List<PendingOperation> pending = restartStorage.getPendingOperations();
             assertEquals(1, pending.size());
-            assertEquals(operationId, pending.getFirst().operationId());
-            assertEquals(minionId, pending.getFirst().minionId());
-            assertEquals("PICKUP_PENDING", pending.getFirst().state());
+            assertEquals(operationId, pending.get(0).operationId());
+            assertEquals(minionId, pending.get(0).minionId());
+            assertEquals("PICKUP_PENDING", pending.get(0).state());
 
             // 4. Verify quarantined minion is not registered into active manager
             MinionManager restartManager = new MinionManager();
@@ -135,8 +135,8 @@ public class PickupInterruptionTest {
 
             List<PendingOperation> remaining = storage.getPendingOperations();
             assertEquals(1, remaining.size());
-            assertEquals(opB, remaining.getFirst().operationId());
-            assertEquals(minionB, remaining.getFirst().minionId());
+            assertEquals(opB, remaining.get(0).operationId());
+            assertEquals(minionB, remaining.get(0).minionId());
         }
     }
 
@@ -255,9 +255,9 @@ public class PickupInterruptionTest {
 
         List<PendingOperation> pending = dbStorage.getPendingOperations();
         assertEquals(1, pending.size());
-        assertEquals(opId, pending.getFirst().operationId());
-        assertEquals(minionId, pending.getFirst().minionId());
-        assertEquals(playerUuid, pending.getFirst().playerUuid());
-        assertEquals("PICKUP_PENDING", pending.getFirst().state());
+        assertEquals(opId, pending.get(0).operationId());
+        assertEquals(minionId, pending.get(0).minionId());
+        assertEquals(playerUuid, pending.get(0).playerUuid());
+        assertEquals("PICKUP_PENDING", pending.get(0).state());
     }
 }

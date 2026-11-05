@@ -683,7 +683,7 @@ public class MinionTickTask extends BukkitRunnable {
 
         // 4. Advance growth of growing crops
         if (!growingCrops.isEmpty()) {
-            advanceCropGrowth(minion, growingCrops.getFirst());
+            advanceCropGrowth(minion, growingCrops.get(0));
             return;
         }
 
@@ -824,7 +824,7 @@ public class MinionTickTask extends BukkitRunnable {
         }
 
         if (!growingStems.isEmpty()) {
-            Block target = growingStems.getFirst();
+            Block target = growingStems.get(0);
             if (target.getBlockData() instanceof Ageable ageable) {
                 ageable.setAge(Math.min(7, ageable.getAge() + 2));
                 target.setBlockData(ageable);
@@ -1052,7 +1052,7 @@ public class MinionTickTask extends BukkitRunnable {
         }
 
         if (minion.wasLastActionPlace() && !harvestableMushrooms.isEmpty()) {
-            Block target = harvestableMushrooms.getFirst();
+            Block target = harvestableMushrooms.get(0);
             MinionAnimation.playMineAnimation(minion, target);
             target.setType(Material.AIR);
 
@@ -1063,7 +1063,7 @@ public class MinionTickTask extends BukkitRunnable {
             minion.setState(MinionState.IDLE);
             MinionHologram.updateHologram(minion);
         } else if (!plantableSpots.isEmpty()) {
-            Block target = plantableSpots.getFirst();
+            Block target = plantableSpots.get(0);
             target.setType(mushroomMat);
             MinionAnimation.playPlaceAnimation(minion, target);
 
@@ -1072,7 +1072,7 @@ public class MinionTickTask extends BukkitRunnable {
             minion.setState(MinionState.IDLE);
             MinionHologram.updateHologram(minion);
         } else if (!harvestableMushrooms.isEmpty()) {
-            Block target = harvestableMushrooms.getFirst();
+            Block target = harvestableMushrooms.get(0);
             MinionAnimation.playMineAnimation(minion, target);
             target.setType(Material.AIR);
 
@@ -1189,7 +1189,7 @@ public class MinionTickTask extends BukkitRunnable {
         // 2. Once pen reaches cap (or if no spawn space), SLAUGHTER A MOB IN RANGE
         if (!inRangeMobs.isEmpty()) {
             updateObstructionState(minion, isPartiallyObstructed);
-            Entity target = inRangeMobs.getFirst();
+            Entity target = inRangeMobs.get(0);
             minion.untrackSpawnedMob(target.getUniqueId());
             MinionAnimation.playMineAnimation(minion, target.getLocation().getBlock());
             target.remove();
@@ -1421,7 +1421,7 @@ public class MinionTickTask extends BukkitRunnable {
 
     private static <T> T getRandomElement(List<T> list) {
         if (list == null || list.isEmpty()) return null;
-        if (list.size() == 1) return list.getFirst();
+        if (list.size() == 1) return list.get(0);
         return list.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(list.size()));
     }
 

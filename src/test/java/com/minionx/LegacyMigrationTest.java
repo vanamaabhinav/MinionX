@@ -206,10 +206,10 @@ public class LegacyMigrationTest {
 
         // Internal inventory items snapshot
         assertEquals(1, snapshot.serializedInventoryItems().size());
-        assertTrue(snapshot.serializedInventoryItems().getFirst().contains("DIAMOND"));
+        assertTrue(snapshot.serializedInventoryItems().get(0).contains("DIAMOND"));
 
         // Linked chest items snapshot
         assertEquals(1, snapshot.serializedStorageItems().size());
-        assertTrue(snapshot.serializedStorageItems().getFirst().contains("DIAMOND"));
+        assertTrue(snapshot.serializedStorageItems().get(0).contains("DIAMOND"));
     }
 }

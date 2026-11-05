@@ -33,7 +33,7 @@ public class MinionStoragesAndQuarantineTest {
         // 0-indexed center is 13
         List<Integer> slots1 = SymmetricalSlotCalculator.getSlots(1);
         assertEquals(1, slots1.size());
-        assertEquals(13, slots1.getFirst());
+        assertEquals(13, slots1.get(0));
 
         // Capacity 3: centered symmetrically [12, 13, 14]
         List<Integer> slots3 = SymmetricalSlotCalculator.getSlots(3);
@@ -98,14 +98,14 @@ public class MinionStoragesAndQuarantineTest {
         boolean added1 = minion.addItem(new ItemStack(Material.COBBLESTONE, 64));
         assertTrue(added1);
         assertEquals(1, minion.getInventory().size());
-        assertEquals(64, minion.getInventory().getFirst().getAmount());
+        assertEquals(64, minion.getInventory().get(0).getAmount());
         assertEquals(0, minion.getStorageContents().size());
 
         // Add 32 more cobblestone -> internal full, overflows into linked storage chest!
         boolean added2 = minion.addItem(new ItemStack(Material.COBBLESTONE, 32));
         assertTrue(added2);
         assertEquals(1, minion.getStorageContents().size());
-        assertEquals(32, minion.getStorageContents().getFirst().getAmount());
+        assertEquals(32, minion.getStorageContents().get(0).getAmount());
 
         // Unlink storage
         minion.unlinkStorage();

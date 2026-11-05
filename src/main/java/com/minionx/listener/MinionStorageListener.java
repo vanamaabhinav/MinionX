@@ -150,7 +150,7 @@ public class MinionStorageListener implements Listener {
         }
 
         // Resolve multi-minion placement: pick the one the player is facing / closest to
-        Minion targetMinion = unlinked.getFirst();
+        Minion targetMinion = unlinked.get(0);
         if (unlinked.size() > 1) {
             double bestAngle = Double.MAX_VALUE;
             Location eye = player.getEyeLocation();

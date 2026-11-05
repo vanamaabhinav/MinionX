@@ -169,7 +169,7 @@ public class PhaseTwoHardeningTest {
         }
 
         assertEquals(1, recoveredItems.size());
-        assertEquals("EMERALD:64", recoveredItems.getFirst());
+        assertEquals("EMERALD:64", recoveredItems.get(0));
     }
 
     public static class MockEconomyResponse {

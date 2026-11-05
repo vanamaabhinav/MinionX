@@ -296,8 +296,8 @@ public class CombatScalingAndEnchantedUpgradesTest {
         }
 
         assertEquals(1, inRange.size(), "Exactly 1 mob must be detected in range");
-        assertEquals(51.0, inRange.getFirst()[0]);
-        assertEquals(51.0, inRange.getFirst()[2]);
+        assertEquals(51.0, inRange.get(0)[0]);
+        assertEquals(51.0, inRange.get(0)[2]);
     }
 
     @Test

@@ -80,7 +80,7 @@ public class CustomEventsTest {
         // Modify drops & XP
         event.setDrops(List.of(new ItemStack(Material.DIAMOND_BLOCK, 1)));
         event.setXpGained(10);
-        assertEquals(Material.DIAMOND_BLOCK, event.getDrops().getFirst().getType());
+        assertEquals(Material.DIAMOND_BLOCK, event.getDrops().get(0).getType());
         assertEquals(10, event.getXpGained());
 
         assertFalse(event.isCancelled());
@@ -161,7 +161,7 @@ public class CustomEventsTest {
         assertSame(player, event.getPlayer());
         assertSame(minion, event.getMinion());
         assertEquals(1, event.getCollectedItems().size());
-        assertEquals(Material.DIAMOND, event.getCollectedItems().getFirst().getType());
+        assertEquals(Material.DIAMOND, event.getCollectedItems().get(0).getType());
         assertEquals(12, event.getXpCollected());
 
         event.setXpCollected(24);

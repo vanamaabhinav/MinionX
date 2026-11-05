@@ -85,8 +85,8 @@ public class AutoSellerAndCustomPricesTest {
 
         assertEquals(160.0, PriceRegistry.getAllPrices().get("ENCHANTED_COBBLESTONE"), 0.001);
         assertEquals(1, PriceRegistry.getCustomPrices().size());
-        assertEquals("ruby_crystal", PriceRegistry.getCustomPrices().getFirst().getId());
-        assertEquals(250.0, PriceRegistry.getCustomPrices().getFirst().getPrice(), 0.001);
+        assertEquals("ruby_crystal", PriceRegistry.getCustomPrices().get(0).getId());
+        assertEquals(250.0, PriceRegistry.getCustomPrices().get(0).getPrice(), 0.001);
     }
 
     @Test

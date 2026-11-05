@@ -40,7 +40,7 @@ public class NewMechanicsAndCompactorTest {
 
         // Add 18 Redstone dust
         minion.addItem(new ItemStack(Material.REDSTONE, 18));
-        assertEquals(18, minion.getInventory().getFirst().getAmount());
+        assertEquals(18, minion.getInventory().get(0).getAmount());
 
         // Process compaction
         CompressionManager.processCompaction(minion);
@@ -112,7 +112,7 @@ public class NewMechanicsAndCompactorTest {
 
         List<String> saved = manager.getPendingStoragePurgeLocations();
         assertEquals(1, saved.size());
-        assertEquals(locStr, saved.getFirst());
+        assertEquals(locStr, saved.get(0));
     }
 
     @Test

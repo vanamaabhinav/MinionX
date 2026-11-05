@@ -39,7 +39,7 @@ public class OfflineCalculatorTest {
 
         int produced = OfflineCalculator.processOfflineCatchup(minion);
         assertEquals(5, produced);
-        assertEquals(Material.STONE, minion.getInventory().getFirst().getType());
+        assertEquals(Material.STONE, minion.getInventory().get(0).getType());
     }
 
     @Test

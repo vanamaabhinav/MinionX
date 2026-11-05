@@ -38,14 +38,14 @@ public class PerformanceOptimizationsTest {
                 CompressionManager.getCompactorRecipesForMaterial(Material.REDSTONE);
         assertNotNull(redstoneCompactorRecipes);
         assertFalse(redstoneCompactorRecipes.isEmpty());
-        assertEquals(Material.REDSTONE, redstoneCompactorRecipes.getFirst().getInputMaterial());
+        assertEquals(Material.REDSTONE, redstoneCompactorRecipes.get(0).getInputMaterial());
 
         // Test Compactor recipes inverted index for DIAMOND
         List<CompressionManager.CompressionRecipe> diamondRecipes =
                 CompressionManager.getCompactorRecipesForMaterial(Material.DIAMOND);
         assertNotNull(diamondRecipes);
         assertFalse(diamondRecipes.isEmpty());
-        assertEquals(Material.DIAMOND, diamondRecipes.getFirst().getInputMaterial());
+        assertEquals(Material.DIAMOND, diamondRecipes.get(0).getInputMaterial());
 
         // Test non-compactible material yields empty list
         List<CompressionManager.CompressionRecipe> bedrockRecipes =

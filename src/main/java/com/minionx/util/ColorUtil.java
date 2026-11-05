@@ -15,25 +15,30 @@ public class ColorUtil {
     public static final String RAW_NAME = "&6&lMinion&c&lX&r";
 
     public static String color(String text) {
-        if (text == null) return "";
+        if (text == null)
+            return "";
         return ChatColor.translateAlternateColorCodes('&', text);
     }
 
     public static net.kyori.adventure.text.Component component(String text) {
-        if (text == null) return net.kyori.adventure.text.Component.empty();
-        return net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(color(text));
+        if (text == null)
+            return net.kyori.adventure.text.Component.empty();
+        return net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+                .deserialize(color(text));
     }
 
     public static String getPrefix() {
         if (com.minionx.MinionX.getInstance() != null) {
             String p = com.minionx.MinionX.getInstance().getMessage("prefix", PREFIX);
-            if (p != null) return color(p);
+            if (p != null)
+                return color(p);
         }
         return color(PREFIX);
     }
 
     public static List<String> color(List<String> list) {
-        if (list == null) return new ArrayList<>();
+        if (list == null)
+            return new ArrayList<>();
         List<String> colored = new ArrayList<>(list.size());
         for (String line : list) {
             colored.add(color(line));
@@ -42,13 +47,16 @@ public class ColorUtil {
     }
 
     public static org.bukkit.Color parseColor(Object value) {
-        if (value == null) return null;
-        if (value instanceof org.bukkit.Color c) return c;
+        if (value == null)
+            return null;
+        if (value instanceof org.bukkit.Color c)
+            return c;
         if (value instanceof Number n) {
             return org.bukkit.Color.fromRGB(n.intValue() & 0xFFFFFF);
         }
         String str = value.toString().trim();
-        if (str.isEmpty()) return null;
+        if (str.isEmpty())
+            return null;
 
         if (str.startsWith("#")) {
             str = str.substring(1);
@@ -64,7 +72,8 @@ public class ColorUtil {
                     int g = Math.max(0, Math.min(255, Integer.parseInt(parts[1].trim())));
                     int b = Math.max(0, Math.min(255, Integer.parseInt(parts[2].trim())));
                     return org.bukkit.Color.fromRGB(r, g, b);
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException ignored) {
+                }
             }
         }
 
@@ -72,14 +81,16 @@ public class ColorUtil {
             try {
                 int rgb = Integer.parseInt(str, 16);
                 return org.bukkit.Color.fromRGB(rgb);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         } else if (str.length() == 3) {
             try {
                 int r = Integer.parseInt(str.substring(0, 1) + str.substring(0, 1), 16);
                 int g = Integer.parseInt(str.substring(1, 2) + str.substring(1, 2), 16);
                 int b = Integer.parseInt(str.substring(2, 3) + str.substring(2, 3), 16);
                 return org.bukkit.Color.fromRGB(r, g, b);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
 
         return switch (str.toUpperCase()) {
@@ -108,7 +119,8 @@ public class ColorUtil {
     }
 
     public static String toHexString(org.bukkit.Color color) {
-        if (color == null) return "#FFFFFF";
+        if (color == null)
+            return "#FFFFFF";
         return String.format("#%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue());
     }
 }
