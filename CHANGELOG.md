@@ -77,12 +77,27 @@ All notable changes to **MinionX** are documented in this file.
 
 ---
 
+#### 10. 3-Phase Verification & Remediation (Core, Protection, API/GUI)
+- **Phase 1: Core Engine & Data Integrity**:
+  - **Cross-Java Compatibility**: Replaced Java 21-only `Math.clamp` calls across 15 classes with `Math.max(min, Math.min(max, val))`, guaranteeing compile and runtime compatibility across Java 17, 21, and future LTS releases.
+  - **Configurable Offline Catchup Cap**: Added `settings.max-offline-hours: 168` (7 days default) in `config.yml` with `-1` unlimited support, `0` disabled toggle, and `minionx.offline.unlimited` permission bypass.
+  - **Quarantine Auto-Recovery**: Added optional `settings.quarantine-auto-recovery` (disabled by default) with configurable ping interval (default 60s) and automatic lifting of storage quarantine once database connectivity is restored.
+- **Phase 2: External Ecosystem & Multi-Region Protection**:
+  - **WorldGuard 7.x Instance Handle**: Corrected static instance passing in `ProtectionHookManager.java` for `wrapPlayer(Player)`.
+  - **9-Point Perimeter Area Verification**: Wired minion placement to validate all 8 perimeter boundary blocks of the minion's working radius (in addition to the center block), completely preventing border griefing into neighboring claims.
+  - **Expanded Custom Item Ecosystem**: Added reflection hooks for Oraxen (`oraxen:item_id`) and Nexo (`nexo:item_id`) with safe fallbacks alongside ItemsAdder, MMOItems, and EcoItems.
+  - **Vault Economy Test Coverage**: Created comprehensive `EconomyHookTest` verifying deposit results, balance lookups, and transaction failures.
+- **Phase 3: Developer API, In-Game Tooling & Release**:
+  - **GUI Anti-Dupe Click Debounce**: Added a 75ms click debounce in `MinionGUIListener.java` and `OperatorGUIListener.java` to prevent autoclicker/packet spam duplication exploits.
+  - **Custom Events Contract Verification**: Added `CustomEventsTest` verifying all 8 custom events (`MinionPlaceEvent`, `MinionPickupEvent`, `MinionHarvestEvent`, `MinionUpgradeEvent`, `MinionStorageLinkEvent`, `MinionQuarantineEvent`, `MinionFuelConsumeEvent`, and `MinionCollectionEvent`).
+  - **Javadoc Doclint Remediation**: Fixed bare ampersands and unescaped HTML entities in Javadoc across `MinionTickTask.java`, `PlayerLimitManager.java`, `UpgradeCreatorGUI.java`, `GeyserHook.java`, `SkillHook.java`, and `ColorUtil.java`, achieving 100% clean `javadoc -Xdoclint:all,-missing` compilation.
+
 ### Verification & Technical Metrics
-- **Test Suite**: 264 unit tests passed across 37 test classes (`100% pass rate`).
+- **Test Suite**: 281 unit tests passed across 40 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac 21 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
 - **Documentation Checks**: Validated with `javadoc 21 -Xdoclint:all,-missing` (**0 errors, 0 warnings**).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
-- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (501,663 bytes).
+- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (505,260 bytes).
 
 ---
 
