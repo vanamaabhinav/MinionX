@@ -92,12 +92,23 @@ All notable changes to **MinionX** are documented in this file.
   - **Custom Events Contract Verification**: Added `CustomEventsTest` verifying all 8 custom events (`MinionPlaceEvent`, `MinionPickupEvent`, `MinionHarvestEvent`, `MinionUpgradeEvent`, `MinionStorageLinkEvent`, `MinionQuarantineEvent`, `MinionFuelConsumeEvent`, and `MinionCollectionEvent`).
   - **Javadoc Doclint Remediation**: Fixed bare ampersands and unescaped HTML entities in Javadoc across `MinionTickTask.java`, `PlayerLimitManager.java`, `UpgradeCreatorGUI.java`, `GeyserHook.java`, `SkillHook.java`, and `ColorUtil.java`, achieving 100% clean `javadoc -Xdoclint:all,-missing` compilation.
 
+#### 11. In-Game Creator Studio Audit & Configurable Multi-Item Tier Upgrades
+- **Configurable Multi-Item Tier Upgrades (`UpgradeRequirement` & `UpgradeCostHelper`)**: Introduced `UpgradeRequirement` allowing server administrators to configure multiple distinct item requirements per minion tier upgrade in `minions.yml` and `tiers.yml` with custom display names, quantities, custom model data, and PersistentDataContainer keys.
+- **Interactive Upgrade Checklist GUI (`MinionGUI` & `MinionGUIListener`)**: Dynamic multi-item checklist in next-tier and quick-upgrade icons showing item name, required count, and real-time inventory count with colorized status (`§a✔ Have: X/Y` / `§c✘ Have: X/Y`), missing items breakdown upon failed upgrade, and atomic multi-item inventory consumption.
+- **In-Game Creator Studio Security & Polish (`MinionCreatorListener`)**: Added 75ms click debouncing across all creator studios, replaced unbounded chat input maps with 60-second expiring `PromptSession` handlers, supported chat cancellation without reopen, and unblocked player inventory navigation (`slot >= 54`).
+- **Defensive ID Sanitization & Numeric Bounding**: Standardized regex `[^a-z0-9_-]+` ID sanitization across all creator sessions (`MinionCreatorSession`, `MinionSkinCreatorSession`, `MinionStorageCreatorSession`, `FuelCreatorSession`, `UpgradeCreatorSession`), enforced 32-character caps, bounded fuel speed buff multipliers to `[0.01, 10.0]`, and capped tier additions to max tier 54 in `TierEditorListener`.
+- **Live Armor Stand Refresh (`MinionManager.refreshMinionVisuals`)**: Automatically refreshes armor stand equipment and text holograms for all loaded active minions across all worlds when creator studio modifications are saved.
+- **Dual-Mode Head Texture Resolution (`MinionCreatorGUI` & `MinionSkinCreatorGUI`)**: Distinguishes Base64 skin payloads from Minecraft usernames (`^[a-zA-Z0-9_]{3,16}$`) using `SkullUtil.applySkin(meta, value)` for textures and `setOwningPlayer` for player names.
+- **Defensive Directory Creation (`MinionTier`, `MinionRegistry`, `FuelRegistry`)**: Added `file.getParentFile().mkdirs()` checks ensuring clean first-time directory creation when saving custom definitions.
+- **Zero Unnecessary Files**: Removed legacy `.bak` files and Python bytecode caches.
+
 ### Verification & Technical Metrics
-- **Test Suite**: 281 unit tests passed across 40 test classes (`100% pass rate`).
-- **Compiler Checks**: Compiled with `javac 21 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
-- **Documentation Checks**: Validated with `javadoc 21 -Xdoclint:all,-missing` (**0 errors, 0 warnings**).
+- **Test Suite**: 287 unit tests passed across 41 test classes (`100% pass rate`).
+- **Compiler Checks**: Compiled with `javac --release 17 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
+- **Documentation Checks**: Validated with `javadoc -Xdoclint:all,-missing` (**0 errors, 0 warnings**).
+- **Bytecode Verification**: Verified `Major Version 61.0` (Java 17 target).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
-- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (505,260 bytes).
+- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (515,423 bytes).
 
 ---
 

@@ -41,7 +41,26 @@ import java.util.function.Consumer;
 @SuppressWarnings("deprecation")
 public class MinionCreatorListener implements Listener {
 
-    public static final Map<UUID, Consumer<String>> PENDING_PROMPTS = new ConcurrentHashMap<>();
+    public static class PromptSession {
+        private final Consumer<String> action;
+        private final long createdAt;
+
+        public PromptSession(Consumer<String> action) {
+            this.action = action;
+            this.createdAt = System.currentTimeMillis();
+        }
+
+        public boolean isExpired(long timeoutMillis) {
+            return (System.currentTimeMillis() - createdAt) > timeoutMillis;
+        }
+
+        public Consumer<String> getAction() {
+            return action;
+        }
+    }
+
+    public static final Map<UUID, PromptSession> PENDING_PROMPTS = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> clickDebounce = new ConcurrentHashMap<>();
 
     private static final Material[] ARMOR_PRESETS = {
             Material.LEATHER_CHESTPLATE,
@@ -137,6 +156,18 @@ public class MinionCreatorListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        Long lastClick = clickDebounce.get(player.getUniqueId());
+        if (lastClick != null && (now - lastClick) < 75L) {
+            event.setCancelled(true);
+            return;
+        }
+        clickDebounce.put(player.getUniqueId(), now);
+
         if (event.getInventory().getHolder() instanceof MinionSkinCreatorHolder skinHolder) {
             handleSkinCreatorClick(event, (Player) event.getWhoClicked(), skinHolder.getSession());
             return;
@@ -158,10 +189,6 @@ public class MinionCreatorListener implements Listener {
             return;
         }
         if (!(event.getInventory().getHolder() instanceof MinionCreatorHolder holder)) {
-            return;
-        }
-
-        if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
 
@@ -745,6 +772,9 @@ public class MinionCreatorListener implements Listener {
         player.closeInventory();
         MinionDefinition def = session.buildDefinition();
         MinionRegistry.saveCustomMinion(def);
+        if (MinionX.getInstance() != null && MinionX.getInstance().getMinionManager() != null) {
+            MinionX.getInstance().getMinionManager().refreshMinionVisuals(def.getId());
+        }
 
         ItemStack item = MinionItemFactory.createCustomMinionItem(def, tier, 0);
         giveItemSafely(player, item);
@@ -760,35 +790,69 @@ public class MinionCreatorListener implements Listener {
         player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&e" + message));
         player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
 
-        PENDING_PROMPTS.put(player.getUniqueId(), input -> {
-            if (!"cancel".equalsIgnoreCase(input.trim())) {
-                action.accept(input);
-            }
+        PENDING_PROMPTS.put(player.getUniqueId(), new PromptSession(input -> {
+            action.accept(input);
             Bukkit.getScheduler().runTask(MinionX.getInstance(), () -> {
                 MinionCreatorGUI.open(player, session);
             });
-        });
+        }));
     }
 
     @EventHandler
     public void onChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
-        Consumer<String> callback = PENDING_PROMPTS.remove(player.getUniqueId());
-        if (callback != null) {
+        PromptSession session = PENDING_PROMPTS.remove(player.getUniqueId());
+        if (session != null) {
             event.setCancelled(true);
-            callback.accept(event.getMessage());
+            if (session.isExpired(60_000L)) {
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&cInput prompt timed out (60s). Please try again."));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
+            }
+            String message = event.getMessage().trim();
+            if ("cancel".equalsIgnoreCase(message)) {
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&ePrompt cancelled."));
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.0f);
+                return;
+            }
+            session.getAction().accept(message);
+        }
+    }
+
+    @EventHandler
+    public void onCommand(org.bukkit.event.player.PlayerCommandPreprocessEvent event) {
+        if (PENDING_PROMPTS.remove(event.getPlayer().getUniqueId()) != null) {
+            event.getPlayer().sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&ePrompt cancelled due to command execution."));
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
+        if (event.getPlayer() instanceof Player player) {
+            clickDebounce.remove(player.getUniqueId());
         }
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         PENDING_PROMPTS.remove(event.getPlayer().getUniqueId());
+        clickDebounce.remove(event.getPlayer().getUniqueId());
+    }
+
+    public static void clearPrompts() {
+        PENDING_PROMPTS.clear();
     }
 
     private void handleSkinCreatorClick(InventoryClickEvent event, Player player, MinionSkinCreatorSession session) {
-        event.setCancelled(true);
         int slot = event.getRawSlot();
-        if (slot < 0 || slot >= 54) return;
+        if (slot >= 54) {
+            if (event.isShiftClick()) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+        event.setCancelled(true);
+        if (slot < 0) return;
         ItemStack cursor = event.getCursor();
 
         if (slot == 2) {
@@ -932,9 +996,15 @@ public class MinionCreatorListener implements Listener {
     }
 
     private void handleStorageCreatorClick(InventoryClickEvent event, Player player, MinionStorageCreatorSession session) {
-        event.setCancelled(true);
         int slot = event.getRawSlot();
-        if (slot < 0 || slot >= 54) return;
+        if (slot >= 54) {
+            if (event.isShiftClick()) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+        event.setCancelled(true);
+        if (slot < 0) return;
 
         if (slot == 0) {
             player.closeInventory();
@@ -1207,9 +1277,15 @@ public class MinionCreatorListener implements Listener {
     }
 
     private void handleUpgradeCreatorClick(InventoryClickEvent event, Player player, UpgradeCreatorSession session) {
-        event.setCancelled(true);
         int slot = event.getRawSlot();
-        if (slot < 0 || slot >= 54) return;
+        if (slot >= 54) {
+            if (event.isShiftClick()) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+        event.setCancelled(true);
+        if (slot < 0) return;
         ItemStack cursor = event.getCursor();
 
         // Slot 45 or 48: Cancel & Return
@@ -1358,14 +1434,12 @@ public class MinionCreatorListener implements Listener {
         player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&e" + message));
         player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
 
-        PENDING_PROMPTS.put(player.getUniqueId(), input -> {
-            if (!"cancel".equalsIgnoreCase(input.trim())) {
-                action.accept(input);
-            }
+        PENDING_PROMPTS.put(player.getUniqueId(), new PromptSession(input -> {
+            action.accept(input);
             if (reopen != null) {
                 Bukkit.getScheduler().runTask(MinionX.getInstance(), reopen);
             }
-        });
+        }));
     }
 
     private void giveItemSafely(Player player, ItemStack item) {

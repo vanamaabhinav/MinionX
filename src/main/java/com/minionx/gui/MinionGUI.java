@@ -53,7 +53,7 @@ public class MinionGUI {
 
         inv.setItem(MinionGUIConfig.getIdealLayoutSlot(), createIdealLayoutItem(minion));
         inv.setItem(MinionGUIConfig.getHeadSlot(), createHeadItem(minion));
-        inv.setItem(MinionGUIConfig.getNextTierSlot(), createNextTierInfoItem(minion));
+        inv.setItem(MinionGUIConfig.getNextTierSlot(), createNextTierInfoItem(minion, player));
 
         // Left Column: Modifiers & Automation (Colored Panes or Background Panes if Disabled)
         // Slot 10: Minion Skin
@@ -123,7 +123,7 @@ public class MinionGUI {
 
         // Bottom Row: Quick Actions
         inv.setItem(MinionGUIConfig.getCollectAllSlot(), createCollectAllItem(minion));
-        inv.setItem(MinionGUIConfig.getUpgradeTierSlot(), createQuickUpgradeItem(minion));
+        inv.setItem(MinionGUIConfig.getUpgradeTierSlot(), createQuickUpgradeItem(minion, player));
         inv.setItem(MinionGUIConfig.getPickupSlot(), createPickupItem());
 
         player.openInventory(inv);
@@ -203,6 +203,10 @@ public class MinionGUI {
     }
 
     private static ItemStack createNextTierInfoItem(Minion minion) {
+        return createNextTierInfoItem(minion, null);
+    }
+
+    private static ItemStack createNextTierInfoItem(Minion minion, Player player) {
         int currentTier = minion.getTier();
         if (currentTier >= minion.getMaxTier()) {
             return createNamedItem(Material.BEDROCK, ColorUtil.color("&cMax Tier Reached"),
@@ -217,16 +221,24 @@ public class MinionGUI {
         int curCap = minion.getMaxCapacity();
         int nextCap = def != null ? def.getMaxCapacity(nextTier) : MinionTier.getMaxCapacity(nextTier);
 
-        UpgradeCostHelper.Requirement req = UpgradeCostHelper.getRequirement(minion);
-        String costDisplay = req.getRequiredAmount() + "x " + req.getDisplayName();
+        List<UpgradeCostHelper.Requirement> reqs = UpgradeCostHelper.getRequirements(minion);
+        List<String> lore = new ArrayList<>();
+        lore.add(ColorUtil.color("&7Action Delay: &f" + String.format("%.1f", curDelay) + "s &8-> &a" + String.format("%.1f", nextDelay) + "s"));
+        lore.add(ColorUtil.color("&7Storage: &f" + curCap + " &8-> &a" + nextCap));
+        lore.add(ColorUtil.color("&7"));
+        lore.add(ColorUtil.color("&7Crafting Requirements:"));
+        for (UpgradeCostHelper.Requirement r : reqs) {
+            int have = player != null ? UpgradeCostHelper.countMatchingItems(player, r) : 0;
+            boolean met = have >= r.getRequiredAmount();
+            String icon = met ? "&a✔" : "&c✖";
+            String color = met ? "&a" : "&c";
+            lore.add(ColorUtil.color(" &7• " + color + r.getRequiredAmount() + "x " + r.getDisplayName()
+                    + (player != null ? " &7(Have: " + color + Math.min(have, r.getRequiredAmount()) + "&7/" + r.getRequiredAmount() + ") " + icon : "")));
+        }
+        lore.add(ColorUtil.color("&7"));
+        lore.add(ColorUtil.color("&eClick or use Quick-Upgrade below to upgrade!"));
 
-        return createNamedItem(Material.GOLD_INGOT, ColorUtil.color("&aNext Tier: &eTier " + MinionTier.toRoman(nextTier)),
-                List.of(ColorUtil.color("&7Action Delay: &f" + String.format("%.1f", curDelay) + "s &8-> &a" + String.format("%.1f", nextDelay) + "s"),
-                        ColorUtil.color("&7Storage: &f" + curCap + " &8-> &a" + nextCap),
-                        ColorUtil.color("&7"),
-                        ColorUtil.color("&7Crafting Cost: &e" + costDisplay),
-                        ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick or use Quick-Upgrade below to upgrade!")));
+        return createNamedItem(Material.GOLD_INGOT, ColorUtil.color("&aNext Tier: &eTier " + MinionTier.toRoman(nextTier)), lore);
     }
 
     private static ItemStack createEmptySkinPane() {
@@ -380,6 +392,10 @@ public class MinionGUI {
     }
 
     private static ItemStack createQuickUpgradeItem(Minion minion) {
+        return createQuickUpgradeItem(minion, null);
+    }
+
+    private static ItemStack createQuickUpgradeItem(Minion minion, Player player) {
         int currentTier = minion.getTier();
         if (currentTier >= minion.getMaxTier()) {
             return createNamedItem(Material.BEDROCK, ColorUtil.color("&cMax Tier Reached"),
@@ -388,17 +404,25 @@ public class MinionGUI {
         }
 
         int nextTier = currentTier + 1;
-        UpgradeCostHelper.Requirement req = UpgradeCostHelper.getRequirement(minion);
-        String costDisplay = req.getRequiredAmount() + "x " + req.getDisplayName();
+        List<UpgradeCostHelper.Requirement> reqs = UpgradeCostHelper.getRequirements(minion);
+        List<String> lore = new ArrayList<>();
+        lore.add(ColorUtil.color("&7Clicking this instantly levels up the"));
+        lore.add(ColorUtil.color("&7minion to &eTier " + MinionTier.toRoman(nextTier) + "&7, provided you have"));
+        lore.add(ColorUtil.color("&7the required resources in your personal inventory."));
+        lore.add(ColorUtil.color("&7"));
+        lore.add(ColorUtil.color("&7Required Items:"));
+        for (UpgradeCostHelper.Requirement r : reqs) {
+            int have = player != null ? UpgradeCostHelper.countMatchingItems(player, r) : 0;
+            boolean met = have >= r.getRequiredAmount();
+            String icon = met ? "&a✔" : "&c✖";
+            String color = met ? "&a" : "&c";
+            lore.add(ColorUtil.color(" &7• " + color + r.getRequiredAmount() + "x " + r.getDisplayName()
+                    + (player != null ? " &7(Have: " + color + Math.min(have, r.getRequiredAmount()) + "&7/" + r.getRequiredAmount() + ") " + icon : "")));
+        }
+        lore.add(ColorUtil.color("&7"));
+        lore.add(ColorUtil.color("&eClick to quick-upgrade!"));
 
-        return createNamedItem(Material.DIAMOND, ColorUtil.color("&aQuick-Upgrade Minion"),
-                List.of(ColorUtil.color("&7Clicking this instantly levels up the"),
-                        ColorUtil.color("&7minion to &eTier " + MinionTier.toRoman(nextTier) + "&7, provided you have"),
-                        ColorUtil.color("&7the required resources in your personal inventory."),
-                        ColorUtil.color("&7"),
-                        ColorUtil.color("&7Required: &e" + costDisplay),
-                        ColorUtil.color("&7"),
-                        ColorUtil.color("&eClick to quick-upgrade!")));
+        return createNamedItem(Material.DIAMOND, ColorUtil.color("&aQuick-Upgrade Minion"), lore);
     }
 
     private static ItemStack createPickupItem() {

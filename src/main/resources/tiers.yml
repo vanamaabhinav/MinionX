@@ -9,7 +9,15 @@
 #                    Lower values mean faster resource production.
 #   storage-slots  - Number of unlocked inventory slots in the Minion GUI (from 1 up to 15 slots).
 #                    Can be expanded further up to 27 slots with external Minion Storage chests!
-#   upgrade-cost   - Quantity of items required to upgrade to the NEXT tier.
+#   upgrade-cost   - Quantity of items required to upgrade to the NEXT tier (legacy single item).
+#   upgrade-requirements - (Optional) List of explicit item requirements needed to upgrade to the NEXT tier.
+#                    Allows requiring MULTIPLE distinct items, custom display names, and quantities:
+#                    upgrade-requirements:
+#                      - item: COBBLESTONE
+#                        amount: 160
+#                        display-name: "&fCobblestone"
+#                      - item: COAL
+#                        amount: 32
 #
 # ==============================================================================
 

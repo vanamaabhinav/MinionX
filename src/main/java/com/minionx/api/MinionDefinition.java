@@ -48,6 +48,10 @@ public class MinionDefinition {
         public TierData(double actionDelay, int storageSlots, int upgradeCost) {
             super(actionDelay, storageSlots, upgradeCost);
         }
+
+        public TierData(double actionDelay, int storageSlots, int upgradeCost, List<UpgradeRequirement> requirements) {
+            super(actionDelay, storageSlots, upgradeCost, requirements);
+        }
     }
 
     public static class DropEntry {

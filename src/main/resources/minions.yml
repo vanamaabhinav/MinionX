@@ -44,6 +44,8 @@
 #   - If omitted, the minion adopts the global statistics defined in tiers.yml.
 #   - If defined under a minion, it completely customizes action delays, storage
 #     slots, and upgrade costs specifically for that individual minion type.
+#   - Supports `upgrade-requirements` list to require MULTIPLE distinct item ingredients,
+#     custom display names, and exact quantities per tier!
 #
 # Equipment & Visuals (Global Defaults):
 #   skull-texture: "<BASE64_OR_PLAYER_NAME>" # Default head if no tier override is defined
@@ -143,6 +145,13 @@ custom-minions:
         action-delay: 24.0
         storage-slots: 3
         upgrade-cost: 128
+        upgrade-requirements:
+          - item: REDSTONE
+            amount: 128
+            display-name: "&cRedstone Dust"
+          - item: IRON_INGOT
+            amount: 16
+            display-name: "&fIron Ingot"
       3:
         action-delay: 22.0
         storage-slots: 4

@@ -373,4 +373,24 @@ public class MinionManager {
 
         return count;
     }
+
+    /**
+     * Refreshes armor stand equipment and holograms for all loaded active minions matching the definition ID.
+     *
+     * @param definitionId Minion definition identifier
+     * @return Number of refreshed active minions
+     */
+    public int refreshMinionVisuals(String definitionId) {
+        if (definitionId == null) return 0;
+        int count = 0;
+        for (Minion minion : activeLoadedMinions) {
+            com.minionx.api.MinionDefinition def = minion.getDefinition();
+            if (def != null && def.getId().equalsIgnoreCase(definitionId)) {
+                com.minionx.visual.MinionVisual.spawnOrUpdate(minion);
+                com.minionx.visual.MinionHologram.updateHologram(minion);
+                count++;
+            }
+        }
+        return count;
+    }
 }

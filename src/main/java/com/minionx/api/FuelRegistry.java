@@ -93,6 +93,9 @@ public class FuelRegistry {
 
         if (com.minionx.MinionX.getInstance() == null) return;
         java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "fuels.yml");
+        if (file.getParentFile() != null && !file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
         org.bukkit.configuration.file.YamlConfiguration config = file.exists()
                 ? org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file)
                 : new org.bukkit.configuration.file.YamlConfiguration();

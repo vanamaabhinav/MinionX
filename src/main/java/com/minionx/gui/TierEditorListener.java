@@ -38,10 +38,13 @@ public class TierEditorListener implements Listener {
 
     private static final Map<UUID, TierEditSession> SESSIONS = new ConcurrentHashMap<>();
     private static final Map<UUID, String> OVERVIEW_SESSIONS = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> clickDebounce = new ConcurrentHashMap<>();
 
     public static void setOverviewSession(UUID uuid, String minionId) {
-        if (minionId != null) OVERVIEW_SESSIONS.put(uuid, minionId);
-        else OVERVIEW_SESSIONS.remove(uuid);
+        if (minionId != null)
+            OVERVIEW_SESSIONS.put(uuid, minionId);
+        else
+            OVERVIEW_SESSIONS.remove(uuid);
     }
 
     public static String getOverviewSession(UUID uuid) {
@@ -64,16 +67,27 @@ public class TierEditorListener implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!(event.getWhoClicked() instanceof Player player))
+            return;
+
+        long now = System.currentTimeMillis();
+        Long lastClick = clickDebounce.get(player.getUniqueId());
+        if (lastClick != null && (now - lastClick) < 75L) {
+            event.setCancelled(true);
+            return;
+        }
+        clickDebounce.put(player.getUniqueId(), now);
 
         String title = event.getView().getTitle();
         if (title.equals(TierEditorGUI.OVERVIEW_TITLE) || title.startsWith(TierEditorGUI.MINION_OVERVIEW_PREFIX)) {
             event.setCancelled(true);
             int slot = event.getRawSlot();
-            if (slot < 0 || slot >= 54) return;
+            if (slot < 0 || slot >= 54)
+                return;
 
             String minionId = OVERVIEW_SESSIONS.get(player.getUniqueId());
-            com.minionx.api.MinionDefinition def = minionId != null ? com.minionx.api.MinionRegistry.get(minionId) : null;
+            com.minionx.api.MinionDefinition def = minionId != null ? com.minionx.api.MinionRegistry.get(minionId)
+                    : null;
             int maxTier = def != null ? def.getMaxTier() : MinionTier.getMaxTier();
 
             if (slot == 45) {
@@ -95,12 +109,14 @@ public class TierEditorListener implements Listener {
                     if (event.getClick() == ClickType.RIGHT || event.getClick() == ClickType.SHIFT_RIGHT) {
                         def.setMaxTier(Math.max(1, currentMax - 1));
                     } else {
-                        def.setMaxTier(currentMax + 1);
+                        def.setMaxTier(Math.min(54, currentMax + 1));
                     }
                     com.minionx.api.MinionRegistry.saveCustomMinion(def);
                     player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
-                    player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aUpdated max tier for &e" + def.getDisplayName() +
-                            " &ato &eTier " + MinionTier.toRoman(def.getMaxTier()) + " &7(" + def.getMaxTier() + ")&a!"));
+                    player.sendMessage(
+                            ColorUtil.getPrefix() + ColorUtil.color("&aUpdated max tier for &e" + def.getDisplayName() +
+                                    " &ato &eTier " + MinionTier.toRoman(def.getMaxTier()) + " &7(" + def.getMaxTier()
+                                    + ")&a!"));
                     TierEditorGUI.openOverview(player, minionId);
                     return;
                 }
@@ -114,7 +130,8 @@ public class TierEditorListener implements Listener {
 
                 MinionTier.saveTier(newTier, new MinionTier.TierData(newDelay, newSlots, newCost));
                 player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
-                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aCreated custom Tier &e" + newTier + " &a(&e" + MinionTier.toRoman(newTier) + "&a)!"));
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil
+                        .color("&aCreated custom Tier &e" + newTier + " &a(&e" + MinionTier.toRoman(newTier) + "&a)!"));
                 TierEditorGUI.openOverview(player);
                 return;
             }
@@ -124,7 +141,8 @@ public class TierEditorListener implements Listener {
                 if (def == null && event.isShiftClick() && event.isRightClick() && tier > 12) {
                     MinionTier.removeTier(tier);
                     player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_BREAK, 1.0f, 1.0f);
-                    player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&cRemoved custom Tier &e" + tier + " &cfrom tiers.yml."));
+                    player.sendMessage(ColorUtil.getPrefix()
+                            + ColorUtil.color("&cRemoved custom Tier &e" + tier + " &cfrom tiers.yml."));
                     TierEditorGUI.openOverview(player);
                     return;
                 }
@@ -135,7 +153,8 @@ public class TierEditorListener implements Listener {
             return;
         }
 
-        if (title.startsWith(TierEditorGUI.EDITOR_TITLE_PREFIX) || title.startsWith(TierEditorGUI.MINION_EDITOR_PREFIX)) {
+        if (title.startsWith(TierEditorGUI.EDITOR_TITLE_PREFIX)
+                || title.startsWith(TierEditorGUI.MINION_EDITOR_PREFIX)) {
             event.setCancelled(true);
             TierEditSession session = SESSIONS.get(player.getUniqueId());
             if (session == null) {
@@ -158,12 +177,17 @@ public class TierEditorListener implements Listener {
                 if (session.minionId != null) {
                     com.minionx.api.MinionRegistry.saveMinionTier(session.minionId, session.tier,
                             new MinionTier.TierData(session.delay, session.slots, session.cost));
-                    player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSuccessfully saved Tier &e" + MinionTier.toRoman(session.tier) +
-                            " &afor &e" + session.minionId + " &a(&e" + String.format("%.1f", session.delay) + "s&a, &e" + session.slots + " slots&a, &e" + session.cost + " items&a) to &fminions.yml&a!"));
+                    player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSuccessfully saved Tier &e"
+                            + MinionTier.toRoman(session.tier) +
+                            " &afor &e" + session.minionId + " &a(&e" + String.format("%.1f", session.delay) + "s&a, &e"
+                            + session.slots + " slots&a, &e" + session.cost + " items&a) to &fminions.yml&a!"));
                 } else {
-                    MinionTier.saveTier(session.tier, new MinionTier.TierData(session.delay, session.slots, session.cost));
-                    player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSuccessfully saved Tier &e" + MinionTier.toRoman(session.tier) +
-                            " &a(&e" + String.format("%.1f", session.delay) + "s&a, &e" + session.slots + " slots&a, &e" + session.cost + " items&a) to &ftiers.yml&a!"));
+                    MinionTier.saveTier(session.tier,
+                            new MinionTier.TierData(session.delay, session.slots, session.cost));
+                    player.sendMessage(ColorUtil.getPrefix()
+                            + ColorUtil.color("&aSuccessfully saved Tier &e" + MinionTier.toRoman(session.tier) +
+                                    " &a(&e" + String.format("%.1f", session.delay) + "s&a, &e" + session.slots
+                                    + " slots&a, &e" + session.cost + " items&a) to &ftiers.yml&a!"));
                 }
                 SESSIONS.remove(player.getUniqueId());
                 player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
@@ -173,49 +197,73 @@ public class TierEditorListener implements Listener {
 
             if (slot == 10) { // Action Delay
                 double delta = 0.0;
-                if (click == ClickType.LEFT) delta = -0.5;
-                else if (click == ClickType.RIGHT) delta = 0.5;
-                else if (click == ClickType.SHIFT_LEFT) delta = -0.1;
-                else if (click == ClickType.SHIFT_RIGHT) delta = 0.1;
+                if (click == ClickType.LEFT)
+                    delta = -0.5;
+                else if (click == ClickType.RIGHT)
+                    delta = 0.5;
+                else if (click == ClickType.SHIFT_LEFT)
+                    delta = -0.1;
+                else if (click == ClickType.SHIFT_RIGHT)
+                    delta = 0.1;
 
                 session.delay = Math.max(0.5, Math.round((session.delay + delta) * 10.0) / 10.0);
                 player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
-                TierEditorGUI.openEditor(player, session.minionId, session.tier, session.delay, session.slots, session.cost);
+                TierEditorGUI.openEditor(player, session.minionId, session.tier, session.delay, session.slots,
+                        session.cost);
                 return;
             }
 
             if (slot == 12) { // Storage Slots
                 int delta = 0;
-                if (click == ClickType.LEFT) delta = 1;
-                else if (click == ClickType.RIGHT) delta = -1;
-                else if (click == ClickType.SHIFT_LEFT) delta = 3;
-                else if (click == ClickType.SHIFT_RIGHT) delta = -3;
+                if (click == ClickType.LEFT)
+                    delta = 1;
+                else if (click == ClickType.RIGHT)
+                    delta = -1;
+                else if (click == ClickType.SHIFT_LEFT)
+                    delta = 3;
+                else if (click == ClickType.SHIFT_RIGHT)
+                    delta = -3;
 
                 session.slots = Math.max(1, Math.min(27, session.slots + delta));
                 player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
-                TierEditorGUI.openEditor(player, session.minionId, session.tier, session.delay, session.slots, session.cost);
+                TierEditorGUI.openEditor(player, session.minionId, session.tier, session.delay, session.slots,
+                        session.cost);
                 return;
             }
 
             if (slot == 14) { // Upgrade Cost
                 int delta = 0;
-                if (click == ClickType.LEFT) delta = 64;
-                else if (click == ClickType.RIGHT) delta = -64;
-                else if (click == ClickType.SHIFT_LEFT) delta = 512;
-                else if (click == ClickType.SHIFT_RIGHT) delta = -512;
+                if (click == ClickType.LEFT)
+                    delta = 64;
+                else if (click == ClickType.RIGHT)
+                    delta = -64;
+                else if (click == ClickType.SHIFT_LEFT)
+                    delta = 512;
+                else if (click == ClickType.SHIFT_RIGHT)
+                    delta = -512;
 
                 session.cost = Math.max(0, session.cost + delta);
                 player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
-                TierEditorGUI.openEditor(player, session.minionId, session.tier, session.delay, session.slots, session.cost);
+                TierEditorGUI.openEditor(player, session.minionId, session.tier, session.delay, session.slots,
+                        session.cost);
             }
         }
     }
 
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
+        clickDebounce.remove(event.getPlayer().getUniqueId());
         String title = event.getView().getTitle();
-        if (title.startsWith(TierEditorGUI.EDITOR_TITLE_PREFIX) || title.startsWith(TierEditorGUI.MINION_EDITOR_PREFIX)) {
+        if (title.startsWith(TierEditorGUI.EDITOR_TITLE_PREFIX)
+                || title.startsWith(TierEditorGUI.MINION_EDITOR_PREFIX)) {
             SESSIONS.remove(event.getPlayer().getUniqueId());
         }
+    }
+
+    @EventHandler
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+        clickDebounce.remove(event.getPlayer().getUniqueId());
+        SESSIONS.remove(event.getPlayer().getUniqueId());
+        OVERVIEW_SESSIONS.remove(event.getPlayer().getUniqueId());
     }
 }

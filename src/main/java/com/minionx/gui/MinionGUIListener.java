@@ -175,8 +175,16 @@ public class MinionGUIListener implements Listener {
             if (nextTier > minion.getMaxTier()) {
                 player.sendMessage(ColorUtil.color("&cThis minion is already at the maximum tier (" + MinionTier.toRoman(minion.getMaxTier()) + ")!"));
             } else {
-                UpgradeCostHelper.Requirement req = UpgradeCostHelper.getRequirement(minion);
-                player.sendMessage(ColorUtil.color("&e[Next Tier] Upgrade to Tier " + MinionTier.toRoman(nextTier) + " requires: &a" + req.getRequiredAmount() + "x " + req.getDisplayName() + " &7(Use Quick-Upgrade below!)"));
+                List<UpgradeCostHelper.Requirement> reqs = UpgradeCostHelper.getRequirements(minion);
+                if (reqs.size() == 1) {
+                    UpgradeCostHelper.Requirement req = reqs.get(0);
+                    player.sendMessage(ColorUtil.color("&e[Next Tier] Upgrade to Tier " + MinionTier.toRoman(nextTier) + " requires: &a" + req.getRequiredAmount() + "x " + req.getDisplayName() + " &7(Use Quick-Upgrade below!)"));
+                } else {
+                    player.sendMessage(ColorUtil.color("&e[Next Tier] Upgrade to Tier " + MinionTier.toRoman(nextTier) + " requires:"));
+                    for (UpgradeCostHelper.Requirement r : reqs) {
+                        player.sendMessage(ColorUtil.color("&7 - &a" + r.getRequiredAmount() + "x " + r.getDisplayName()));
+                    }
+                }
             }
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.2f);
             return;
@@ -499,15 +507,27 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
-        UpgradeCostHelper.Requirement req = UpgradeCostHelper.getRequirement(minion);
+        List<UpgradeCostHelper.Requirement> reqs = UpgradeCostHelper.getRequirements(minion);
 
-        if (!UpgradeCostHelper.hasEnoughItems(player, req)) {
-            String template = MinionX.getInstance().getMessage("not-enough-resources",
-                    MinionX.getInstance().getMessage("not-enough-items", "&cYou need %cost%x %material% to upgrade to Tier %tier%!"));
-            String msg = template.replace("%cost%", String.valueOf(req.getRequiredAmount()))
-                    .replace("%material%", req.getDisplayName())
-                    .replace("%tier%", MinionTier.toRoman(currentTier + 1));
-            player.sendMessage(ColorUtil.color(msg));
+        if (!UpgradeCostHelper.hasAllRequirements(player, reqs)) {
+            if (reqs.size() == 1) {
+                UpgradeCostHelper.Requirement req = reqs.get(0);
+                String template = MinionX.getInstance().getMessage("not-enough-resources",
+                        MinionX.getInstance().getMessage("not-enough-items", "&cYou need %cost%x %material% to upgrade to Tier %tier%!"));
+                String msg = template.replace("%cost%", String.valueOf(req.getRequiredAmount()))
+                        .replace("%material%", req.getDisplayName())
+                        .replace("%tier%", MinionTier.toRoman(currentTier + 1));
+                player.sendMessage(ColorUtil.color(msg));
+            } else {
+                player.sendMessage(ColorUtil.color("&cMissing required items to upgrade to Tier " + MinionTier.toRoman(currentTier + 1) + ":"));
+                for (UpgradeCostHelper.Requirement req : reqs) {
+                    int have = UpgradeCostHelper.countMatchingItems(player, req);
+                    if (have < req.getRequiredAmount()) {
+                        int needed = req.getRequiredAmount() - have;
+                        player.sendMessage(ColorUtil.color("&7 - &c" + needed + "x more " + req.getDisplayName()));
+                    }
+                }
+            }
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
@@ -520,7 +540,7 @@ public class MinionGUIListener implements Listener {
             return;
         }
 
-        UpgradeCostHelper.removeMatchingItems(player, req);
+        UpgradeCostHelper.removeAllRequirements(player, reqs);
         minion.setTier(currentTier + 1);
 
         MinionHologram.updateHologram(minion);

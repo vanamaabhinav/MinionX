@@ -346,11 +346,7 @@ public class MinionCreatorGUI {
         if (meta != null) {
             String texture = session.getEffectiveSkullTexture(session.getSelectedTier());
             if (texture != null && !texture.isEmpty()) {
-                try {
-                    PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
-                    profile.setProperty(new ProfileProperty("textures", texture));
-                    meta.setPlayerProfile(profile);
-                } catch (Exception ignored) {}
+                MinionSkinCreatorGUI.applyTexture(meta, texture);
             }
             meta.setDisplayName(ColorUtil.color(session.getDisplayName()));
 

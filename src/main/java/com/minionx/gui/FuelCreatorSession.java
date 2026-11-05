@@ -35,7 +35,7 @@ public class FuelCreatorSession {
     };
 
     public FuelCreatorSession(String id) {
-        this.id = id != null ? id.toLowerCase().replace(' ', '_') : "custom_fuel";
+        this.id = MinionCreatorSession.sanitizeId(id);
         this.displayName = "&e" + formatName(this.id);
         this.material = Material.BLAZE_POWDER;
         this.speedBuff = 0.20;
@@ -99,7 +99,7 @@ public class FuelCreatorSession {
     }
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id != null ? id.toLowerCase().replace(' ', '_') : "custom_fuel"; }
+    public void setId(String id) { this.id = MinionCreatorSession.sanitizeId(id); }
 
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
@@ -109,7 +109,7 @@ public class FuelCreatorSession {
 
     public double getSpeedBuff() { return speedBuff; }
     public void setSpeedBuff(double speedBuff) {
-        this.speedBuff = Math.max(0.01, Math.round(speedBuff * 100.0) / 100.0);
+        this.speedBuff = Math.max(0.01, Math.min(10.0, Math.round(speedBuff * 100.0) / 100.0));
     }
 
     public boolean isPermanent() { return permanent; }

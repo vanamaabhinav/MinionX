@@ -22,7 +22,7 @@ public class UpgradeCreatorSession {
     private List<String> lore;
 
     public UpgradeCreatorSession(String id) {
-        this.id = id != null ? id.toLowerCase() : "custom_upgrade";
+        this.id = MinionCreatorSession.sanitizeId(id);
         this.displayName = "&e" + capitalize(this.id);
         this.material = Material.HOPPER;
         this.behavior = CustomUpgrade.UpgradeBehavior.AUTO_SELLER;
@@ -38,7 +38,7 @@ public class UpgradeCreatorSession {
     }
 
     public void setId(String id) {
-        this.id = id != null ? id.toLowerCase() : "custom_upgrade";
+        this.id = MinionCreatorSession.sanitizeId(id);
     }
 
     public String getDisplayName() {

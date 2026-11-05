@@ -39,8 +39,15 @@ public class MinionCreatorSession {
     private int selectedTier;
     private final Map<Integer, MinionDefinition.TierStyle> tierStyles;
 
+    public static String sanitizeId(String raw) {
+        if (raw == null) return "custom_item";
+        String clean = raw.trim().toLowerCase().replaceAll("[^a-z0-9_-]+", "_").replaceAll("^_+|_+$", "");
+        if (clean.length() > 32) clean = clean.substring(0, 32).replaceAll("_+$", "");
+        return clean.isEmpty() ? "custom_item" : clean;
+    }
+
     public MinionCreatorSession(String id) {
-        this.id = id != null ? id.toLowerCase() : "custom_minion";
+        this.id = sanitizeId(id);
         this.displayName = "&a" + capitalize(this.id) + " Minion";
         this.archetype = MinionArchetype.MINER;
 
@@ -70,7 +77,7 @@ public class MinionCreatorSession {
     }
 
     public void setId(String id) {
-        this.id = id != null ? id.toLowerCase() : "custom_minion";
+        this.id = sanitizeId(id);
     }
 
     public String getDisplayName() {

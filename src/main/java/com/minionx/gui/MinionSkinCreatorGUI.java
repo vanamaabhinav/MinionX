@@ -130,9 +130,14 @@ public class MinionSkinCreatorGUI {
     public static void applyTexture(SkullMeta meta, String texture) {
         if (texture == null || texture.isEmpty()) return;
         try {
-            PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
-            profile.setProperty(new ProfileProperty("textures", texture));
-            meta.setPlayerProfile(profile);
+            if (texture.length() > 36 || texture.startsWith("ey")) {
+                PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
+                profile.setProperty(new ProfileProperty("textures", texture));
+                meta.setPlayerProfile(profile);
+            } else if (texture.matches("^[a-zA-Z0-9_]{3,16}$")) {
+                PlayerProfile profile = Bukkit.createProfile(texture);
+                meta.setPlayerProfile(profile);
+            }
         } catch (Throwable ignored) {}
     }
 

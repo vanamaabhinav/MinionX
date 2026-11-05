@@ -75,7 +75,6 @@ settings:
   # ============================================================================
   # QUARANTINE AUTO-RECOVERY
   # ============================================================================
-  # Explanatory guide for server administrators / buyers:
   # If your server experiences temporary database disconnects or MySQL connection pool
   # saturation, MinionX can automatically engage emergency quarantine mode to freeze
   # item collections and dismantle operations, preventing duplication glitches.

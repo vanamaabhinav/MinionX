@@ -21,7 +21,7 @@ public class MinionSkinCreatorSession {
     private List<String> description = new ArrayList<>();
 
     public MinionSkinCreatorSession(String id) {
-        this.id = id != null ? id : "custom_skin";
+        this.id = MinionCreatorSession.sanitizeId(id);
         this.displayName = "&e" + this.id;
         this.armorMaterial = Material.LEATHER_CHESTPLATE;
         this.leatherColor = Color.fromRGB(240, 180, 40); // Gold Yellow
@@ -29,7 +29,7 @@ public class MinionSkinCreatorSession {
     }
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(String id) { this.id = MinionCreatorSession.sanitizeId(id); }
 
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }

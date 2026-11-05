@@ -187,7 +187,14 @@ public class MinionRegistry {
                             double tDelay = tDataSec.getDouble("action-delay", MinionTier.getActionDelay(t));
                             int tSlots = tDataSec.getInt("storage-slots", MinionTier.getStorageSlots(t));
                             int tCost = tDataSec.getInt("upgrade-cost", MinionTier.getUpgradeCost(t));
-                            def.setTierData(t, new MinionTier.TierData(tDelay, tSlots, tCost));
+                            List<UpgradeRequirement> reqs = new ArrayList<>();
+                            if (tDataSec.isList("upgrade-requirements")) {
+                                for (Map<?, ?> rMap : tDataSec.getMapList("upgrade-requirements")) {
+                                    UpgradeRequirement r = UpgradeRequirement.fromConfig(rMap);
+                                    if (r != null) reqs.add(r);
+                                }
+                            }
+                            def.setTierData(t, new MinionTier.TierData(tDelay, tSlots, tCost, reqs));
                         }
                     } catch (NumberFormatException ignored) {}
                 }
@@ -202,6 +209,9 @@ public class MinionRegistry {
 
         if (MinionX.getInstance() == null) return;
         File file = new File(MinionX.getInstance().getDataFolder(), "minions.yml");
+        if (file.getParentFile() != null && !file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
         YamlConfiguration config = file.exists() ? YamlConfiguration.loadConfiguration(file) : new YamlConfiguration();
 
         String path = "custom-minions." + def.getId().toLowerCase();
@@ -233,6 +243,15 @@ public class MinionRegistry {
                 config.set(tPath + ".action-delay", entry.getValue().getActionDelay());
                 config.set(tPath + ".storage-slots", entry.getValue().getStorageSlots());
                 config.set(tPath + ".upgrade-cost", entry.getValue().getUpgradeCost());
+                if (entry.getValue().hasCustomRequirements()) {
+                    List<Map<String, Object>> rList = new ArrayList<>();
+                    for (UpgradeRequirement r : entry.getValue().getRequirements()) {
+                        rList.add(r.toConfigMap());
+                    }
+                    config.set(tPath + ".upgrade-requirements", rList);
+                } else {
+                    config.set(tPath + ".upgrade-requirements", null);
+                }
             }
         }
 

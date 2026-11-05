@@ -1,6 +1,8 @@
 package com.minionx.util;
 
 import com.minionx.api.MinionDefinition;
+import com.minionx.api.MinionTier;
+import com.minionx.api.UpgradeRequirement;
 import com.minionx.core.CompressionManager;
 import com.minionx.core.Minion;
 import org.bukkit.ChatColor;
@@ -8,11 +10,12 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.*;
+
 /**
  * Helper to compute and validate minion tier upgrade requirements.
- * Tiers 1-4 require regular drop items.
- * Big upgrades (Tier 5+ or costs >= 640) require Enchanted versions to fit
- * within a player's physical 36-slot inventory.
+ * Supports configurable multi-item upgrade requirement lists, custom item hooks,
+ * and automatic fallback to regular drop items or Enchanted Super Compactor items.
  */
 @SuppressWarnings("deprecation")
 public class UpgradeCostHelper {
@@ -23,13 +26,19 @@ public class UpgradeCostHelper {
         private final String displayName;
         private final int requiredAmount;
         private final CompressionManager.CompressionRecipe recipe;
+        private final UpgradeRequirement spec;
 
         public Requirement(boolean enchanted, Material material, String displayName, int requiredAmount, CompressionManager.CompressionRecipe recipe) {
+            this(enchanted, material, displayName, requiredAmount, recipe, null);
+        }
+
+        public Requirement(boolean enchanted, Material material, String displayName, int requiredAmount, CompressionManager.CompressionRecipe recipe, UpgradeRequirement spec) {
             this.enchanted = enchanted;
             this.material = material;
             this.displayName = displayName;
             this.requiredAmount = Math.max(1, requiredAmount);
             this.recipe = recipe;
+            this.spec = spec;
         }
 
         public boolean isEnchanted() {
@@ -51,24 +60,69 @@ public class UpgradeCostHelper {
         public CompressionManager.CompressionRecipe getRecipe() {
             return recipe;
         }
+
+        public UpgradeRequirement getSpec() {
+            return spec;
+        }
     }
 
+    /**
+     * Resolves the primary requirement for backward compatibility.
+     *
+     * @param minion Minion to evaluate
+     * @return Primary Requirement
+     */
     public static Requirement getRequirement(Minion minion) {
+        List<Requirement> reqs = getRequirements(minion);
+        return !reqs.isEmpty() ? reqs.get(0) : new Requirement(false, Material.COBBLESTONE, "cobblestone", 80, null);
+    }
+
+    /**
+     * Resolves all required items needed to upgrade the given minion to the next tier.
+     * Checks per-minion tier overrides first, then global tier definitions, and falls
+     * back to the Super Compactor / drop item calculation.
+     *
+     * @param minion Minion to evaluate
+     * @return List of Requirement items
+     */
+    public static List<Requirement> getRequirements(Minion minion) {
         if (minion == null) {
-            return new Requirement(false, Material.COBBLESTONE, "cobblestone", 80, null);
+            return Collections.singletonList(new Requirement(false, Material.COBBLESTONE, "cobblestone", 80, null));
         }
 
         int currentTier = minion.getTier();
+        MinionDefinition def = minion.getDefinition();
+
+        // 1. Check per-minion tier override for multi-item requirements
+        if (def != null) {
+            MinionTier.TierData customTierData = def.getTierData(currentTier);
+            if (customTierData != null && customTierData.hasCustomRequirements()) {
+                List<Requirement> list = new ArrayList<>();
+                for (UpgradeRequirement ur : customTierData.getRequirements()) {
+                    list.add(new Requirement(false, ur.getMaterial(), ur.getDisplayName(), ur.getAmount(), null, ur));
+                }
+                return list;
+            }
+        }
+
+        // 2. Check global tiers.yml for multi-item requirements
+        MinionTier.TierData globalTierData = MinionTier.getTierData(currentTier);
+        if (globalTierData != null && globalTierData.hasCustomRequirements()) {
+            List<Requirement> list = new ArrayList<>();
+            for (UpgradeRequirement ur : globalTierData.getRequirements()) {
+                list.add(new Requirement(false, ur.getMaterial(), ur.getDisplayName(), ur.getAmount(), null, ur));
+            }
+            return list;
+        }
+
+        // 3. Fallback: Standard drop / enchanted calculation
         int rawCost = minion.getUpgradeCost();
         Material mat = minion.getType() != null ? minion.getType().getDropMaterial() : Material.COBBLESTONE;
-        MinionDefinition def = minion.getDefinition();
         if (def != null && def.getExactDropItem() != null && def.getExactDropItem().getType() != Material.AIR) {
             mat = def.getExactDropItem().getType();
         }
 
         CompressionManager.CompressionRecipe recipe = CompressionManager.getRecipe(mat);
-
-        // Big upgrades (Tier 5+ or cost > 2000) require Enchanted versions
         boolean requireEnchanted = (currentTier >= 5 || rawCost > 2000);
 
         if (requireEnchanted) {
@@ -77,8 +131,6 @@ public class UpgradeCostHelper {
             if (rawCost <= 64 && currentTier >= 5) {
                 count = Math.max(1, rawCost);
             } else if (rawCost >= 1024) {
-                // Exponential tier progression (1024, 2048, 4096, 8192, 16384, 32768, 65536)
-                // Maps to clean powers of 2 (Tier 5: 8, Tier 6: 16, Tier 7: 32, Tier 8: 64, Tier 9: 128, Tier 10: 256, Tier 11: 512)
                 int standardCount = 8 * (1 << Math.min(10, currentTier - 5));
                 if (Math.abs(rawCost - (standardCount * 128)) < (standardCount * 64)) {
                     count = standardCount;
@@ -100,10 +152,10 @@ public class UpgradeCostHelper {
             if (name == null || name.isBlank()) {
                 name = ColorUtil.color("&aEnchanted " + formatName(mat));
             }
-            return new Requirement(true, mat, name, count, recipe);
+            return Collections.singletonList(new Requirement(true, mat, name, count, recipe));
         } else {
             String name = formatName(mat).toLowerCase();
-            return new Requirement(false, mat, name, rawCost, recipe);
+            return Collections.singletonList(new Requirement(false, mat, name, rawCost, recipe));
         }
     }
 
@@ -136,8 +188,34 @@ public class UpgradeCostHelper {
         return countMatchingItems(player, req) >= req.getRequiredAmount();
     }
 
+    /**
+     * Checks whether a player possesses all required items for an upgrade.
+     *
+     * @param player Player to inspect
+     * @param requirements List of item requirements
+     * @return true if all items are present in sufficient quantities
+     */
+    public static boolean hasAllRequirements(Player player, List<Requirement> requirements) {
+        if (player == null || requirements == null || requirements.isEmpty()) return true;
+        Map<Requirement, Integer> needed = new LinkedHashMap<>();
+        for (Requirement r : requirements) {
+            needed.put(r, needed.getOrDefault(r, 0) + r.getRequiredAmount());
+        }
+        for (Map.Entry<Requirement, Integer> entry : needed.entrySet()) {
+            if (countMatchingItems(player, entry.getKey()) < entry.getValue()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static boolean matches(ItemStack item, Requirement req) {
         if (item == null || item.getAmount() <= 0 || req == null) return false;
+
+        // Custom upgrade requirement spec match
+        if (req.getSpec() != null) {
+            return req.getSpec().matches(item);
+        }
 
         if (req.isEnchanted()) {
             if (req.getRecipe() != null) {
@@ -188,6 +266,19 @@ public class UpgradeCostHelper {
                 remaining -= take;
                 if (remaining <= 0) break;
             }
+        }
+    }
+
+    /**
+     * Deducts all required items from the player's personal inventory.
+     *
+     * @param player Player from whom to remove items
+     * @param requirements Requirements to consume
+     */
+    public static void removeAllRequirements(Player player, List<Requirement> requirements) {
+        if (player == null || requirements == null) return;
+        for (Requirement r : requirements) {
+            removeMatchingItems(player, r);
         }
     }
 }

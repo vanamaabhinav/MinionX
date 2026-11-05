@@ -17,7 +17,7 @@ public class MinionStorageCreatorSession {
     private List<String> lore = new ArrayList<>();
 
     public MinionStorageCreatorSession(String id) {
-        this.id = id != null ? id : "custom_storage";
+        this.id = MinionCreatorSession.sanitizeId(id);
         this.displayName = "&6" + this.id + " Storage";
         this.capacity = 9;
         this.material = Material.CHEST;
@@ -25,18 +25,43 @@ public class MinionStorageCreatorSession {
         this.lore.add("&ePlace adjacent to minion to link!");
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public String getId() {
+        return id;
+    }
 
-    public String getDisplayName() { return displayName; }
-    public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public void setId(String id) {
+        this.id = MinionCreatorSession.sanitizeId(id);
+    }
 
-    public int getCapacity() { return capacity; }
-    public void setCapacity(int capacity) { this.capacity = Math.max(1, Math.min(27, capacity)); }
+    public String getDisplayName() {
+        return displayName;
+    }
 
-    public Material getMaterial() { return material; }
-    public void setMaterial(Material material) { this.material = material; }
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
 
-    public List<String> getLore() { return lore; }
-    public void setLore(List<String> lore) { this.lore = lore; }
+    public int getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(int capacity) {
+        this.capacity = Math.max(1, Math.min(27, capacity));
+    }
+
+    public Material getMaterial() {
+        return material;
+    }
+
+    public void setMaterial(Material material) {
+        this.material = material;
+    }
+
+    public List<String> getLore() {
+        return lore;
+    }
+
+    public void setLore(List<String> lore) {
+        this.lore = lore;
+    }
 }

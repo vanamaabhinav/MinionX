@@ -139,6 +139,8 @@ public class MinionX extends JavaPlugin {
         // Cancel quarantine auto-recovery
         com.minionx.quarantine.QuarantineManager.stopAutoRecovery();
 
+        com.minionx.gui.MinionCreatorListener.clearPrompts();
+
         // Cancel tasks
         if (minionTickTask != null) {
             minionTickTask.cancel();

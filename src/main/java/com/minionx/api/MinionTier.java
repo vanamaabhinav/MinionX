@@ -1,13 +1,16 @@
 package com.minionx.api;
 
 import org.bukkit.configuration.ConfigurationSection;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Defines minion tiers, their action delays, storage capacities, and upgrade
  * costs.
- * Fully configurable from config.yml with fallback defaults.
+ * Fully configurable from tiers.yml with fallback defaults.
  */
 public class MinionTier {
 
@@ -15,11 +18,17 @@ public class MinionTier {
         private final double actionDelay;
         private final int storageSlots;
         private final int upgradeCost;
+        private final List<UpgradeRequirement> requirements;
 
         public TierData(double actionDelay, int storageSlots, int upgradeCost) {
+            this(actionDelay, storageSlots, upgradeCost, Collections.emptyList());
+        }
+
+        public TierData(double actionDelay, int storageSlots, int upgradeCost, List<UpgradeRequirement> requirements) {
             this.actionDelay = actionDelay;
             this.storageSlots = storageSlots;
             this.upgradeCost = upgradeCost;
+            this.requirements = requirements != null ? new ArrayList<>(requirements) : Collections.emptyList();
         }
 
         public double getActionDelay() {
@@ -32,6 +41,14 @@ public class MinionTier {
 
         public int getUpgradeCost() {
             return upgradeCost;
+        }
+
+        public List<UpgradeRequirement> getRequirements() {
+            return Collections.unmodifiableList(requirements);
+        }
+
+        public boolean hasCustomRequirements() {
+            return !requirements.isEmpty();
         }
     }
 
@@ -57,7 +74,15 @@ public class MinionTier {
                     int slots = tSec.getInt("storage-slots", 1);
                     int cost = tSec.getInt("upgrade-cost", 80);
 
-                    TIERS.put(tier, new TierData(delay, slots, cost));
+                    List<UpgradeRequirement> reqs = new ArrayList<>();
+                    if (tSec.isList("upgrade-requirements")) {
+                        for (Map<?, ?> rMap : tSec.getMapList("upgrade-requirements")) {
+                            UpgradeRequirement r = UpgradeRequirement.fromConfig(rMap);
+                            if (r != null) reqs.add(r);
+                        }
+                    }
+
+                    TIERS.put(tier, new TierData(delay, slots, cost, reqs));
                     if (tier > highest)
                         highest = tier;
                 } catch (NumberFormatException ignored) {
@@ -120,6 +145,9 @@ public class MinionTier {
         if (com.minionx.MinionX.getInstance() == null)
             return;
         java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "tiers.yml");
+        if (file.getParentFile() != null && !file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
         org.bukkit.configuration.file.YamlConfiguration config = file.exists()
                 ? org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file)
                 : new org.bukkit.configuration.file.YamlConfiguration();
@@ -128,6 +156,15 @@ public class MinionTier {
         config.set(path + ".action-delay", data.getActionDelay());
         config.set(path + ".storage-slots", data.getStorageSlots());
         config.set(path + ".upgrade-cost", data.getUpgradeCost());
+        if (data.hasCustomRequirements()) {
+            List<Map<String, Object>> rList = new ArrayList<>();
+            for (UpgradeRequirement r : data.getRequirements()) {
+                rList.add(r.toConfigMap());
+            }
+            config.set(path + ".upgrade-requirements", rList);
+        } else {
+            config.set(path + ".upgrade-requirements", null);
+        }
         try {
             config.save(file);
         } catch (java.io.IOException e) {
