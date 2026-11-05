@@ -202,10 +202,6 @@ public class MinionGUI {
         return item;
     }
 
-    private static ItemStack createNextTierInfoItem(Minion minion) {
-        return createNextTierInfoItem(minion, null);
-    }
-
     private static ItemStack createNextTierInfoItem(Minion minion, Player player) {
         int currentTier = minion.getTier();
         if (currentTier >= minion.getMaxTier()) {
@@ -389,10 +385,6 @@ public class MinionGUI {
                         ColorUtil.color("&7storage and transfers them directly into your inventory."),
                         ColorUtil.color("&7"),
                         ColorUtil.color("&eClick to collect all!")));
-    }
-
-    private static ItemStack createQuickUpgradeItem(Minion minion) {
-        return createQuickUpgradeItem(minion, null);
     }
 
     private static ItemStack createQuickUpgradeItem(Minion minion, Player player) {
