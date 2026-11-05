@@ -68,7 +68,7 @@ public class Minion {
         this.minionId = minionId != null ? minionId : UUID.randomUUID();
         this.ownerId = ownerId;
         this.type = type;
-        this.tier = Math.clamp(tier, 1, MinionTier.getMaxTier());
+        this.tier = Math.max(1, Math.min(MinionTier.getMaxTier(), tier));
         this.location = location;
         this.inventory = new ArrayList<>();
         this.lastActionTime = System.currentTimeMillis();
@@ -153,7 +153,7 @@ public class Minion {
     }
 
     public void setTier(int tier) {
-        this.tier = Math.clamp(tier, 1, getMaxTier());
+        this.tier = Math.max(1, Math.min(getMaxTier(), tier));
         advanceStateRevision();
         advanceSchedulingGeneration();
         if (!isFullSleeping() && MinionX.getInstance() != null && MinionX.getInstance().getMinionTickTask() != null) {
@@ -746,7 +746,7 @@ public class Minion {
             expansion += 1;
         }
 
-        return Math.clamp(expansion, 0, 2);
+        return Math.max(0, Math.min(2, expansion));
     }
 
     /**

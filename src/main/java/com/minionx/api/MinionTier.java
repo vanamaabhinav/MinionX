@@ -87,12 +87,12 @@ public class MinionTier {
     }
 
     public static double getActionDelay(int tier) {
-        TierData data = TIERS.get(Math.clamp(tier, 1, maxTier));
+        TierData data = TIERS.get(Math.max(1, Math.min(maxTier, tier)));
         return data != null ? data.getActionDelay() : 14.0;
     }
 
     public static int getStorageSlots(int tier) {
-        TierData data = TIERS.get(Math.clamp(tier, 1, maxTier));
+        TierData data = TIERS.get(Math.max(1, Math.min(maxTier, tier)));
         return data != null ? data.getStorageSlots() : 1;
     }
 

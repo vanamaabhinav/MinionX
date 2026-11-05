@@ -191,7 +191,7 @@ public class TierEditorListener implements Listener {
                 else if (click == ClickType.SHIFT_LEFT) delta = 3;
                 else if (click == ClickType.SHIFT_RIGHT) delta = -3;
 
-                session.slots = Math.clamp(session.slots + delta, 1, 27);
+                session.slots = Math.max(1, Math.min(27, session.slots + delta));
                 player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.2f);
                 TierEditorGUI.openEditor(player, session.minionId, session.tier, session.delay, session.slots, session.cost);
                 return;

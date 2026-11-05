@@ -57,6 +57,7 @@ public class MinionX extends JavaPlugin {
 
         // Load dynamic custom tiers, fuels, upgrades, compression recipes, and custom minions
         loadRegistries();
+        com.minionx.quarantine.QuarantineManager.init(this);
 
         // Initialize Managers
         this.minionManager = new MinionManager();
@@ -134,6 +135,9 @@ public class MinionX extends JavaPlugin {
     public void onDisable() {
         // Unregister PlaceholderAPI expansion if present
         com.minionx.core.PlaceholderUtil.shutdown();
+
+        // Cancel quarantine auto-recovery
+        com.minionx.quarantine.QuarantineManager.stopAutoRecovery();
 
         // Cancel tasks
         if (minionTickTask != null) {

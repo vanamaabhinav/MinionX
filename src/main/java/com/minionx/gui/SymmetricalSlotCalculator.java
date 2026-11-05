@@ -48,7 +48,7 @@ public class SymmetricalSlotCalculator {
     }
 
     public static List<Integer> getSlots(int capacity) {
-        int clamped = Math.clamp(capacity, 1, 27);
+        int clamped = Math.max(1, Math.min(27, capacity));
 
         // Check config override
         try {

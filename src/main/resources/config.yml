@@ -46,9 +46,11 @@ settings:
   # Players with permission "minionx.bypass.limit" bypass this restriction
   # Also supports permission nodes: minionx.limit.<number> (e.g. minionx.limit.10)
   max-minions-per-player: 5
-  # Maximum offline simulation time in hours (default 720 = 30 days)
+  # Maximum offline simulation time in hours (default 168 = 7 days).
+  # Set to -1 for no cap / unlimited offline calculation.
   # Set to 0 to disable offline simulation catchup entirely.
-  max-offline-hours: 720
+  # Players with permission "minionx.offline.unlimited" or OPs bypass this cap.
+  max-offline-hours: 168
   # Visual animations, sounds, and particles
   enable-animations: true
   enable-sounds: true
@@ -69,6 +71,24 @@ settings:
   # If true, minion harvesting AI tick loop is completely paused during quarantine.
   # If false, minions continue working in the background but players cannot withdraw.
   quarantine-freeze-ticks: false
+
+  # ============================================================================
+  # QUARANTINE AUTO-RECOVERY
+  # ============================================================================
+  # Explanatory guide for server administrators / buyers:
+  # If your server experiences temporary database disconnects or MySQL connection pool
+  # saturation, MinionX can automatically engage emergency quarantine mode to freeze
+  # item collections and dismantle operations, preventing duplication glitches.
+  #
+  # When auto-recovery is enabled:
+  #   - The plugin periodically runs a lightweight database ping check (every interval-seconds).
+  #   - Once the database responds cleanly and storage health is verified, Quarantine Mode
+  #     is automatically lifted and normal minion gameplay resumes with zero admin intervention.
+  # If disabled (false):
+  #   - Server operators must verify database status manually and run `/minion quarantine off`.
+  quarantine-auto-recovery:
+    enabled: false
+    interval-seconds: 60
 
   # ============================================================================
   # COMBAT MINIONS CONFIGURATION

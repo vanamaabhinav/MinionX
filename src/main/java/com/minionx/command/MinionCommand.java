@@ -223,7 +223,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             int tier = 1;
             if (args.length >= 4) {
                 try {
-                    tier = Math.clamp(Integer.parseInt(args[3]), 1, customDef.getMaxTier());
+                    tier = Math.max(1, Math.min(customDef.getMaxTier(), Integer.parseInt(args[3])));
                 } catch (NumberFormatException ignored) {}
             }
             ItemStack customItem = MinionItemFactory.createCustomMinionItem(customDef, tier, 0);
@@ -261,7 +261,7 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         int tier = 1;
         if (args.length >= 4) {
             try {
-                tier = Math.clamp(Integer.parseInt(args[3]), 1, maxTier);
+                tier = Math.max(1, Math.min(maxTier, Integer.parseInt(args[3])));
             } catch (NumberFormatException ignored) {}
         }
 

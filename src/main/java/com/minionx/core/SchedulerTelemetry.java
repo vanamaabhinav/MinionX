@@ -40,7 +40,7 @@ public class SchedulerTelemetry {
         long[] copy = Arrays.copyOf(tickDurations, sampleCount);
         Arrays.sort(copy);
         int index = (int) Math.ceil(0.95 * copy.length) - 1;
-        index = Math.clamp(index, 0, copy.length - 1);
+        index = Math.max(0, Math.min(copy.length - 1, index));
         return copy[index] / 1_000_000.0;
     }
 
@@ -49,7 +49,7 @@ public class SchedulerTelemetry {
         long[] copy = Arrays.copyOf(tickDurations, sampleCount);
         Arrays.sort(copy);
         int index = (int) Math.ceil(0.99 * copy.length) - 1;
-        index = Math.clamp(index, 0, copy.length - 1);
+        index = Math.max(0, Math.min(copy.length - 1, index));
         return copy[index] / 1_000_000.0;
     }
 

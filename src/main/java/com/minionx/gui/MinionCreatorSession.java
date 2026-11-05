@@ -104,14 +104,14 @@ public class MinionCreatorSession {
     public void setXpPerHarvest(int xpPerHarvest) { this.xpPerHarvest = Math.max(0, xpPerHarvest); }
 
     public double getActionDelay() { return actionDelay; }
-    public void setActionDelay(double actionDelay) { this.actionDelay = Math.clamp(actionDelay, 1.0, 120.0); }
+    public void setActionDelay(double actionDelay) { this.actionDelay = Math.max(1.0, Math.min(120.0, actionDelay)); }
 
     public int getStorageSlots() { return storageSlots; }
-    public void setStorageSlots(int storageSlots) { this.storageSlots = Math.clamp(storageSlots, 1, 15); }
+    public void setStorageSlots(int storageSlots) { this.storageSlots = Math.max(1, Math.min(15, storageSlots)); }
 
     public int getMaxTier() { return maxTier; }
     public void setMaxTier(int maxTier) {
-        this.maxTier = Math.clamp(maxTier, 1, com.minionx.api.MinionTier.getMaxTier());
+        this.maxTier = Math.max(1, Math.min(com.minionx.api.MinionTier.getMaxTier(), maxTier));
         if (this.selectedTier > this.maxTier) {
             this.selectedTier = this.maxTier;
         }
@@ -122,7 +122,7 @@ public class MinionCreatorSession {
 
     public int getSelectedTier() { return selectedTier; }
     public void setSelectedTier(int selectedTier) {
-        this.selectedTier = Math.clamp(selectedTier, 1, Math.max(1, this.maxTier));
+        this.selectedTier = Math.max(1, Math.min(Math.max(1, this.maxTier), selectedTier));
     }
 
     public Map<Integer, MinionDefinition.TierStyle> getTierStyles() { return tierStyles; }

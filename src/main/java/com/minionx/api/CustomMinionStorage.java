@@ -19,7 +19,7 @@ public class CustomMinionStorage {
     public CustomMinionStorage(String id, String displayName, int capacity, Material material, List<String> lore) {
         this.id = id != null ? id.toLowerCase() : "custom_storage";
         this.displayName = displayName != null ? displayName : "&aMinion Storage";
-        this.capacity = Math.clamp(capacity, 1, 27);
+        this.capacity = Math.max(1, Math.min(27, capacity));
         this.material = material != null ? material : Material.CHEST;
         this.lore = lore != null ? new ArrayList<>(lore) : new ArrayList<>();
     }
@@ -41,7 +41,7 @@ public class CustomMinionStorage {
     }
 
     public void setCapacity(int capacity) {
-        this.capacity = Math.clamp(capacity, 1, 27);
+        this.capacity = Math.max(1, Math.min(27, capacity));
     }
 
     public Material getMaterial() {

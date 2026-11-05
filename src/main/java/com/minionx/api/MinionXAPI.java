@@ -171,7 +171,7 @@ public final class MinionXAPI {
      */
     public static ItemStack createMinionItem(String minionTypeOrId, int tier) {
         if (minionTypeOrId == null || org.bukkit.Bukkit.getServer() == null) return null;
-        int clampedTier = Math.clamp(tier, 1, MinionTier.getMaxTier());
+        int clampedTier = Math.max(1, Math.min(MinionTier.getMaxTier(), tier));
 
         MinionDefinition customDef = MinionRegistry.get(minionTypeOrId);
         if (customDef != null && MinionRegistry.isCustom(minionTypeOrId)) {
@@ -195,7 +195,7 @@ public final class MinionXAPI {
      */
     public static ItemStack createMinionItem(MinionType type, int tier) {
         if (type == null || org.bukkit.Bukkit.getServer() == null) return null;
-        int clampedTier = Math.clamp(tier, 1, MinionTier.getMaxTier());
+        int clampedTier = Math.max(1, Math.min(MinionTier.getMaxTier(), tier));
         return MinionItemFactory.createMinionItem(type, clampedTier, 0);
     }
 

@@ -6,6 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 
 /**
  * Controls emergency Quarantine Mode across the server.
@@ -16,6 +17,7 @@ public class QuarantineManager {
 
     private static boolean quarantined = false;
     private static boolean freezeTicks = false;
+    private static BukkitTask autoRecoveryTask = null;
 
     public static void init() {
         init(MinionX.getInstance());
@@ -26,6 +28,63 @@ public class QuarantineManager {
         FileConfiguration config = plugin.getConfig();
         quarantined = config.getBoolean("settings.quarantine-mode", false);
         freezeTicks = config.getBoolean("settings.quarantine-freeze-ticks", false);
+        startAutoRecovery(plugin);
+    }
+
+    /**
+     * Starts the periodic quarantine auto-recovery task if enabled in config.
+     * Checks database health every interval-seconds and automatically lifts quarantine when healthy.
+     */
+    public static void startAutoRecovery(MinionX plugin) {
+        if (plugin == null || Bukkit.getServer() == null) return;
+        stopAutoRecovery();
+        boolean enabled = plugin.getConfig().getBoolean("settings.quarantine-auto-recovery.enabled", false);
+        if (!enabled) return;
+
+        int intervalSeconds = Math.max(10, plugin.getConfig().getInt("settings.quarantine-auto-recovery.interval-seconds", 60));
+        long ticks = intervalSeconds * 20L;
+
+        try {
+            autoRecoveryTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+                if (!isQuarantined()) return;
+                boolean healthy = checkStorageHealth(plugin);
+                if (healthy) {
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (isQuarantined()) {
+                            setQuarantined(false);
+                            plugin.getLogger().info("[MinionX] Quarantine auto-recovery: Storage engine verified healthy. Quarantine mode automatically lifted.");
+                        }
+                    });
+                }
+            }, ticks, ticks);
+        } catch (Throwable ignored) {}
+    }
+
+    /**
+     * Cancels the active auto-recovery task.
+     */
+    public static void stopAutoRecovery() {
+        if (autoRecoveryTask != null) {
+            try {
+                autoRecoveryTask.cancel();
+            } catch (Throwable ignored) {}
+            autoRecoveryTask = null;
+        }
+    }
+
+    /**
+     * Verifies responsiveness and connectivity of the underlying storage engine.
+     */
+    public static boolean checkStorageHealth(MinionX plugin) {
+        if (plugin == null) return true;
+        try {
+            if (plugin.getMinionStorage() != null && plugin.getMinionStorage().getDatabaseStorage() != null) {
+                return plugin.getMinionStorage().getDatabaseStorage().isHealthy();
+            }
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     public static boolean isQuarantined() {

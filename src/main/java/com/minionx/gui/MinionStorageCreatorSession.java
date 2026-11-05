@@ -32,7 +32,7 @@ public class MinionStorageCreatorSession {
     public void setDisplayName(String displayName) { this.displayName = displayName; }
 
     public int getCapacity() { return capacity; }
-    public void setCapacity(int capacity) { this.capacity = Math.clamp(capacity, 1, 27); }
+    public void setCapacity(int capacity) { this.capacity = Math.max(1, Math.min(27, capacity)); }
 
     public Material getMaterial() { return material; }
     public void setMaterial(Material material) { this.material = material; }

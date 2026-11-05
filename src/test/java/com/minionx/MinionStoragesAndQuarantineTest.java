@@ -167,6 +167,13 @@ public class MinionStoragesAndQuarantineTest {
     }
 
     @Test
+    public void testQuarantineAutoRecoveryHealthCheckGraceful() {
+        // When plugin instance is null or database is offline, checkStorageHealth handles gracefully
+        assertDoesNotThrow(() -> QuarantineManager.checkStorageHealth(null));
+        assertDoesNotThrow(() -> QuarantineManager.stopAutoRecovery());
+    }
+
+    @Test
     public void testMinionDialogueSystem() {
         Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), MinionType.IRON, 3, null);
         assertFalse(minion.hasActiveDialogue());

@@ -38,7 +38,7 @@ public class CustomItemSpec {
         this.material = material != null ? material : Material.COBBLESTONE;
         this.hookIdentifier = hookIdentifier;
         this.amount = Math.max(1, amount);
-        this.chance = Math.clamp(chance, 0.0, 1.0);
+        this.chance = Math.max(0.0, Math.min(1.0, chance));
         this.displayName = displayName;
         this.lore = lore != null ? new ArrayList<>(lore) : Collections.emptyList();
         this.customModelData = customModelData;

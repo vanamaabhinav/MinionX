@@ -46,7 +46,7 @@ public class MinionItemFactory {
         if (type == null) return new ItemStack(Material.PLAYER_HEAD);
         MinionDefinition def = MinionRegistry.get(type.name().toLowerCase());
         int maxTier = def != null ? def.getMaxTier() : type.getMaxTier();
-        tier = Math.clamp(tier, 1, maxTier);
+        tier = Math.max(1, Math.min(maxTier, tier));
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
 
@@ -111,7 +111,7 @@ public class MinionItemFactory {
      */
     public static ItemStack createCustomMinionItem(MinionDefinition def, int tier, int harvested) {
         if (def == null) return new ItemStack(Material.PLAYER_HEAD);
-        tier = Math.clamp(tier, 1, def.getMaxTier());
+        tier = Math.max(1, Math.min(def.getMaxTier(), tier));
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
 

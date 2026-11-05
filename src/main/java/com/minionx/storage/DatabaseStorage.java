@@ -67,6 +67,15 @@ public class DatabaseStorage {
         this.connection = connection;
     }
 
+    public synchronized boolean isHealthy() {
+        try {
+            ensureConnection();
+            return connection != null && !connection.isClosed() && connection.isValid(2);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     public synchronized void ensureConnection() throws SQLException {
         if (connection == null || connection.isClosed() || !connection.isValid(2)) {
             if (plugin != null) {

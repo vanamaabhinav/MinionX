@@ -37,16 +37,29 @@ public class OfflineCalculator {
         long elapsedMillis = now - lastAction;
         if (elapsedMillis <= 0) return 0;
 
-        // 2. Cap offline calculation to configured max hours (default 720 hours = 30 days)
-        long maxOfflineMillis = 720L * 3600L * 1000L;
-        if (MinionX.getInstance() != null && MinionX.getInstance().getConfig() != null) {
-            int cfgHours = MinionX.getInstance().getConfig().getInt("settings.max-offline-hours", 720);
-            if (cfgHours > 0) {
+        // 2. Cap offline calculation to configured max hours (default 168 hours = 7 days, -1 = unlimited, 0 = disabled)
+        long maxOfflineMillis = 168L * 3600L * 1000L;
+        boolean unlimited = false;
+        if (minion.getOwnerId() != null && org.bukkit.Bukkit.getServer() != null) {
+            try {
+                org.bukkit.entity.Player owner = org.bukkit.Bukkit.getPlayer(minion.getOwnerId());
+                if (owner != null && owner.hasPermission("minionx.offline.unlimited")) {
+                    unlimited = true;
+                }
+            } catch (Throwable ignored) {}
+        }
+        if (!unlimited && MinionX.getInstance() != null && MinionX.getInstance().getConfig() != null) {
+            int cfgHours = MinionX.getInstance().getConfig().getInt("settings.max-offline-hours", 168);
+            if (cfgHours == -1) {
+                unlimited = true;
+            } else if (cfgHours == 0) {
+                return 0; // Disabled
+            } else if (cfgHours > 0) {
                 maxOfflineMillis = (long) cfgHours * 3600L * 1000L;
             }
         }
 
-        if (elapsedMillis > maxOfflineMillis) {
+        if (!unlimited && elapsedMillis > maxOfflineMillis) {
             lastAction = now - maxOfflineMillis;
             minion.setLastActionTime(lastAction);
             elapsedMillis = maxOfflineMillis;

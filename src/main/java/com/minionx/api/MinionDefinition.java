@@ -71,7 +71,7 @@ public class MinionDefinition {
             this.item = item != null ? item.clone() : new ItemStack(Material.COBBLESTONE);
             this.customItemSpec = customItemSpec != null ? customItemSpec : CustomItemSpec.fromItemStack(this.item, chance);
             this.amount = Math.max(1, amount);
-            this.chance = Math.clamp(chance, 0.0, 1.0);
+            this.chance = Math.max(0.0, Math.min(1.0, chance));
         }
 
         public ItemStack getItem() {

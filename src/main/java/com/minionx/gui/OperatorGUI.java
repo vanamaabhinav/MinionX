@@ -411,7 +411,7 @@ public class OperatorGUI {
         List<MinionSkin> allSkins = new ArrayList<>(MinionSkinRegistry.getAll());
         int pageSize = 28;
         int totalPages = Math.max(1, (int) Math.ceil((double) allSkins.size() / pageSize));
-        int currentPage = Math.clamp(page, 0, totalPages - 1);
+        int currentPage = Math.max(0, Math.min(totalPages - 1, page));
 
         OperatorHolder holder = new OperatorHolder(OperatorHolder.ViewType.SKINS_CATALOG, currentPage);
         Inventory inv = Bukkit.createInventory(holder, 54, SKINS_TITLE + (totalPages > 1 ? ColorUtil.color(" &8(" + (currentPage + 1) + "/" + totalPages + ")") : ""));

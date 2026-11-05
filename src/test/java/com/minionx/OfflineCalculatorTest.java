@@ -41,4 +41,19 @@ public class OfflineCalculatorTest {
         assertEquals(5, produced);
         assertEquals(Material.STONE, minion.getInventory().getFirst().getType());
     }
+
+    @Test
+    @DisplayName("Should cap offline duration to 168 hours by default when inactive duration exceeds 168 hours")
+    void testOfflineCapping() {
+        Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), MinionType.COBBLESTONE, 11, null);
+        long now = System.currentTimeMillis();
+        long threeHundredHoursAgo = now - (300L * 3600L * 1000L);
+        minion.setLastActionTime(threeHundredHoursAgo);
+
+        OfflineCalculator.processOfflineCatchup(minion);
+
+        assertTrue(minion.getLastActionTime() > threeHundredHoursAgo);
+        assertEquals(MinionState.FULL, minion.getState());
+        assertTrue(minion.getTotalStoredCount() > 0);
+    }
 }

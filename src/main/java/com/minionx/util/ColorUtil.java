@@ -60,9 +60,9 @@ public class ColorUtil {
             String[] parts = str.split(",");
             if (parts.length >= 3) {
                 try {
-                    int r = Math.clamp(Integer.parseInt(parts[0].trim()), 0, 255);
-                    int g = Math.clamp(Integer.parseInt(parts[1].trim()), 0, 255);
-                    int b = Math.clamp(Integer.parseInt(parts[2].trim()), 0, 255);
+                    int r = Math.max(0, Math.min(255, Integer.parseInt(parts[0].trim())));
+                    int g = Math.max(0, Math.min(255, Integer.parseInt(parts[1].trim())));
+                    int b = Math.max(0, Math.min(255, Integer.parseInt(parts[2].trim())));
                     return org.bukkit.Color.fromRGB(r, g, b);
                 } catch (NumberFormatException ignored) {}
             }
