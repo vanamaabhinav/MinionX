@@ -7,7 +7,6 @@ import com.minionx.gui.MinionSkinCreatorGUI;
 import com.minionx.gui.MinionStorageCreatorGUI;
 import com.minionx.gui.FuelCreatorGUI;
 
-
 import com.minionx.MinionX;
 import com.minionx.api.*;
 import com.minionx.core.Minion;
@@ -56,7 +55,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 handleClaim(sender);
                 return true;
             }
-            sender.sendMessage(ColorUtil.color(MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to use this command.")));
+            sender.sendMessage(ColorUtil.color(MinionX.getInstance().getMessage("no-permission",
+                    "&cYou do not have permission to use this command.")));
             return true;
         }
 
@@ -110,7 +110,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 return;
             } else if ("storage".equalsIgnoreCase(args[1])) {
                 if (!FeatureToggle.isStorageChestsEnabled()) {
-                    player.sendMessage(ColorUtil.color("&cMinion Storage chests feature is currently disabled in config.yml."));
+                    player.sendMessage(
+                            ColorUtil.color("&cMinion Storage chests feature is currently disabled in config.yml."));
                     return;
                 }
                 MinionStorageCreatorGUI.open(player, null);
@@ -124,7 +125,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 return;
             } else if ("upgrade".equalsIgnoreCase(args[1]) || "hopper".equalsIgnoreCase(args[1])) {
                 if (!FeatureToggle.isUpgradesEnabled()) {
-                    player.sendMessage(ColorUtil.color("&cMinion Upgrades feature is currently disabled in config.yml."));
+                    player.sendMessage(
+                            ColorUtil.color("&cMinion Upgrades feature is currently disabled in config.yml."));
                     return;
                 }
                 com.minionx.gui.UpgradeCreatorGUI.open(player, null);
@@ -137,7 +139,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
     private void handleGive(CommandSender sender, String[] args) {
         if (!hasAdminPermission(sender)) {
-            sender.sendMessage(ColorUtil.color(MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to use this command.")));
+            sender.sendMessage(ColorUtil.color(MinionX.getInstance().getMessage("no-permission",
+                    "&cYou do not have permission to use this command.")));
             return;
         }
 
@@ -154,11 +157,12 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         String itemArg = args[2].toLowerCase();
 
-        
-        // Check Minion Storage item (/minion give <player> storage <storage_id> [amount])
+        // Check Minion Storage item (/minion give <player> storage <storage_id>
+        // [amount])
         if (itemArg.equalsIgnoreCase("storage") && args.length >= 4) {
             if (!FeatureToggle.isStorageChestsEnabled()) {
-                sender.sendMessage(ColorUtil.color("&cMinion Storage chests feature is currently disabled in config.yml."));
+                sender.sendMessage(
+                        ColorUtil.color("&cMinion Storage chests feature is currently disabled in config.yml."));
                 return;
             }
             String storageId = args[3].toLowerCase();
@@ -166,11 +170,16 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             if (st != null) {
                 int amount = 1;
                 if (args.length >= 5) {
-                    try { amount = Math.max(1, Integer.parseInt(args[4])); } catch (NumberFormatException ignored) {}
+                    try {
+                        amount = Math.max(1, Integer.parseInt(args[4]));
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
                 giveItemSafely(target, MinionItemFactory.createStorageItem(st, amount));
-                sender.sendMessage(ColorUtil.color("&aGave " + amount + "x " + st.getDisplayName() + " &ato " + target.getName() + "."));
-                target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received " + amount + "x " + st.getDisplayName() + "!"));
+                sender.sendMessage(ColorUtil
+                        .color("&aGave " + amount + "x " + st.getDisplayName() + " &ato " + target.getName() + "."));
+                target.sendMessage(ColorUtil.getPrefix()
+                        + ColorUtil.color("&aYou received " + amount + "x " + st.getDisplayName() + "!"));
                 return;
             } else {
                 sender.sendMessage(ColorUtil.color("&cUnknown minion storage: " + args[3]));
@@ -182,15 +191,21 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         if (directStorage != null) {
             int amount = 1;
             if (args.length >= 4) {
-                try { amount = Math.max(1, Integer.parseInt(args[3])); } catch (NumberFormatException ignored) {}
+                try {
+                    amount = Math.max(1, Integer.parseInt(args[3]));
+                } catch (NumberFormatException ignored) {
+                }
             }
             giveItemSafely(target, MinionItemFactory.createStorageItem(directStorage, amount));
-            sender.sendMessage(ColorUtil.color("&aGave " + amount + "x " + directStorage.getDisplayName() + " &ato " + target.getName() + "."));
-            target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received " + amount + "x " + directStorage.getDisplayName() + "!"));
+            sender.sendMessage(ColorUtil.color(
+                    "&aGave " + amount + "x " + directStorage.getDisplayName() + " &ato " + target.getName() + "."));
+            target.sendMessage(ColorUtil.getPrefix()
+                    + ColorUtil.color("&aYou received " + amount + "x " + directStorage.getDisplayName() + "!"));
             return;
         }
 
-        // 0. Check skin item (/minion give <player> skin <skin_id> or /minion give <player> <skin_id>)
+        // 0. Check skin item (/minion give <player> skin <skin_id> or /minion give
+        // <player> <skin_id>)
         if (itemArg.equalsIgnoreCase("skin") && args.length >= 4) {
             if (!FeatureToggle.isSkinsEnabled()) {
                 sender.sendMessage(ColorUtil.color("&cMinion Skins feature is currently disabled in config.yml."));
@@ -200,8 +215,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             com.minionx.api.MinionSkin skin = com.minionx.api.MinionSkinRegistry.get(skinId);
             if (skin != null) {
                 giveItemSafely(target, MinionItemFactory.createSkinItem(skin));
-                sender.sendMessage(ColorUtil.color("&aGave " + skin.getDisplayName() + " &aminion skin to " + target.getName() + "."));
-                target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received a " + skin.getDisplayName() + " &aminion skin!"));
+                sender.sendMessage(ColorUtil
+                        .color("&aGave " + skin.getDisplayName() + " &aminion skin to " + target.getName() + "."));
+                target.sendMessage(ColorUtil.getPrefix()
+                        + ColorUtil.color("&aYou received a " + skin.getDisplayName() + " &aminion skin!"));
                 return;
             } else {
                 sender.sendMessage(ColorUtil.color("&cUnknown minion skin: " + args[3]));
@@ -212,24 +229,30 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         com.minionx.api.MinionSkin directSkin = com.minionx.api.MinionSkinRegistry.get(itemArg);
         if (directSkin != null) {
             giveItemSafely(target, MinionItemFactory.createSkinItem(directSkin));
-            sender.sendMessage(ColorUtil.color("&aGave " + directSkin.getDisplayName() + " &aminion skin to " + target.getName() + "."));
-            target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received a " + directSkin.getDisplayName() + " &aminion skin!"));
+            sender.sendMessage(ColorUtil
+                    .color("&aGave " + directSkin.getDisplayName() + " &aminion skin to " + target.getName() + "."));
+            target.sendMessage(ColorUtil.getPrefix()
+                    + ColorUtil.color("&aYou received a " + directSkin.getDisplayName() + " &aminion skin!"));
             return;
         }
 
-        // 1. Check custom minion definitions (from Minion Creator Studio or minions.yml)
+        // 1. Check custom minion definitions (from Minion Creator Studio or
+        // minions.yml)
         MinionDefinition customDef = MinionRegistry.get(itemArg);
         if (customDef != null) {
             int tier = 1;
             if (args.length >= 4) {
                 try {
                     tier = Math.max(1, Math.min(customDef.getMaxTier(), Integer.parseInt(args[3])));
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException ignored) {
+                }
             }
             ItemStack customItem = MinionItemFactory.createCustomMinionItem(customDef, tier, 0);
             giveItemSafely(target, customItem);
-            sender.sendMessage(ColorUtil.color("&aGave " + customDef.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + " to " + target.getName() + "."));
-            target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received a " + customDef.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + "!"));
+            sender.sendMessage(ColorUtil.color("&aGave " + customDef.getDisplayName() + " Minion "
+                    + MinionTier.toRoman(tier) + " to " + target.getName() + "."));
+            target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color(
+                    "&aYou received a " + customDef.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + "!"));
             return;
         }
 
@@ -237,7 +260,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         CustomFuel customFuel = FuelRegistry.get(itemArg);
         if (customFuel != null) {
             giveItemSafely(target, MinionItemFactory.createFuelItem(customFuel));
-            sender.sendMessage(ColorUtil.color("&aGave " + customFuel.getDisplayName() + " fuel to " + target.getName() + "."));
+            sender.sendMessage(
+                    ColorUtil.color("&aGave " + customFuel.getDisplayName() + " fuel to " + target.getName() + "."));
             return;
         }
 
@@ -245,7 +269,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         CustomUpgrade customUpgrade = UpgradeRegistry.get(itemArg);
         if (customUpgrade != null) {
             giveItemSafely(target, MinionItemFactory.createUpgradeItem(customUpgrade));
-            sender.sendMessage(ColorUtil.color("&aGave " + customUpgrade.getDisplayName() + " upgrade to " + target.getName() + "."));
+            sender.sendMessage(ColorUtil
+                    .color("&aGave " + customUpgrade.getDisplayName() + " upgrade to " + target.getName() + "."));
             return;
         }
 
@@ -262,18 +287,22 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         if (args.length >= 4) {
             try {
                 tier = Math.max(1, Math.min(maxTier, Integer.parseInt(args[3])));
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
 
         ItemStack minionItem = MinionItemFactory.createMinionItem(type, tier, 0);
         giveItemSafely(target, minionItem);
 
-        sender.sendMessage(ColorUtil.color("&aGave " + type.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + " to " + target.getName() + "."));
-        target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received a " + type.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + "!"));
+        sender.sendMessage(ColorUtil.color("&aGave " + type.getDisplayName() + " Minion " + MinionTier.toRoman(tier)
+                + " to " + target.getName() + "."));
+        target.sendMessage(ColorUtil.getPrefix() + ColorUtil
+                .color("&aYou received a " + type.getDisplayName() + " Minion " + MinionTier.toRoman(tier) + "!"));
     }
 
     private void giveItemSafely(Player target, ItemStack item) {
-        if (target == null || item == null || item.getType() == Material.AIR) return;
+        if (target == null || item == null || item.getType() == Material.AIR)
+            return;
         java.util.HashMap<Integer, ItemStack> left = target.getInventory().addItem(item);
         if (!left.isEmpty() && target.getWorld() != null) {
             for (ItemStack drop : left.values()) {
@@ -340,18 +369,23 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         switch (action) {
             case "add" -> {
                 limitManager.addBonusSlots(target.getUniqueId(), amount);
-                sender.sendMessage(ColorUtil.color("&aAdded &e+" + amount + " &abonus minion slots to &f" + target.getName() + "&a. Total bonus: &e" + limitManager.getBonusSlots(target.getUniqueId())));
-                target.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aYou received &e+" + amount + " &abonus minion slots!"));
+                sender.sendMessage(ColorUtil.color("&aAdded &e+" + amount + " &abonus minion slots to &f"
+                        + target.getName() + "&a. Total bonus: &e" + limitManager.getBonusSlots(target.getUniqueId())));
+                target.sendMessage(ColorUtil.getPrefix()
+                        + ColorUtil.color("&aYou received &e+" + amount + " &abonus minion slots!"));
             }
             case "remove" -> {
                 limitManager.removeBonusSlots(target.getUniqueId(), amount);
-                sender.sendMessage(ColorUtil.color("&cRemoved &e" + amount + " &cbonus minion slots from &f" + target.getName() + "&c. Total bonus: &e" + limitManager.getBonusSlots(target.getUniqueId())));
+                sender.sendMessage(ColorUtil.color("&cRemoved &e" + amount + " &cbonus minion slots from &f"
+                        + target.getName() + "&c. Total bonus: &e" + limitManager.getBonusSlots(target.getUniqueId())));
             }
             case "set" -> {
                 limitManager.setBonusSlots(target.getUniqueId(), amount);
-                sender.sendMessage(ColorUtil.color("&aSet bonus minion slots for &f" + target.getName() + " &ato &e" + amount + "&a."));
+                sender.sendMessage(ColorUtil
+                        .color("&aSet bonus minion slots for &f" + target.getName() + " &ato &e" + amount + "&a."));
             }
-            default -> sender.sendMessage(ColorUtil.color("&cUsage: /minion limit <add|remove|set|check> <player> <amount>"));
+            default ->
+                sender.sendMessage(ColorUtil.color("&cUsage: /minion limit <add|remove|set|check> <player> <amount>"));
         }
     }
 
@@ -370,9 +404,11 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ColorUtil.color("&6=== Your Active Minions (" + playerMinions.size() + ") ==="));
         for (Minion m : playerMinions) {
             Location loc = m.getLocation();
-            String coords = loc != null ? String.format("%d, %d, %d", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()) : "Unknown";
-            player.sendMessage(ColorUtil.color("&e- &a" + m.getDisplayName() + " Minion " + MinionTier.toRoman(m.getTier()) +
-                    " &7at &f[" + coords + "] &7- " + m.getState().getDisplayStatus()));
+            String coords = loc != null ? String.format("%d, %d, %d", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())
+                    : "Unknown";
+            player.sendMessage(
+                    ColorUtil.color("&e- &a" + m.getDisplayName() + " Minion " + MinionTier.toRoman(m.getTier()) +
+                            " &7at &f[" + coords + "] &7- " + m.getState().getDisplayStatus()));
         }
     }
 
@@ -383,7 +419,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         int count = plugin.getMinionManager().killAndPurgeAll();
-        sender.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSuccessfully killed and purged &e" + count + " &aactive minions, holograms, and ticking tasks!"));
+        sender.sendMessage(ColorUtil.getPrefix() + ColorUtil.color(
+                "&aSuccessfully killed and purged &e" + count + " &aactive minions, holograms, and ticking tasks!"));
     }
 
     private void handleReload(CommandSender sender) {
@@ -414,7 +451,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length >= 2 && "list".equalsIgnoreCase(args[1])) {
-            sender.sendMessage(ColorUtil.color("&6=== MinionX Tier Configuration (" + MinionTier.getMaxTier() + " Tiers) ==="));
+            sender.sendMessage(
+                    ColorUtil.color("&6=== MinionX Tier Configuration (" + MinionTier.getMaxTier() + " Tiers) ==="));
             for (int t = 1; t <= MinionTier.getMaxTier(); t++) {
                 MinionTier.TierData data = MinionTier.getTierData(t);
                 double delay = data != null ? data.getActionDelay() : MinionTier.getActionDelay(t);
@@ -427,7 +465,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(ColorUtil.color("&cOnly players can open the Tier Studio GUI. Use /minion tier list from console."));
+            sender.sendMessage(ColorUtil
+                    .color("&cOnly players can open the Tier Studio GUI. Use /minion tier list from console."));
             return;
         }
 
@@ -447,7 +486,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     com.minionx.gui.TierEditorListener.startEdit(player, tier);
                     return;
                 }
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
 
         com.minionx.gui.TierEditorGUI.openOverview(player);
@@ -455,19 +495,23 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(CommandSender sender) {
         if (!hasAdminPermission(sender)) {
-            sender.sendMessage(ColorUtil.color(MinionX.getInstance().getMessage("no-permission", "&cYou do not have permission to use this command.")));
+            sender.sendMessage(ColorUtil.color(MinionX.getInstance().getMessage("no-permission",
+                    "&cYou do not have permission to use this command.")));
             return;
         }
 
         sender.sendMessage(ColorUtil.color("&6=== MinionX Commands ==="));
         sender.sendMessage(ColorUtil.color("&e/minion create &7- Open In-Game Minion Creator Studio"));
         sender.sendMessage(ColorUtil.color("&e/minion tier [list|edit|<minion_id>] &7- Open Tier Studio GUI"));
-        sender.sendMessage(ColorUtil.color("&e/minion give <player> <type|fuel|upgrade|skin> [tier|skin_id] &7- Give a minion, item, or skin"));
-        sender.sendMessage(ColorUtil.color("&e/minion limit <check|add|remove|set> <player> [amount] &7- Manage player limits"));
+        sender.sendMessage(ColorUtil.color(
+                "&e/minion give <player> <type|fuel|upgrade|skin> [tier|skin_id] &7- Give a minion, item, or skin"));
+        sender.sendMessage(
+                ColorUtil.color("&e/minion limit <check|add|remove|set> <player> [amount] &7- Manage player limits"));
         sender.sendMessage(ColorUtil.color("&e/minion list &7- View your placed minions"));
         sender.sendMessage(ColorUtil.color("&e/minion claim &7- Claim pending or quarantined escrow items"));
         sender.sendMessage(ColorUtil.color("&e/minion recover [list|resolve] &7- Audit and resolve escrow operations"));
-        sender.sendMessage(ColorUtil.color("&e/minion quarantine [on|off|status|toggle] &7- Manage anti-dupe quarantine mode"));
+        sender.sendMessage(
+                ColorUtil.color("&e/minion quarantine [on|off|status|toggle] &7- Manage anti-dupe quarantine mode"));
         sender.sendMessage(ColorUtil.color("&e/minion killall &7- Kill and purge all active minions and holograms"));
         sender.sendMessage(ColorUtil.color("&e/minion reload &7- Reload configuration"));
         sender.sendMessage(ColorUtil.color("&e/minion op &7(or &e/minionx&7) - Open Operator Control Center"));
@@ -491,18 +535,23 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return filter(List.of("create", "tier", "give", "limit", "list", "claim", "recover", "quarantine", "killall", "purge", "reload", "op", "hub"), args[0]);
+            return filter(List.of("create", "tier", "give", "limit", "list", "claim", "recover", "quarantine",
+                    "killall", "purge", "reload", "op", "hub"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
             List<String> sub = new ArrayList<>();
             sub.add("minion");
-            if (FeatureToggle.isSkinsEnabled()) sub.add("skin");
-            if (FeatureToggle.isStorageChestsEnabled()) sub.add("storage");
-            if (FeatureToggle.isFuelsEnabled()) sub.add("fuel");
+            if (FeatureToggle.isSkinsEnabled())
+                sub.add("skin");
+            if (FeatureToggle.isStorageChestsEnabled())
+                sub.add("storage");
+            if (FeatureToggle.isFuelsEnabled())
+                sub.add("fuel");
             if (FeatureToggle.isUpgradesEnabled()) {
                 sub.add("upgrade");
-                if (FeatureToggle.isShippingEnabled()) sub.add("hopper");
+                if (FeatureToggle.isShippingEnabled())
+                    sub.add("hopper");
             }
             return filter(sub, args[1]);
         }
@@ -615,22 +664,27 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1 || "status".equalsIgnoreCase(args[1])) {
             boolean active = QuarantineManager.isQuarantined();
-            sender.sendMessage(ColorUtil.color("&6&l[Minion&c&lX&6&l Quarantine] &7Status: " + (active ? "&c&lACTIVE (Anti-Dupe Lockdown)" : "&a&lINACTIVE (Normal Operation)")));
-            sender.sendMessage(ColorUtil.color("&7Use &e/minion quarantine on &7or &e/minion quarantine off &7to toggle."));
+            sender.sendMessage(ColorUtil.color("&6&l[Minion&c&lX&6&l Quarantine] &7Status: "
+                    + (active ? "&c&lACTIVE (Anti-Dupe Lockdown)" : "&a&lINACTIVE (Normal Operation)")));
+            sender.sendMessage(
+                    ColorUtil.color("&7Use &e/minion quarantine on &7or &e/minion quarantine off &7to toggle."));
             return;
         }
 
         String action = args[1].toLowerCase();
         if ("on".equals(action) || "enable".equals(action)) {
             QuarantineManager.setQuarantined(true);
-            sender.sendMessage(ColorUtil.color("&c&l[Minion&c&lX&c&l Quarantine] &lQuarantine mode has been ACTIVATED globally!"));
+            sender.sendMessage(
+                    ColorUtil.color("&c&l[Minion&c&lX&c&l Quarantine] &lQuarantine mode has been ACTIVATED globally!"));
         } else if ("off".equals(action) || "disable".equals(action)) {
             QuarantineManager.setQuarantined(false);
-            sender.sendMessage(ColorUtil.color("&a&l[Minion&c&lX&a&l Quarantine] &lQuarantine mode has been DEACTIVATED. Normal operation restored."));
+            sender.sendMessage(ColorUtil.color(
+                    "&a&l[Minion&c&lX&a&l Quarantine] &lQuarantine mode has been DEACTIVATED. Normal operation restored."));
         } else if ("toggle".equals(action)) {
             boolean newState = !QuarantineManager.isQuarantined();
             QuarantineManager.setQuarantined(newState);
-            sender.sendMessage(ColorUtil.color("&6&l[Minion&c&lX&6&l Quarantine] &7Toggled quarantine mode to: " + (newState ? "&c&lACTIVE" : "&a&lINACTIVE")));
+            sender.sendMessage(ColorUtil.color("&6&l[Minion&c&lX&6&l Quarantine] &7Toggled quarantine mode to: "
+                    + (newState ? "&c&lACTIVE" : "&a&lINACTIVE")));
         } else {
             sender.sendMessage(ColorUtil.color("&cUsage: /minion quarantine [on|off|status|toggle]"));
         }
@@ -673,15 +727,20 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     || "AMBIGUOUS_PARTIAL_DELIVERY".equalsIgnoreCase(state)
                     || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(state);
             if (isAmbiguous) {
-                player.sendMessage(ColorUtil.color("&cOperation " + op.operationId() + " requires administrator audit due to an ambiguous delivery outcome (" + state + "). Automatic claim is prohibited to prevent item/XP duplication."));
+                player.sendMessage(ColorUtil.color("&cOperation " + op.operationId()
+                        + " requires administrator audit due to an ambiguous delivery outcome (" + state
+                        + "). Automatic claim is prohibited to prevent item/XP duplication."));
                 continue;
             }
-            if (!"MINION_REMOVED".equalsIgnoreCase(state) && !"QUARANTINED_LEFTOVERS".equalsIgnoreCase(state) && !"DELIVERY_FAILED_OFFLINE".equalsIgnoreCase(state) && !"PREPARED".equalsIgnoreCase(state) && !"DELIVERY_CLAIM_FAILED".equalsIgnoreCase(state)) {
+            if (!"MINION_REMOVED".equalsIgnoreCase(state) && !"QUARANTINED_LEFTOVERS".equalsIgnoreCase(state)
+                    && !"DELIVERY_FAILED_OFFLINE".equalsIgnoreCase(state) && !"PREPARED".equalsIgnoreCase(state)
+                    && !"DELIVERY_CLAIM_FAILED".equalsIgnoreCase(state)) {
                 continue;
             }
 
             String payload = op.payload();
-            if (payload == null || payload.isBlank()) continue;
+            if (payload == null || payload.isBlank())
+                continue;
 
             int xpToGrant = 0;
             boolean xpAlreadyDelivered = false;
@@ -724,7 +783,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     }
                     int sep = payload.indexOf(";;;PAYLOAD:::");
                     if (sep < prefixLen) {
-                        // Missing or invalid delimiter (e.g. "XP_AMBIGUOUS:100" without ";;;PAYLOAD:::")
+                        // Missing or invalid delimiter (e.g. "XP_AMBIGUOUS:100" without
+                        // ";;;PAYLOAD:::")
                         xpParseFailed = true;
                         rawXpToken = payload.substring(prefixLen);
                     } else {
@@ -750,43 +810,55 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             String[] rawItems = payload.split(";;;ITEM;;;");
             List<ItemStack> toDeliver = new ArrayList<>();
             for (String raw : rawItems) {
-                if (raw == null || raw.isBlank()) continue;
+                if (raw == null || raw.isBlank())
+                    continue;
                 try {
                     String unescaped = com.minionx.util.MinionPayloadUtil.unescapeItemPayload(raw);
                     org.bukkit.configuration.file.YamlConfiguration yc = new org.bukkit.configuration.file.YamlConfiguration();
                     yc.loadFromString(unescaped);
                     ItemStack stack = yc.getItemStack("item");
-                    if (stack != null) toDeliver.add(stack);
-                } catch (Exception ignored) {}
+                    if (stack != null)
+                        toDeliver.add(stack);
+                } catch (Exception ignored) {
+                }
             }
 
             if (toDeliver.isEmpty()) {
                 if (xpToGrant > 0 && !xpAlreadyDelivered && !xpAmbiguous && !xpParseFailed) {
                     player.giveExp(xpToGrant);
-                    player.sendMessage(ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
+                    player.sendMessage(
+                            ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
                 }
                 if (xpAmbiguous || xpParseFailed) {
                     String displayToken = xpParseFailed ? rawXpToken : String.valueOf(xpToGrant);
-                    player.sendMessage(ColorUtil.color("&cOperation " + op.operationId() + " contains ambiguous/malformed XP (" + displayToken + ") requiring administrator audit. Claim is withheld."));
+                    player.sendMessage(
+                            ColorUtil.color("&cOperation " + op.operationId() + " contains ambiguous/malformed XP ("
+                                    + displayToken + ") requiring administrator audit. Claim is withheld."));
                     continue;
                 }
                 try {
                     storage.removePendingOperation(op.operationId());
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
                 continue;
             }
 
-            // 2. Crash-Safety Boundary: Transition operation to DELIVERY_ATTEMPTED before modifying player inventory or granting XP!
-            // If the server stops or crashes at any point during delivery or before completion acknowledgment,
-            // the operation remains in DELIVERY_ATTEMPTED on reboot, preventing automatic re-claims and duplicate XP!
+            // 2. Crash-Safety Boundary: Transition operation to DELIVERY_ATTEMPTED before
+            // modifying player inventory or granting XP!
+            // If the server stops or crashes at any point during delivery or before
+            // completion acknowledgment,
+            // the operation remains in DELIVERY_ATTEMPTED on reboot, preventing automatic
+            // re-claims and duplicate XP!
             boolean claimAttemptPersisted = false;
             try {
-                claimAttemptPersisted = storage.updatePendingOperationState(op.operationId(), "DELIVERY_ATTEMPTED", op.payload());
+                claimAttemptPersisted = storage.updatePendingOperationState(op.operationId(), "DELIVERY_ATTEMPTED",
+                        op.payload());
             } catch (Throwable t) {
                 claimAttemptPersisted = false;
             }
             if (!claimAttemptPersisted) {
-                player.sendMessage(ColorUtil.color("&cFailed to confirm durable claim transaction for operation " + op.operationId() + ". Transaction aborted safely to prevent item/XP loss."));
+                player.sendMessage(ColorUtil.color("&cFailed to confirm durable claim transaction for operation "
+                        + op.operationId() + ". Transaction aborted safely to prevent item/XP loss."));
                 continue;
             }
 
@@ -812,15 +884,18 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             if (leftovers.isEmpty()) {
                 if (xpToGrant > 0 && !xpAlreadyDelivered && !xpAmbiguous && !xpParseFailed) {
                     player.giveExp(xpToGrant);
-                    player.sendMessage(ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
+                    player.sendMessage(
+                            ColorUtil.color("&aClaimed &b" + xpToGrant + " XP &afrom preserved minion state!"));
                 }
                 boolean xpRemainsUnresolved = xpParseFailed
                         || (xpToGrant > 0 && !xpAlreadyDelivered && xpAmbiguous);
                 if (xpRemainsUnresolved || xpAmbiguous) {
-                    String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID") : String.valueOf(xpToGrant);
+                    String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID")
+                            : String.valueOf(xpToGrant);
                     boolean xpPersisted = false;
                     try {
-                        xpPersisted = storage.updatePendingOperationState(op.operationId(), "DELIVERY_ATTEMPTED", "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::");
+                        xpPersisted = storage.updatePendingOperationState(op.operationId(), "DELIVERY_ATTEMPTED",
+                                "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::");
                     } catch (Throwable t) {
                         xpPersisted = false;
                     }
@@ -828,29 +903,46 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     if (!xpPersisted) {
                         boolean fallbackPersisted = false;
                         try {
-                            String fencePayload = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::";
-                            fallbackPersisted = storage.updatePendingOperationState(op.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
-                        } catch (Exception ignored) {}
+                            String fencePayload = "XP_AMBIGUOUS:" + xpToken
+                                    + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + totalItemsRestored
+                                    + ";;;LEFTOVER:::";
+                            fallbackPersisted = storage.updatePendingOperationState(op.operationId(),
+                                    "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+                        } catch (Exception ignored) {
+                        }
                         if (!fallbackPersisted) {
-                            player.sendMessage(ColorUtil.color("&cCRITICAL: Items were claimed (" + totalItemsRestored + "), but persisting unresolved XP and emergency fence write both failed! Operation " + op.operationId() + " remains in unconfirmed ambiguous state with delivery blocked."));
+                            player.sendMessage(ColorUtil.color("&cCRITICAL: Items were claimed (" + totalItemsRestored
+                                    + "), but persisting unresolved XP and emergency fence write both failed! Operation "
+                                    + op.operationId()
+                                    + " remains in unconfirmed ambiguous state with delivery blocked."));
                             if (plugin != null) {
-                                plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: /minion claim delivered items for op " + op.operationId() + " but XP persistence and emergency fence write both failed.");
+                                plugin.getLogger()
+                                        .severe("[MinionX Escrow Audit] CRITICAL: /minion claim delivered items for op "
+                                                + op.operationId()
+                                                + " but XP persistence and emergency fence write both failed.");
                             }
                         } else {
-                            player.sendMessage(ColorUtil.color("&cCRITICAL: Items were claimed (" + totalItemsRestored + "), but persisting unresolved XP ledger (" + xpToken + ") failed! Operation " + op.operationId() + " is fenced to prevent duplicate item replay."));
+                            player.sendMessage(ColorUtil.color("&cCRITICAL: Items were claimed (" + totalItemsRestored
+                                    + "), but persisting unresolved XP ledger (" + xpToken + ") failed! Operation "
+                                    + op.operationId() + " is fenced to prevent duplicate item replay."));
                             if (plugin != null) {
-                                plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: /minion claim delivered items for op " + op.operationId() + " but XP-only persistence failed. Fenced to AMBIGUOUS_PARTIAL_DELIVERY.");
+                                plugin.getLogger()
+                                        .severe("[MinionX Escrow Audit] CRITICAL: /minion claim delivered items for op "
+                                                + op.operationId()
+                                                + " but XP-only persistence failed. Fenced to AMBIGUOUS_PARTIAL_DELIVERY.");
                             }
                         }
                     } else {
-                        player.sendMessage(ColorUtil.color("&eItems were claimed, but stored " + xpToken + " XP requires administrator audit and remains withheld."));
+                        player.sendMessage(ColorUtil.color("&eItems were claimed, but stored " + xpToken
+                                + " XP requires administrator audit and remains withheld."));
                     }
                     continue;
                 }
                 try {
                     storage.removePendingOperation(op.operationId());
                     claimedOps++;
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             } else {
                 List<String> remSerialized = new ArrayList<>();
                 for (ItemStack rem : leftovers) {
@@ -859,18 +951,22 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                     remSerialized.add(com.minionx.util.MinionPayloadUtil.escapeItemPayload(yc.saveToString()));
                 }
                 String pureLeftoversStr = String.join(";;;ITEM;;;", remSerialized);
-                String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID") : String.valueOf(xpToGrant);
+                String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID")
+                        : String.valueOf(xpToGrant);
                 String remPayloadStr;
                 if (xpAmbiguous || xpParseFailed) {
                     remPayloadStr = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::" + pureLeftoversStr;
                 } else {
-                    remPayloadStr = (xpToGrant > 0 && !xpAlreadyDelivered) ? "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr : pureLeftoversStr;
+                    remPayloadStr = (xpToGrant > 0 && !xpAlreadyDelivered)
+                            ? "XP:" + xpToGrant + ";;;PAYLOAD:::" + pureLeftoversStr
+                            : pureLeftoversStr;
                 }
 
                 String targetState = (xpAmbiguous || xpParseFailed) ? "DELIVERY_ATTEMPTED" : "QUARANTINED_LEFTOVERS";
                 boolean leftoverPersisted = false;
                 try {
-                    leftoverPersisted = storage.updatePendingOperationState(op.operationId(), targetState, remPayloadStr);
+                    leftoverPersisted = storage.updatePendingOperationState(op.operationId(), targetState,
+                            remPayloadStr);
                 } catch (Throwable t) {
                     leftoverPersisted = false;
                 }
@@ -878,24 +974,39 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                 if (!leftoverPersisted) {
                     boolean fallbackPersisted = false;
                     try {
-                        String xpPrefix = (xpAmbiguous || xpParseFailed) ? "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::" : (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "");
+                        String xpPrefix = (xpAmbiguous || xpParseFailed) ? "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::"
+                                : (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : "");
                         String fencePayload = xpPrefix
-                                + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + totalItemsRestored + ";;;LEFTOVER:::" + pureLeftoversStr;
-                        fallbackPersisted = storage.updatePendingOperationState(op.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
-                    } catch (Exception ignored) {}
+                                + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + totalItemsRestored
+                                + ";;;LEFTOVER:::" + pureLeftoversStr;
+                        fallbackPersisted = storage.updatePendingOperationState(op.operationId(),
+                                "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+                    } catch (Exception ignored) {
+                    }
                     if (!fallbackPersisted) {
-                        player.sendMessage(ColorUtil.color("&cCRITICAL: Your inventory was full and saving remaining items AND emergency fallback write both failed! Operation " + op.operationId() + " remains in unconfirmed ambiguous state with delivery blocked."));
+                        player.sendMessage(ColorUtil.color(
+                                "&cCRITICAL: Your inventory was full and saving remaining items AND emergency fallback write both failed! Operation "
+                                        + op.operationId()
+                                        + " remains in unconfirmed ambiguous state with delivery blocked."));
                         if (plugin != null) {
-                            plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: /minion claim leftover persistence and emergency fallback write BOTH failed for op " + op.operationId() + ".");
+                            plugin.getLogger().severe(
+                                    "[MinionX Escrow Audit] CRITICAL: /minion claim leftover persistence and emergency fallback write BOTH failed for op "
+                                            + op.operationId() + ".");
                         }
                     } else {
-                        player.sendMessage(ColorUtil.color("&cCRITICAL: Your inventory was full and saving remaining items failed! Operation " + op.operationId() + " is fenced to prevent duplicate items. Please contact an administrator."));
+                        player.sendMessage(ColorUtil.color(
+                                "&cCRITICAL: Your inventory was full and saving remaining items failed! Operation "
+                                        + op.operationId()
+                                        + " is fenced to prevent duplicate items. Please contact an administrator."));
                         if (plugin != null) {
-                            plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: /minion claim failed to persist leftovers for op " + op.operationId() + ". Operation fenced to prevent replay.");
+                            plugin.getLogger().severe(
+                                    "[MinionX Escrow Audit] CRITICAL: /minion claim failed to persist leftovers for op "
+                                            + op.operationId() + ". Operation fenced to prevent replay.");
                         }
                     }
                 } else {
-                    player.sendMessage(ColorUtil.color("&eYour inventory became full! Some items remain in your escrow claim. Make space and run /minion claim again."));
+                    player.sendMessage(ColorUtil.color(
+                            "&eYour inventory became full! Some items remain in your escrow claim. Make space and run /minion claim again."));
                 }
                 break;
             }
@@ -929,20 +1040,24 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             }
             sender.sendMessage(ColorUtil.color("&6=== Pending Escrow Operations (" + pending.size() + ") ==="));
             for (com.minionx.storage.PendingOperation op : pending) {
-                sender.sendMessage(ColorUtil.color("&e• &f" + op.operationId() + " &7[" + op.state() + "] Minion: &b" + op.minionId() + " &7Player: &a" + op.playerUuid()));
+                sender.sendMessage(ColorUtil.color("&e• &f" + op.operationId() + " &7[" + op.state() + "] Minion: &b"
+                        + op.minionId() + " &7Player: &a" + op.playerUuid()));
             }
-            sender.sendMessage(ColorUtil.color("&7Use &e/minion recover resolve <opId> <deliver|complete> [reason] &7to audit and resolve."));
+            sender.sendMessage(ColorUtil.color(
+                    "&7Use &e/minion recover resolve <opId> <deliver|complete> [reason] &7to audit and resolve."));
             return;
         }
 
         if (args[1].equalsIgnoreCase("resolve")) {
             if (args.length < 4) {
-                sender.sendMessage(ColorUtil.color("&cUsage: /minion recover resolve <opId> <deliver|complete> [reason]"));
+                sender.sendMessage(
+                        ColorUtil.color("&cUsage: /minion recover resolve <opId> <deliver|complete> [reason]"));
                 return;
             }
             String opId = args[2];
             String action = args[3].toLowerCase();
-            String reason = args.length >= 5 ? String.join(" ", java.util.Arrays.copyOfRange(args, 4, args.length)) : "Operator audit resolution";
+            String reason = args.length >= 5 ? String.join(" ", java.util.Arrays.copyOfRange(args, 4, args.length))
+                    : "Operator audit resolution";
 
             com.minionx.storage.PendingOperation targetOp = null;
             for (com.minionx.storage.PendingOperation op : storage.getPendingOperations()) {
@@ -960,7 +1075,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
             String operatorId = (sender instanceof Player p) ? p.getUniqueId().toString() : "CONSOLE";
             long now = System.currentTimeMillis();
 
-            if ("deliver".equals(action) || "deliver-force-all".equals(action) || "deliver-force-all-with-xp".equals(action)) {
+            if ("deliver".equals(action) || "deliver-force-all".equals(action)
+                    || "deliver-force-all-with-xp".equals(action)) {
                 // 1. Whitelist safe unambiguous states for ordinary recovery ('deliver')
                 boolean isKnownSafeState = "QUARANTINED_LEFTOVERS".equalsIgnoreCase(targetOp.state())
                         || "MINION_REMOVED".equalsIgnoreCase(targetOp.state())
@@ -974,21 +1090,29 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         || "COMPLETION_UNCONFIRMED".equalsIgnoreCase(targetOp.state());
 
                 if ("deliver".equals(action) && (!isKnownSafeState || isAmbiguousDelivery)) {
-                    sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId + " has ambiguous or unverified state '" + targetOp.state() + "'. Delivery may have partially succeeded before interruption! Plain 'deliver' is prohibited to prevent duplicate items."));
-                    sender.sendMessage(ColorUtil.color("&cIf you have verified from logs that the player received 0 items, use: /minion recover resolve " + opId + " deliver-force-all [reason] (items only) or deliver-force-all-with-xp [reason]"));
-                    sender.sendMessage(ColorUtil.color("&cOtherwise, use /minion recover resolve " + opId + " complete <reason> to clear."));
+                    sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId
+                            + " has ambiguous or unverified state '" + targetOp.state()
+                            + "'. Delivery may have partially succeeded before interruption! Plain 'deliver' is prohibited to prevent duplicate items."));
+                    sender.sendMessage(ColorUtil.color(
+                            "&cIf you have verified from logs that the player received 0 items, use: /minion recover resolve "
+                                    + opId
+                                    + " deliver-force-all [reason] (items only) or deliver-force-all-with-xp [reason]"));
+                    sender.sendMessage(ColorUtil.color(
+                            "&cOtherwise, use /minion recover resolve " + opId + " complete <reason> to clear."));
                     return;
                 }
 
                 Player targetPlayer = Bukkit.getPlayer(targetOp.playerUuid());
                 if (targetPlayer == null || !targetPlayer.isOnline()) {
-                    sender.sendMessage(ColorUtil.color("&cCannot deliver: player " + targetOp.playerUuid() + " is offline. Operation retained in escrow ledger."));
+                    sender.sendMessage(ColorUtil.color("&cCannot deliver: player " + targetOp.playerUuid()
+                            + " is offline. Operation retained in escrow ledger."));
                     return;
                 }
 
                 String payload = targetOp.payload();
 
-                // 2. Extract XP if present (must occur BEFORE leftover extraction to avoid stripping prefix)
+                // 2. Extract XP if present (must occur BEFORE leftover extraction to avoid
+                // stripping prefix)
                 int xpToGrant = 0;
                 boolean xpAlreadyDelivered = false;
                 boolean xpAmbiguous = false;
@@ -1030,7 +1154,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         }
                         int sep = payload.indexOf(";;;PAYLOAD:::");
                         if (sep < prefixLen) {
-                            // Missing or invalid delimiter (e.g. "XP_AMBIGUOUS:100" without ";;;PAYLOAD:::")
+                            // Missing or invalid delimiter (e.g. "XP_AMBIGUOUS:100" without
+                            // ";;;PAYLOAD:::")
                             xpParseFailed = true;
                             rawXpToken = payload.substring(prefixLen);
                         } else {
@@ -1063,7 +1188,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         int leftoverIndex = payload.indexOf(";;;LEFTOVER:::");
                         payload = payload.substring(leftoverIndex + 14);
                     } else {
-                        sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId + " is AMBIGUOUS_PARTIAL_DELIVERY but leftover section is missing. Cannot deliver safely."));
+                        sender.sendMessage(ColorUtil.color("&cCRITICAL: Operation " + opId
+                                + " is AMBIGUOUS_PARTIAL_DELIVERY but leftover section is missing. Cannot deliver safely."));
                         return;
                     }
                 }
@@ -1087,25 +1213,32 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             org.bukkit.configuration.file.YamlConfiguration yc = new org.bukkit.configuration.file.YamlConfiguration();
                             yc.loadFromString(unescaped);
                             ItemStack stack = yc.getItemStack("item");
-                            if (stack != null) toDeliver.add(stack);
-                        } catch (Exception ignored) {}
+                            if (stack != null)
+                                toDeliver.add(stack);
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
 
-                // 4. Crash-Safety Boundary: Transition operation to DELIVERY_ATTEMPTED before modifying player inventory or granting XP!
+                // 4. Crash-Safety Boundary: Transition operation to DELIVERY_ATTEMPTED before
+                // modifying player inventory or granting XP!
                 boolean recoveryAttemptPersisted = false;
                 try {
-                    recoveryAttemptPersisted = storage.updatePendingOperationState(targetOp.operationId(), "DELIVERY_ATTEMPTED", targetOp.payload());
+                    recoveryAttemptPersisted = storage.updatePendingOperationState(targetOp.operationId(),
+                            "DELIVERY_ATTEMPTED", targetOp.payload());
                 } catch (Throwable t) {
                     recoveryAttemptPersisted = false;
                 }
                 if (!recoveryAttemptPersisted) {
-                    sender.sendMessage(ColorUtil.color("&cCRITICAL: Failed to confirm durable state transition for operation " + opId + ". Recovery aborted safely to prevent duplicate items."));
+                    sender.sendMessage(
+                            ColorUtil.color("&cCRITICAL: Failed to confirm durable state transition for operation "
+                                    + opId + ". Recovery aborted safely to prevent duplicate items."));
                     return;
                 }
 
                 if (isForceOverrideWithXp) {
-                    // Explicit administrative override: force-deliver all items (drop overflow) and force-grant XP
+                    // Explicit administrative override: force-deliver all items (drop overflow) and
+                    // force-grant XP
                     if (xpToGrant > 0 && !xpParseFailed) {
                         targetPlayer.giveExp(xpToGrant);
                         actualXpGranted = xpToGrant;
@@ -1123,15 +1256,20 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         String xpToken = (rawXpToken != null) ? rawXpToken : "INVALID";
                         String xpOnlyPayload = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::";
                         try {
-                            storage.updatePendingOperationState(targetOp.operationId(), "DELIVERY_ATTEMPTED", xpOnlyPayload);
-                        } catch (Exception ignored) {}
+                            storage.updatePendingOperationState(targetOp.operationId(), "DELIVERY_ATTEMPTED",
+                                    xpOnlyPayload);
+                        } catch (Exception ignored) {
+                        }
                         operationResolved = false;
-                        sender.sendMessage(ColorUtil.color("&c[Warning] Items delivered, but operation " + opId + " has malformed XP ('" + xpToken + "'). Retained in escrow ledger under DELIVERY_ATTEMPTED."));
+                        sender.sendMessage(ColorUtil
+                                .color("&c[Warning] Items delivered, but operation " + opId + " has malformed XP ('"
+                                        + xpToken + "'). Retained in escrow ledger under DELIVERY_ATTEMPTED."));
                     } else {
                         try {
                             storage.removePendingOperation(targetOp.operationId());
                             operationResolved = true;
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                     }
                 } else {
                     // Ordinary recovery (deliver or deliver-force-all):
@@ -1161,25 +1299,35 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             targetPlayer.giveExp(xpToGrant);
                             actualXpGranted = xpToGrant;
                         } else if (xpParseFailed) {
-                            sender.sendMessage(ColorUtil.color("&c[Warning] Operation " + opId + " has malformed XP data ('" + rawXpToken + "'). XP withheld and operation quarantined in escrow ledger."));
+                            sender.sendMessage(ColorUtil
+                                    .color("&c[Warning] Operation " + opId + " has malformed XP data ('" + rawXpToken
+                                            + "'). XP withheld and operation quarantined in escrow ledger."));
                         } else if (xpToGrant > 0) {
                             if (xpAlreadyDelivered) {
-                                sender.sendMessage(ColorUtil.color("&e[Notice] Operation " + opId + " was marked as XP_GRANTED (" + xpToGrant + " XP). Stored XP was already delivered previously."));
+                                sender.sendMessage(
+                                        ColorUtil.color("&e[Notice] Operation " + opId + " was marked as XP_GRANTED ("
+                                                + xpToGrant + " XP). Stored XP was already delivered previously."));
                             } else {
-                                sender.sendMessage(ColorUtil.color("&e[Notice] Operation " + opId + " has ambiguous delivery state (" + targetOp.state() + "). Stored " + xpToGrant + " XP withheld to prevent duplicate granting."));
+                                sender.sendMessage(ColorUtil.color("&e[Notice] Operation " + opId
+                                        + " has ambiguous delivery state (" + targetOp.state() + "). Stored "
+                                        + xpToGrant + " XP withheld to prevent duplicate granting."));
                             }
                         }
 
                         boolean xpRemainsUnresolved = xpParseFailed
                                 || (xpToGrant > 0 && !allowXpGrant && !xpAlreadyDelivered);
                         if (xpRemainsUnresolved) {
-                            // Items were delivered, but XP was withheld due to ambiguous delivery state or malformed XP!
-                            // DO NOT delete the operation! Retain pending XP and recovery record until delivery outcome is established.
-                            String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID") : String.valueOf(xpToGrant);
+                            // Items were delivered, but XP was withheld due to ambiguous delivery state or
+                            // malformed XP!
+                            // DO NOT delete the operation! Retain pending XP and recovery record until
+                            // delivery outcome is established.
+                            String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID")
+                                    : String.valueOf(xpToGrant);
                             String xpOnlyPayload = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::";
                             boolean xpPersisted = false;
                             try {
-                                xpPersisted = storage.updatePendingOperationState(targetOp.operationId(), "DELIVERY_ATTEMPTED", xpOnlyPayload);
+                                xpPersisted = storage.updatePendingOperationState(targetOp.operationId(),
+                                        "DELIVERY_ATTEMPTED", xpOnlyPayload);
                             } catch (Throwable t) {
                                 xpPersisted = false;
                             }
@@ -1187,25 +1335,47 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             if (!xpPersisted) {
                                 boolean fallbackPersisted = false;
                                 try {
-                                    String fencePayload = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::";
-                                    fallbackPersisted = storage.updatePendingOperationState(targetOp.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
-                                } catch (Exception ignored) {}
+                                    String fencePayload = "XP_AMBIGUOUS:" + xpToken
+                                            + ";;;PAYLOAD:::XP_PERSIST_FAILED;;;DELIVERED_COUNT:" + itemsDelivered
+                                            + ";;;LEFTOVER:::";
+                                    fallbackPersisted = storage.updatePendingOperationState(targetOp.operationId(),
+                                            "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+                                } catch (Exception ignored) {
+                                }
                                 if (!fallbackPersisted) {
-                                    sender.sendMessage(ColorUtil.color("&cCRITICAL: All " + itemsDelivered + " items were delivered, but persisting unresolved XP and emergency fence write both failed! Operation " + opId + " remains in unconfirmed ambiguous state (" + targetOp.state() + ") with delivery blocked."));
+                                    sender.sendMessage(ColorUtil.color("&cCRITICAL: All " + itemsDelivered
+                                            + " items were delivered, but persisting unresolved XP and emergency fence write both failed! Operation "
+                                            + opId + " remains in unconfirmed ambiguous state (" + targetOp.state()
+                                            + ") with delivery blocked."));
                                     if (plugin != null) {
-                                        plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: Items delivered for op " + opId + " but both XP persistence and emergency fence write failed! Durable record in unconfirmed ambiguous state.");
+                                        plugin.getLogger()
+                                                .severe("[MinionX Escrow Audit] CRITICAL: Items delivered for op "
+                                                        + opId
+                                                        + " but both XP persistence and emergency fence write failed! Durable record in unconfirmed ambiguous state.");
                                     }
                                 } else {
-                                    sender.sendMessage(ColorUtil.color("&cCRITICAL: All " + itemsDelivered + " items were delivered, but persisting unresolved XP (" + xpToken + ") failed! Operation " + opId + " is fenced to prevent duplicate item replay."));
+                                    sender.sendMessage(ColorUtil.color("&cCRITICAL: All " + itemsDelivered
+                                            + " items were delivered, but persisting unresolved XP (" + xpToken
+                                            + ") failed! Operation " + opId
+                                            + " is fenced to prevent duplicate item replay."));
                                     if (plugin != null) {
-                                        plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: Items delivered for op " + opId + " but XP-only persistence failed. Fenced to prevent item replay.");
+                                        plugin.getLogger()
+                                                .severe("[MinionX Escrow Audit] CRITICAL: Items delivered for op "
+                                                        + opId
+                                                        + " but XP-only persistence failed. Fenced to prevent item replay.");
                                     }
                                 }
                             } else {
                                 if (xpParseFailed) {
-                                    sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered (" + itemsDelivered + "), but malformed XP data ('" + xpToken + "') remains unresolved. Operation " + opId + " is retained in escrow ledger."));
+                                    sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered ("
+                                            + itemsDelivered + "), but malformed XP data ('" + xpToken
+                                            + "') remains unresolved. Operation " + opId
+                                            + " is retained in escrow ledger."));
                                 } else {
-                                    sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered (" + itemsDelivered + "), but " + xpToGrant + " XP remains unresolved and withheld. Operation " + opId + " is retained in escrow ledger until administrator audits XP delivery."));
+                                    sender.sendMessage(ColorUtil.color("&e[Notice] Items were delivered ("
+                                            + itemsDelivered + "), but " + xpToGrant
+                                            + " XP remains unresolved and withheld. Operation " + opId
+                                            + " is retained in escrow ledger until administrator audits XP delivery."));
                                 }
                             }
                             operationResolved = false;
@@ -1213,7 +1383,8 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             try {
                                 storage.removePendingOperation(targetOp.operationId());
                                 operationResolved = true;
-                            } catch (Exception ignored) {}
+                            } catch (Exception ignored) {
+                            }
                         }
                     } else {
                         // Inventory became full: items remain in leftovers!
@@ -1226,8 +1397,10 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                         }
                         String pureLeftoversStr = String.join(";;;ITEM;;;", remSerialized);
                         boolean operationRemainsAmbiguous = (isAmbiguousDelivery || xpAmbiguous || xpParseFailed);
-                        boolean xpRemainsAmbiguous = ((xpToGrant > 0 || xpParseFailed) && !xpAlreadyDelivered && operationRemainsAmbiguous && !isForceOverrideWithXp);
-                        String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID") : String.valueOf(xpToGrant);
+                        boolean xpRemainsAmbiguous = ((xpToGrant > 0 || xpParseFailed) && !xpAlreadyDelivered
+                                && operationRemainsAmbiguous && !isForceOverrideWithXp);
+                        String xpToken = xpParseFailed ? ((rawXpToken != null) ? rawXpToken : "INVALID")
+                                : String.valueOf(xpToGrant);
                         String remPayloadStr;
                         if (xpRemainsAmbiguous) {
                             remPayloadStr = "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::" + pureLeftoversStr;
@@ -1239,10 +1412,12 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             remPayloadStr = pureLeftoversStr;
                         }
 
-                        String targetLeftoverState = operationRemainsAmbiguous ? "DELIVERY_ATTEMPTED" : "QUARANTINED_LEFTOVERS";
+                        String targetLeftoverState = operationRemainsAmbiguous ? "DELIVERY_ATTEMPTED"
+                                : "QUARANTINED_LEFTOVERS";
                         boolean leftoverPersisted = false;
                         try {
-                            leftoverPersisted = storage.updatePendingOperationState(targetOp.operationId(), targetLeftoverState, remPayloadStr);
+                            leftoverPersisted = storage.updatePendingOperationState(targetOp.operationId(),
+                                    targetLeftoverState, remPayloadStr);
                         } catch (Throwable t) {
                             leftoverPersisted = false;
                         }
@@ -1252,59 +1427,94 @@ public class MinionCommand implements CommandExecutor, TabCompleter {
                             try {
                                 String xpPrefix = xpRemainsAmbiguous
                                         ? "XP_AMBIGUOUS:" + xpToken + ";;;PAYLOAD:::"
-                                        : (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::" : (xpToGrant > 0 && xpAlreadyDelivered ? "XP_GRANTED:" + xpToGrant + ";;;PAYLOAD:::" : ""));
+                                        : (xpToGrant > 0 && !xpAlreadyDelivered ? "XP:" + xpToGrant + ";;;PAYLOAD:::"
+                                                : (xpToGrant > 0 && xpAlreadyDelivered
+                                                        ? "XP_GRANTED:" + xpToGrant + ";;;PAYLOAD:::"
+                                                        : ""));
                                 String fencePayload = xpPrefix
-                                        + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + itemsDelivered + ";;;LEFTOVER:::" + pureLeftoversStr;
-                                fallbackPersisted = storage.updatePendingOperationState(targetOp.operationId(), "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
-                            } catch (Exception ignored) {}
+                                        + "PARTIAL_DELIVERY_UNCONFIRMED;;;DELIVERED_COUNT:" + itemsDelivered
+                                        + ";;;LEFTOVER:::" + pureLeftoversStr;
+                                fallbackPersisted = storage.updatePendingOperationState(targetOp.operationId(),
+                                        "AMBIGUOUS_PARTIAL_DELIVERY", fencePayload);
+                            } catch (Exception ignored) {
+                            }
                             if (!fallbackPersisted) {
-                                sender.sendMessage(ColorUtil.color("&cCRITICAL: Failed to confirm durable persistence of leftover items AND emergency fallback write failed for operation " + opId + "! Operation remains in unconfirmed ambiguous state (" + targetOp.state() + ") with delivery blocked."));
+                                sender.sendMessage(ColorUtil.color(
+                                        "&cCRITICAL: Failed to confirm durable persistence of leftover items AND emergency fallback write failed for operation "
+                                                + opId + "! Operation remains in unconfirmed ambiguous state ("
+                                                + targetOp.state() + ") with delivery blocked."));
                                 if (plugin != null) {
-                                    plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: Leftover persistence and emergency fallback write BOTH failed for op " + opId + ". Retained in unconfirmed state with delivery blocked.");
+                                    plugin.getLogger().severe(
+                                            "[MinionX Escrow Audit] CRITICAL: Leftover persistence and emergency fallback write BOTH failed for op "
+                                                    + opId + ". Retained in unconfirmed state with delivery blocked.");
                                 }
                             } else {
-                                sender.sendMessage(ColorUtil.color("&cCRITICAL: Failed to confirm durable persistence of leftover items for operation " + opId + "! Operation has been fenced as AMBIGUOUS_PARTIAL_DELIVERY to prevent duplicate replay."));
+                                sender.sendMessage(ColorUtil.color(
+                                        "&cCRITICAL: Failed to confirm durable persistence of leftover items for operation "
+                                                + opId
+                                                + "! Operation has been fenced as AMBIGUOUS_PARTIAL_DELIVERY to prevent duplicate replay."));
                                 if (plugin != null) {
-                                    plugin.getLogger().severe("[MinionX Escrow Audit] CRITICAL: Failed to persist leftovers for op " + opId + " (" + itemsDelivered + " items delivered, " + leftoverItems.size() + " leftover stacks). Fenced to AMBIGUOUS_PARTIAL_DELIVERY.");
+                                    plugin.getLogger().severe(
+                                            "[MinionX Escrow Audit] CRITICAL: Failed to persist leftovers for op "
+                                                    + opId + " (" + itemsDelivered + " items delivered, "
+                                                    + leftoverItems.size()
+                                                    + " leftover stacks). Fenced to AMBIGUOUS_PARTIAL_DELIVERY.");
                                 }
                             }
                         } else {
                             if (operationRemainsAmbiguous) {
-                                sender.sendMessage(ColorUtil.color("&e[Warning] Target player's inventory became full (" + leftoverItems.size() + " leftover stacks). Remaining items and ambiguous delivery state (" + targetLeftoverState + ") preserved in ledger (ordinary claim prohibited)."));
+                                sender.sendMessage(ColorUtil.color("&e[Warning] Target player's inventory became full ("
+                                        + leftoverItems.size()
+                                        + " leftover stacks). Remaining items and ambiguous delivery state ("
+                                        + targetLeftoverState + ") preserved in ledger (ordinary claim prohibited)."));
                             } else {
-                                sender.sendMessage(ColorUtil.color("&e[Warning] Target player's inventory became full (" + leftoverItems.size() + " leftover stacks). Remaining items and ungranted XP (" + xpToGrant + " XP) preserved in QUARANTINED_LEFTOVERS."));
+                                sender.sendMessage(ColorUtil.color("&e[Warning] Target player's inventory became full ("
+                                        + leftoverItems.size() + " leftover stacks). Remaining items and ungranted XP ("
+                                        + xpToGrant + " XP) preserved in QUARANTINED_LEFTOVERS."));
                             }
                         }
                     }
                 }
 
                 if (itemsDelivered > 0 || actualXpGranted > 0) {
-                    targetPlayer.sendMessage(ColorUtil.color("&aAn administrator resolved and delivered your quarantined minion items!"));
+                    targetPlayer.sendMessage(ColorUtil
+                            .color("&aAn administrator resolved and delivered your quarantined minion items!"));
                 }
 
                 if (plugin != null) {
-                    plugin.getLogger().info("[MinionX Escrow Audit] Operator " + operatorId + " at " + now + " resolved operation " + opId + " as " + action.toUpperCase() + " (" + itemsDelivered + " items, " + actualXpGranted + " XP). Reason: " + reason);
+                    plugin.getLogger()
+                            .info("[MinionX Escrow Audit] Operator " + operatorId + " at " + now
+                                    + " resolved operation " + opId + " as " + action.toUpperCase() + " ("
+                                    + itemsDelivered + " items, " + actualXpGranted + " XP). Reason: " + reason);
                 }
                 if (operationResolved) {
-                    sender.sendMessage(ColorUtil.color("&aOperation &e" + opId + " &aresolved and delivered (" + itemsDelivered + " items, " + actualXpGranted + " XP). Audit logged."));
+                    sender.sendMessage(ColorUtil.color("&aOperation &e" + opId + " &aresolved and delivered ("
+                            + itemsDelivered + " items, " + actualXpGranted + " XP). Audit logged."));
                 } else {
-                    sender.sendMessage(ColorUtil.color("&eOperation &e" + opId + " &apartially delivered (" + itemsDelivered + " items, " + actualXpGranted + " XP granted). Unresolved state retained in ledger. Audit logged."));
+                    sender.sendMessage(ColorUtil.color("&eOperation &e" + opId + " &apartially delivered ("
+                            + itemsDelivered + " items, " + actualXpGranted
+                            + " XP granted). Unresolved state retained in ledger. Audit logged."));
                 }
             } else if ("complete".equals(action)) {
                 try {
                     storage.removePendingOperation(targetOp.operationId());
-                } catch (Exception ignored) {}
-                if (plugin != null) {
-                    plugin.getLogger().info("[MinionX Escrow Audit] Operator " + operatorId + " at " + now + " resolved operation " + opId + " as COMPLETE (cleared). Reason: " + reason);
+                } catch (Exception ignored) {
                 }
-                sender.sendMessage(ColorUtil.color("&aOperation &e" + opId + " &amarked as COMPLETE and removed from ledger. Audit logged."));
+                if (plugin != null) {
+                    plugin.getLogger().info("[MinionX Escrow Audit] Operator " + operatorId + " at " + now
+                            + " resolved operation " + opId + " as COMPLETE (cleared). Reason: " + reason);
+                }
+                sender.sendMessage(ColorUtil.color(
+                        "&aOperation &e" + opId + " &amarked as COMPLETE and removed from ledger. Audit logged."));
             } else {
-                sender.sendMessage(ColorUtil.color("&cUnknown action '" + action + "'. Valid actions: deliver, deliver-force-all, complete"));
+                sender.sendMessage(ColorUtil.color(
+                        "&cUnknown action '" + action + "'. Valid actions: deliver, deliver-force-all, complete"));
             }
             return;
         }
 
-        sender.sendMessage(ColorUtil.color("&cUsage: /minion recover [list|resolve <opId> <deliver|deliver-force-all|complete> [reason]]"));
+        sender.sendMessage(ColorUtil
+                .color("&cUsage: /minion recover [list|resolve <opId> <deliver|deliver-force-all|complete> [reason]]"));
     }
 
 }

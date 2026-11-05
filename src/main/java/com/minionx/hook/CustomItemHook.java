@@ -7,8 +7,10 @@ import org.bukkit.inventory.ItemStack;
 import java.lang.reflect.Method;
 
 /**
- * Universal custom item bridge resolving items from ItemsAdder, MMOItems, and EcoItems
- * with cached reflection handles for high-frequency pricing, recipes, and drop resolution.
+ * Universal custom item bridge resolving items from ItemsAdder, MMOItems, and
+ * EcoItems
+ * with cached reflection handles for high-frequency pricing, recipes, and drop
+ * resolution.
  */
 public class CustomItemHook {
 
@@ -58,8 +60,10 @@ public class CustomItemHook {
         iaByItemStack = null;
         iaGetNamespacedId = null;
 
-        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) return;
-        if (!Bukkit.getPluginManager().isPluginEnabled("ItemsAdder")) return;
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null)
+            return;
+        if (!Bukkit.getPluginManager().isPluginEnabled("ItemsAdder"))
+            return;
 
         try {
             Class<?> csClass = Class.forName("dev.lone.itemsadder.api.CustomStack");
@@ -68,7 +72,8 @@ public class CustomItemHook {
             iaByItemStack = csClass.getMethod("byItemStack", ItemStack.class);
             iaGetNamespacedId = csClass.getMethod("getNamespacedID");
             itemsAdderAvailable = true;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void initMMOItems() {
@@ -79,8 +84,10 @@ public class CustomItemHook {
         mmoGetTypeFromStack = null;
         mmoGetIdFromStack = null;
 
-        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) return;
-        if (!Bukkit.getPluginManager().isPluginEnabled("MMOItems")) return;
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null)
+            return;
+        if (!Bukkit.getPluginManager().isPluginEnabled("MMOItems"))
+            return;
 
         try {
             Class<?> mmoClass = Class.forName("net.Indyuce.mmoitems.MMOItems");
@@ -92,10 +99,12 @@ public class CustomItemHook {
             try {
                 mmoGetTypeFromStack = mmoClass.getMethod("getType", ItemStack.class);
                 mmoGetIdFromStack = mmoClass.getMethod("getID", ItemStack.class);
-            } catch (NoSuchMethodException ignored) {}
+            } catch (NoSuchMethodException ignored) {
+            }
 
             mmoItemsAvailable = true;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void initEcoItems() {
@@ -105,8 +114,10 @@ public class CustomItemHook {
         ecoGetByItemStack = null;
         ecoGetId = null;
 
-        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) return;
-        if (!Bukkit.getPluginManager().isPluginEnabled("EcoItems")) return;
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null)
+            return;
+        if (!Bukkit.getPluginManager().isPluginEnabled("EcoItems"))
+            return;
 
         try {
             Class<?> ecoClass = Class.forName("com.willfp.ecoitems.items.EcoItems");
@@ -119,7 +130,8 @@ public class CustomItemHook {
             } catch (NoSuchMethodException e) {
                 try {
                     ecoGetByItemStack = ecoClass.getMethod("getCustomItem", ItemStack.class);
-                } catch (NoSuchMethodException ignored) {}
+                } catch (NoSuchMethodException ignored) {
+                }
             }
 
             try {
@@ -127,11 +139,13 @@ public class CustomItemHook {
             } catch (NoSuchMethodException e) {
                 try {
                     ecoGetId = itemClass.getMethod("getID");
-                } catch (NoSuchMethodException ignored) {}
+                } catch (NoSuchMethodException ignored) {
+                }
             }
 
             ecoItemsAvailable = true;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void initOraxen() {
@@ -139,8 +153,10 @@ public class CustomItemHook {
         oraxenGetItemById = null;
         oraxenGetIdByItem = null;
 
-        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) return;
-        if (!Bukkit.getPluginManager().isPluginEnabled("Oraxen")) return;
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null)
+            return;
+        if (!Bukkit.getPluginManager().isPluginEnabled("Oraxen"))
+            return;
 
         try {
             Class<?> oiClass = null;
@@ -152,9 +168,11 @@ public class CustomItemHook {
             oraxenGetItemById = oiClass.getMethod("getItemById", String.class);
             try {
                 oraxenGetIdByItem = oiClass.getMethod("getIdByItem", ItemStack.class);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+            }
             oraxenAvailable = true;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void initNexo() {
@@ -162,29 +180,34 @@ public class CustomItemHook {
         nexoItemFromId = null;
         nexoIdFromItem = null;
 
-        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) return;
-        if (!Bukkit.getPluginManager().isPluginEnabled("Nexo")) return;
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null)
+            return;
+        if (!Bukkit.getPluginManager().isPluginEnabled("Nexo"))
+            return;
 
         try {
             Class<?> nexoClass = Class.forName("com.nexomc.nexo.api.NexoItems");
             nexoItemFromId = nexoClass.getMethod("itemFromId", String.class);
             try {
                 nexoIdFromItem = nexoClass.getMethod("idFromItem", ItemStack.class);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+            }
             nexoAvailable = true;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
     }
 
     /**
      * Resolves a custom item string into a Bukkit ItemStack.
      * Formats:
-     * - itemsadder:namespace:id  or  itemsadder:id
+     * - itemsadder:namespace:id or itemsadder:id
      * - mmoitems:TYPE:ID
      * - ecoitems:id
      * - VANILLA_MATERIAL
      */
     public static ItemStack getItem(String identifier) {
-        if (identifier == null || identifier.trim().isEmpty()) return null;
+        if (identifier == null || identifier.trim().isEmpty())
+            return null;
         String raw = identifier.trim();
 
         // 1. ItemsAdder (cached reflection)
@@ -196,14 +219,16 @@ public class CustomItemHook {
                     if (customStack != null) {
                         return (ItemStack) iaGetItemStack.invoke(customStack);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) {
+                }
             }
         }
 
         // 2. MMOItems (cached reflection)
         if (raw.toLowerCase().startsWith("mmoitems:")) {
             String[] parts = raw.split(":", 3);
-            if (parts.length == 3 && mmoItemsAvailable && mmoItemsPluginInstance != null && mmoGetType != null && mmoGetItem != null) {
+            if (parts.length == 3 && mmoItemsAvailable && mmoItemsPluginInstance != null && mmoGetType != null
+                    && mmoGetItem != null) {
                 String type = parts[1];
                 String id = parts[2];
                 try {
@@ -211,7 +236,8 @@ public class CustomItemHook {
                     if (typeObj != null) {
                         return (ItemStack) mmoGetItem.invoke(mmoItemsPluginInstance, typeObj, id);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) {
+                }
             }
         }
 
@@ -224,7 +250,8 @@ public class CustomItemHook {
                     if (customItem != null) {
                         return (ItemStack) ecoGetItem.invoke(customItem);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) {
+                }
             }
         }
 
@@ -238,7 +265,8 @@ public class CustomItemHook {
                         Method buildMethod = builder.getClass().getMethod("build");
                         return (ItemStack) buildMethod.invoke(builder);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) {
+                }
             }
         }
 
@@ -252,7 +280,8 @@ public class CustomItemHook {
                         Method buildMethod = builder.getClass().getMethod("build");
                         return (ItemStack) buildMethod.invoke(builder);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) {
+                }
             }
         }
 
@@ -266,7 +295,8 @@ public class CustomItemHook {
     }
 
     /**
-     * Checks if the given ItemStack is a custom item from ItemsAdder, MMOItems, or EcoItems.
+     * Checks if the given ItemStack is a custom item from ItemsAdder, MMOItems, or
+     * EcoItems.
      */
     public static boolean isCustomItem(ItemStack item) {
         return identifyCustomItem(item) != null;
@@ -274,11 +304,13 @@ public class CustomItemHook {
 
     /**
      * Identifies a custom item and returns its namespaced identifier string
-     * (e.g. "itemsadder:custom_ore", "mmoitems:SWORD:RUBY_SWORD", "ecoitems:blaze_core"),
+     * (e.g. "itemsadder:custom_ore", "mmoitems:SWORD:RUBY_SWORD",
+     * "ecoitems:blaze_core"),
      * or null if the item is vanilla.
      */
     public static String identifyCustomItem(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) return null;
+        if (item == null || item.getType() == Material.AIR)
+            return null;
 
         // 1. ItemsAdder
         if (itemsAdderAvailable && iaByItemStack != null && iaGetNamespacedId != null) {
@@ -290,7 +322,8 @@ public class CustomItemHook {
                         return "itemsadder:" + id;
                     }
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+            }
         }
 
         // 2. MMOItems
@@ -305,7 +338,8 @@ public class CustomItemHook {
                         return "mmoitems:" + typeStr + ":" + idStr;
                     }
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+            }
         }
 
         // 3. EcoItems
@@ -315,11 +349,13 @@ public class CustomItemHook {
                 if (customItem != null) {
                     if (ecoGetId != null) {
                         Object id = ecoGetId.invoke(customItem);
-                        if (id != null) return "ecoitems:" + id;
+                        if (id != null)
+                            return "ecoitems:" + id;
                     }
                     return "ecoitems:" + customItem.toString();
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+            }
         }
 
         // 4. Oraxen
@@ -329,7 +365,8 @@ public class CustomItemHook {
                 if (id != null && !id.toString().isEmpty()) {
                     return "oraxen:" + id;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+            }
         }
 
         // 5. Nexo
@@ -339,7 +376,8 @@ public class CustomItemHook {
                 if (id != null && !id.toString().isEmpty()) {
                     return "nexo:" + id;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+            }
         }
 
         return null;

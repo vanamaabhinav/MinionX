@@ -49,8 +49,10 @@ public class Minion {
     private long dialogueExpiresAt;
 
     // Transaction Guard & Revisions
-    private final java.util.concurrent.atomic.AtomicBoolean isTransacting = new java.util.concurrent.atomic.AtomicBoolean(false);
-    private final java.util.concurrent.atomic.AtomicBoolean isFullSleeping = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicBoolean isTransacting = new java.util.concurrent.atomic.AtomicBoolean(
+            false);
+    private final java.util.concurrent.atomic.AtomicBoolean isFullSleeping = new java.util.concurrent.atomic.AtomicBoolean(
+            false);
     private final java.util.concurrent.atomic.AtomicLong stateRevision = new java.util.concurrent.atomic.AtomicLong(0L);
     private long schedulingGeneration = 0L;
     private long lastCatchupTime = 0L;
@@ -132,7 +134,8 @@ public class Minion {
     }
 
     public int getUpgradeCost() {
-        if (this.tier >= getMaxTier()) return 0;
+        if (this.tier >= getMaxTier())
+            return 0;
         com.minionx.api.MinionDefinition def = getDefinition();
         if (def != null) {
             return def.getUpgradeCost(this.tier);
@@ -178,7 +181,8 @@ public class Minion {
     }
 
     public MinionFuelType getFuel() {
-        if (fuelId == null) return null;
+        if (fuelId == null)
+            return null;
         try {
             return MinionFuelType.valueOf(fuelId.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -225,14 +229,16 @@ public class Minion {
             }
             advanceStateRevision();
             advanceSchedulingGeneration();
-            if (!isFullSleeping() && MinionX.getInstance() != null && MinionX.getInstance().getMinionTickTask() != null) {
+            if (!isFullSleeping() && MinionX.getInstance() != null
+                    && MinionX.getInstance().getMinionTickTask() != null) {
                 MinionX.getInstance().getMinionTickTask().scheduleMinion(this);
             }
         }
     }
 
     public void extendFuel(CustomFuel fuel, int amount) {
-        if (fuel == null || fuel.isPermanent()) return;
+        if (fuel == null || fuel.isPermanent())
+            return;
         amount = Math.max(1, amount);
         long added = fuel.getDurationMillis() * (long) amount;
         long now = System.currentTimeMillis();
@@ -265,8 +271,10 @@ public class Minion {
 
     public boolean isFuelActive() {
         CustomFuel fuel = getCustomFuel();
-        if (fuel == null) return false;
-        if (fuel.isPermanent()) return true;
+        if (fuel == null)
+            return false;
+        if (fuel.isPermanent())
+            return true;
         return System.currentTimeMillis() < fuelEndTime;
     }
 
@@ -276,15 +284,19 @@ public class Minion {
     }
 
     public String getFormattedFuelTimeRemaining() {
-        if (isFuelPermanent()) return "Permanent";
-        if (!isFuelActive()) return "Expired";
+        if (isFuelPermanent())
+            return "Permanent";
+        if (!isFuelActive())
+            return "Expired";
         long remaining = Math.max(0, fuelEndTime - System.currentTimeMillis());
         long days = remaining / (86400 * 1000L);
         long hours = (remaining % (86400 * 1000L)) / (3600 * 1000L);
         long minutes = (remaining % (3600 * 1000L)) / (60 * 1000L);
         long seconds = (remaining % (60 * 1000L)) / 1000L;
-        if (days > 0) return String.format("%dd %dh", days, hours);
-        if (hours > 0) return String.format("%dh %dm", hours, minutes);
+        if (days > 0)
+            return String.format("%dd %dh", days, hours);
+        if (hours > 0)
+            return String.format("%dh %dm", hours, minutes);
         return String.format("%dm %ds", minutes, seconds);
     }
 
@@ -306,7 +318,8 @@ public class Minion {
     }
 
     public MinionUpgradeType getUpgrade1() {
-        if (upgrade1Id == null) return null;
+        if (upgrade1Id == null)
+            return null;
         try {
             return MinionUpgradeType.valueOf(upgrade1Id.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -344,7 +357,8 @@ public class Minion {
     }
 
     public MinionUpgradeType getUpgrade2() {
-        if (upgrade2Id == null) return null;
+        if (upgrade2Id == null)
+            return null;
         try {
             return MinionUpgradeType.valueOf(upgrade2Id.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -425,7 +439,8 @@ public class Minion {
         if (!Double.isFinite(amount) || amount < 0.0001) {
             return false;
         }
-        double normalized = java.math.BigDecimal.valueOf(amount).setScale(4, java.math.RoundingMode.HALF_UP).doubleValue();
+        double normalized = java.math.BigDecimal.valueOf(amount).setScale(4, java.math.RoundingMode.HALF_UP)
+                .doubleValue();
         if (normalized < 0.0001) {
             return false;
         }
@@ -454,7 +469,8 @@ public class Minion {
 
     public void setShippingCoins(double coins) {
         double clamped = Math.max(0.0, coins);
-        double normalized = java.math.BigDecimal.valueOf(clamped).setScale(4, java.math.RoundingMode.HALF_UP).doubleValue();
+        double normalized = java.math.BigDecimal.valueOf(clamped).setScale(4, java.math.RoundingMode.HALF_UP)
+                .doubleValue();
         this.shippingCoins = normalized;
         this.shippingCoinsMicros = Math.round(normalized * 1_000_000.0);
         advanceStateRevision();
@@ -477,7 +493,8 @@ public class Minion {
         if (!Double.isFinite(coins) || coins < 0.0001) {
             return;
         }
-        double normalized = java.math.BigDecimal.valueOf(coins).setScale(4, java.math.RoundingMode.HALF_UP).doubleValue();
+        double normalized = java.math.BigDecimal.valueOf(coins).setScale(4, java.math.RoundingMode.HALF_UP)
+                .doubleValue();
         if (normalized < 0.0001) {
             return;
         }
@@ -487,9 +504,11 @@ public class Minion {
             this.shippingCoins = this.shippingCoinsMicros / 1_000_000.0;
             advanceStateRevision();
         } catch (ArithmeticException e) {
-            // Reject credit on arithmetic overflow; never manufacture Long.MAX_VALUE balance!
+            // Reject credit on arithmetic overflow; never manufacture Long.MAX_VALUE
+            // balance!
             if (org.bukkit.Bukkit.getServer() != null) {
-                org.bukkit.Bukkit.getLogger().warning("[MinionX] Overflow detected in addShippingCoins for minion " + minionId + "! Rejected credit: " + coins);
+                org.bukkit.Bukkit.getLogger().warning("[MinionX] Overflow detected in addShippingCoins for minion "
+                        + minionId + "! Rejected credit: " + coins);
             }
         }
     }
@@ -507,15 +526,18 @@ public class Minion {
     }
 
     public boolean hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior behavior) {
-        if (behavior == null) return false;
+        if (behavior == null)
+            return false;
         CustomUpgrade u1 = getCustomUpgrade1();
-        if (u1 != null && u1.getBehavior() == behavior) return true;
+        if (u1 != null && u1.getBehavior() == behavior)
+            return true;
         CustomUpgrade u2 = getCustomUpgrade2();
         return u2 != null && u2.getBehavior() == behavior;
     }
 
     public boolean hasUpgrade(MinionUpgradeType upgradeType) {
-        if (upgradeType == null) return false;
+        if (upgradeType == null)
+            return false;
         String target = upgradeType.name().toLowerCase();
         return target.equalsIgnoreCase(upgrade1Id) || target.equalsIgnoreCase(upgrade2Id);
     }
@@ -552,7 +574,8 @@ public class Minion {
      * and Automated Shipping hoppers (which auto-sell overflow items for coins).
      */
     public boolean canAccept(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) return true;
+        if (item == null || item.getType() == Material.AIR)
+            return true;
         int maxSlots = getStorageSlots();
 
         // 1. Check if item can stack with existing internal inventory slots
@@ -592,13 +615,16 @@ public class Minion {
     }
 
     /**
-     * Adds an item to the minion's inventory, respecting stack limits and tier slots.
+     * Adds an item to the minion's inventory, respecting stack limits and tier
+     * slots.
      * If internal inventory is full, overflows into linked storage chest.
-     * If linked storage is also full, auto-sells via equipped Automated Shipping hopper.
+     * If linked storage is also full, auto-sells via equipped Automated Shipping
+     * hopper.
      * Returns true if successfully handled, false if completely full.
      */
     public boolean addItem(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) return true;
+        if (item == null || item.getType() == Material.AIR)
+            return true;
         int maxSlots = getStorageSlots();
         ItemStack toAdd = item.clone();
 
@@ -654,7 +680,8 @@ public class Minion {
         if (hasAutoSeller() && toAdd.getAmount() > 0) {
             double unitPrice = com.minionx.api.PriceRegistry.getPrice(toAdd);
             if (unitPrice <= 0.0) {
-                // Items without a configured price in prices.yml cannot be sold or destroyed for free; overflow handling stops when unpriced items remain.
+                // Items without a configured price in prices.yml cannot be sold or destroyed
+                // for free; overflow handling stops when unpriced items remain.
                 return false;
             }
             CustomUpgrade hopper = getShippingUpgrade();
@@ -669,13 +696,16 @@ public class Minion {
     }
 
     private boolean isSameItem(ItemStack a, ItemStack b) {
-        if (a == null || b == null) return false;
-        if (a.getType() != b.getType()) return false;
+        if (a == null || b == null)
+            return false;
+        if (a.getType() != b.getType())
+            return false;
         try {
             if (org.bukkit.Bukkit.getServer() != null) {
                 return a.isSimilar(b);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
         return true;
     }
 
@@ -704,7 +734,8 @@ public class Minion {
         return count;
     }
 
-    public record BlockOffset(int dx, int dz) {}
+    public record BlockOffset(int dx, int dz) {
+    }
 
     private static final List<BlockOffset> OFFSETS_5X5;
     private static final List<BlockOffset> OFFSETS_7X7;
@@ -720,7 +751,8 @@ public class Minion {
         List<BlockOffset> list = new ArrayList<>();
         for (int x = -radius; x <= radius; x++) {
             for (int z = -radius; z <= radius; z++) {
-                if (x == 0 && z == 0) continue; // Skip center where minion stands
+                if (x == 0 && z == 0)
+                    continue; // Skip center where minion stands
                 list.add(new BlockOffset(x, z));
             }
         }
@@ -728,7 +760,8 @@ public class Minion {
     }
 
     /**
-     * Total area expansion radius bonus (+1 per equipped Minion Expander, stacks up to +2).
+     * Total area expansion radius bonus (+1 per equipped Minion Expander, stacks up
+     * to +2).
      */
     public int getAreaExpansion() {
         int expansion = 0;
@@ -750,7 +783,8 @@ public class Minion {
     }
 
     /**
-     * Working radius around the minion: 2 (5x5, 24 blocks), 3 (7x7, 48 blocks), or 4 (9x9, 80 blocks).
+     * Working radius around the minion: 2 (5x5, 24 blocks), 3 (7x7, 48 blocks), or
+     * 4 (9x9, 80 blocks).
      */
     public int getWorkingRadius() {
         return 2 + getAreaExpansion();
@@ -758,8 +792,10 @@ public class Minion {
 
     public List<BlockOffset> getWorkingOffsets() {
         int r = getWorkingRadius();
-        if (r >= 4) return OFFSETS_9X9;
-        if (r == 3) return OFFSETS_7X7;
+        if (r >= 4)
+            return OFFSETS_9X9;
+        if (r == 3)
+            return OFFSETS_7X7;
         return OFFSETS_5X5;
     }
 
@@ -772,7 +808,8 @@ public class Minion {
 
     public List<Block> getWorkingCropBlocks() {
         List<Block> blocks = new ArrayList<>();
-        if (location == null || location.getWorld() == null) return blocks;
+        if (location == null || location.getWorld() == null)
+            return blocks;
 
         org.bukkit.World world = location.getWorld();
         int centerX = location.getBlockX();
@@ -787,7 +824,8 @@ public class Minion {
 
     public List<Block> getWorkingAreaBlocks() {
         List<Block> blocks = new ArrayList<>();
-        if (location == null || location.getWorld() == null) return blocks;
+        if (location == null || location.getWorld() == null)
+            return blocks;
 
         org.bukkit.World world = location.getWorld();
         int centerX = location.getBlockX();
@@ -897,7 +935,6 @@ public class Minion {
         this.dialogueHologramId = dialogueHologramId;
     }
 
-
     // --- Storage System ---
     public boolean hasLinkedStorage() {
         return storageLocation != null && storageId != null;
@@ -912,7 +949,8 @@ public class Minion {
     }
 
     public CustomMinionStorage getLinkedStorage() {
-        if (storageId == null) return null;
+        if (storageId == null)
+            return null;
         return MinionStorageRegistry.get(storageId);
     }
 
@@ -958,8 +996,6 @@ public class Minion {
         return false;
     }
 
-
-
     public String getLastHologramText() {
         return lastHologramText;
     }
@@ -1003,11 +1039,13 @@ public class Minion {
     }
 
     public void trackSpawnedMob(UUID uuid) {
-        if (uuid != null) trackedSpawnedMobs.add(uuid);
+        if (uuid != null)
+            trackedSpawnedMobs.add(uuid);
     }
 
     public void untrackSpawnedMob(UUID uuid) {
-        if (uuid != null) trackedSpawnedMobs.remove(uuid);
+        if (uuid != null)
+            trackedSpawnedMobs.remove(uuid);
     }
 
     public boolean tryAcquireTransaction() {

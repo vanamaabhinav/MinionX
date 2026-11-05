@@ -10,7 +10,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Stores working state while an admin configures a minion in the Minion Creator Studio.
+ * Stores working state while an admin configures a minion in the Minion Creator
+ * Studio.
  */
 public class MinionCreatorSession {
 
@@ -64,52 +65,130 @@ public class MinionCreatorSession {
         this.tierStyles = new HashMap<>();
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id != null ? id.toLowerCase() : "custom_minion"; }
+    public String getId() {
+        return id;
+    }
 
-    public String getDisplayName() { return displayName; }
-    public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public void setId(String id) {
+        this.id = id != null ? id.toLowerCase() : "custom_minion";
+    }
 
-    public MinionArchetype getArchetype() { return archetype; }
-    public void setArchetype(MinionArchetype archetype) { this.archetype = archetype; }
+    public String getDisplayName() {
+        return displayName;
+    }
 
-    public String getSkullTexture() { return skullTexture; }
-    public void setSkullTexture(String skullTexture) { this.skullTexture = skullTexture; }
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
 
-    public Material getArmorMaterial() { return armorMaterial; }
-    public void setArmorMaterial(Material armorMaterial) { this.armorMaterial = armorMaterial; }
+    public MinionArchetype getArchetype() {
+        return archetype;
+    }
 
-    public Color getArmorColor() { return armorColor; }
-    public void setArmorColor(Color armorColor) { this.armorColor = armorColor; }
+    public void setArchetype(MinionArchetype archetype) {
+        this.archetype = archetype;
+    }
 
-    public ItemStack getHandItem() { return handItem; }
-    public void setHandItem(ItemStack handItem) { this.handItem = handItem != null ? handItem.clone() : new ItemStack(Material.STONE_PICKAXE); }
+    public String getSkullTexture() {
+        return skullTexture;
+    }
 
-    public Material getTargetBlock() { return targetBlock; }
-    public void setTargetBlock(Material targetBlock) { this.targetBlock = targetBlock; }
+    public void setSkullTexture(String skullTexture) {
+        this.skullTexture = skullTexture;
+    }
 
-    public String getTargetMob() { return targetMob; }
-    public void setTargetMob(String targetMob) { this.targetMob = targetMob; }
+    public Material getArmorMaterial() {
+        return armorMaterial;
+    }
 
-    public ItemStack getExactDropItem() { return exactDropItem; }
-    public void setExactDropItem(ItemStack exactDropItem) { this.exactDropItem = exactDropItem != null ? exactDropItem.clone() : new ItemStack(Material.COBBLESTONE); }
+    public void setArmorMaterial(Material armorMaterial) {
+        this.armorMaterial = armorMaterial;
+    }
 
-    public ItemStack getSecondaryDropItem() { return secondaryDropItem; }
-    public void setSecondaryDropItem(ItemStack secondaryDropItem) { this.secondaryDropItem = secondaryDropItem != null ? secondaryDropItem.clone() : null; }
+    public Color getArmorColor() {
+        return armorColor;
+    }
 
-    public double getSecondaryDropChance() { return secondaryDropChance; }
-    public void setSecondaryDropChance(double secondaryDropChance) { this.secondaryDropChance = Math.max(0.0, Math.min(1.0, secondaryDropChance)); }
+    public void setArmorColor(Color armorColor) {
+        this.armorColor = armorColor;
+    }
 
-    public int getXpPerHarvest() { return xpPerHarvest; }
-    public void setXpPerHarvest(int xpPerHarvest) { this.xpPerHarvest = Math.max(0, xpPerHarvest); }
+    public ItemStack getHandItem() {
+        return handItem;
+    }
 
-    public double getActionDelay() { return actionDelay; }
-    public void setActionDelay(double actionDelay) { this.actionDelay = Math.max(1.0, Math.min(120.0, actionDelay)); }
+    public void setHandItem(ItemStack handItem) {
+        this.handItem = handItem != null ? handItem.clone() : new ItemStack(Material.STONE_PICKAXE);
+    }
 
-    public int getStorageSlots() { return storageSlots; }
-    public void setStorageSlots(int storageSlots) { this.storageSlots = Math.max(1, Math.min(15, storageSlots)); }
+    public Material getTargetBlock() {
+        return targetBlock;
+    }
 
-    public int getMaxTier() { return maxTier; }
+    public void setTargetBlock(Material targetBlock) {
+        this.targetBlock = targetBlock;
+    }
+
+    public String getTargetMob() {
+        return targetMob;
+    }
+
+    public void setTargetMob(String targetMob) {
+        this.targetMob = targetMob;
+    }
+
+    public ItemStack getExactDropItem() {
+        return exactDropItem;
+    }
+
+    public void setExactDropItem(ItemStack exactDropItem) {
+        this.exactDropItem = exactDropItem != null ? exactDropItem.clone() : new ItemStack(Material.COBBLESTONE);
+    }
+
+    public ItemStack getSecondaryDropItem() {
+        return secondaryDropItem;
+    }
+
+    public void setSecondaryDropItem(ItemStack secondaryDropItem) {
+        this.secondaryDropItem = secondaryDropItem != null ? secondaryDropItem.clone() : null;
+    }
+
+    public double getSecondaryDropChance() {
+        return secondaryDropChance;
+    }
+
+    public void setSecondaryDropChance(double secondaryDropChance) {
+        this.secondaryDropChance = Math.max(0.0, Math.min(1.0, secondaryDropChance));
+    }
+
+    public int getXpPerHarvest() {
+        return xpPerHarvest;
+    }
+
+    public void setXpPerHarvest(int xpPerHarvest) {
+        this.xpPerHarvest = Math.max(0, xpPerHarvest);
+    }
+
+    public double getActionDelay() {
+        return actionDelay;
+    }
+
+    public void setActionDelay(double actionDelay) {
+        this.actionDelay = Math.max(1.0, Math.min(120.0, actionDelay));
+    }
+
+    public int getStorageSlots() {
+        return storageSlots;
+    }
+
+    public void setStorageSlots(int storageSlots) {
+        this.storageSlots = Math.max(1, Math.min(15, storageSlots));
+    }
+
+    public int getMaxTier() {
+        return maxTier;
+    }
+
     public void setMaxTier(int maxTier) {
         this.maxTier = Math.max(1, Math.min(com.minionx.api.MinionTier.getMaxTier(), maxTier));
         if (this.selectedTier > this.maxTier) {
@@ -117,15 +196,25 @@ public class MinionCreatorSession {
         }
     }
 
-    public boolean isPerTierMode() { return perTierMode; }
-    public void setPerTierMode(boolean perTierMode) { this.perTierMode = perTierMode; }
+    public boolean isPerTierMode() {
+        return perTierMode;
+    }
 
-    public int getSelectedTier() { return selectedTier; }
+    public void setPerTierMode(boolean perTierMode) {
+        this.perTierMode = perTierMode;
+    }
+
+    public int getSelectedTier() {
+        return selectedTier;
+    }
+
     public void setSelectedTier(int selectedTier) {
         this.selectedTier = Math.max(1, Math.min(Math.max(1, this.maxTier), selectedTier));
     }
 
-    public Map<Integer, MinionDefinition.TierStyle> getTierStyles() { return tierStyles; }
+    public Map<Integer, MinionDefinition.TierStyle> getTierStyles() {
+        return tierStyles;
+    }
 
     public String getEffectiveSkullTexture(int tier) {
         if (perTierMode) {
@@ -200,7 +289,8 @@ public class MinionCreatorSession {
     }
 
     public static MinionCreatorSession fromDefinition(MinionDefinition def) {
-        if (def == null) return new MinionCreatorSession("custom_minion");
+        if (def == null)
+            return new MinionCreatorSession("custom_minion");
         MinionCreatorSession session = new MinionCreatorSession(def.getId());
         session.setDisplayName(def.getDisplayName());
         session.setArchetype(def.getArchetype());
@@ -241,7 +331,8 @@ public class MinionCreatorSession {
     }
 
     private static String capitalize(String str) {
-        if (str == null || str.isEmpty()) return "";
+        if (str == null || str.isEmpty())
+            return "";
         return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 }

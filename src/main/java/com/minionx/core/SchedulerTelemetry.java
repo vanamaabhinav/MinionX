@@ -4,7 +4,8 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * High-performance, lock-free telemetry monitor tracking scheduler execution times,
+ * High-performance, lock-free telemetry monitor tracking scheduler execution
+ * times,
  * action budgets, latency shedding, and p95/p99 duration percentiles.
  */
 public class SchedulerTelemetry {
@@ -36,7 +37,8 @@ public class SchedulerTelemetry {
     }
 
     public synchronized double getP95DurationMillis() {
-        if (sampleCount == 0) return 0.0;
+        if (sampleCount == 0)
+            return 0.0;
         long[] copy = Arrays.copyOf(tickDurations, sampleCount);
         Arrays.sort(copy);
         int index = (int) Math.ceil(0.95 * copy.length) - 1;
@@ -45,7 +47,8 @@ public class SchedulerTelemetry {
     }
 
     public synchronized double getP99DurationMillis() {
-        if (sampleCount == 0) return 0.0;
+        if (sampleCount == 0)
+            return 0.0;
         long[] copy = Arrays.copyOf(tickDurations, sampleCount);
         Arrays.sort(copy);
         int index = (int) Math.ceil(0.99 * copy.length) - 1;
@@ -54,7 +57,8 @@ public class SchedulerTelemetry {
     }
 
     public synchronized double getAverageDurationMillis() {
-        if (sampleCount == 0) return 0.0;
+        if (sampleCount == 0)
+            return 0.0;
         long sum = 0;
         for (int i = 0; i < sampleCount; i++) {
             sum += tickDurations[i];

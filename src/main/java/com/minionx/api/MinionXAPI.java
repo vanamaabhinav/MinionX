@@ -20,7 +20,8 @@ import java.util.UUID;
  */
 public final class MinionXAPI {
 
-    private MinionXAPI() {}
+    private MinionXAPI() {
+    }
 
     /**
      * Retrieves a minion by its unique identifier.
@@ -29,7 +30,8 @@ public final class MinionXAPI {
      * @return the Minion instance, or null if not found
      */
     public static Minion getMinion(UUID minionId) {
-        if (minionId == null || MinionX.getInstance() == null || MinionX.getInstance().getMinionManager() == null) return null;
+        if (minionId == null || MinionX.getInstance() == null || MinionX.getInstance().getMinionManager() == null)
+            return null;
         return MinionX.getInstance().getMinionManager().getMinionById(minionId);
     }
 
@@ -40,7 +42,8 @@ public final class MinionXAPI {
      * @return the Minion instance, or null if none is placed here
      */
     public static Minion getMinionAt(Location loc) {
-        if (MinionX.getInstance() == null || MinionX.getInstance().getMinionManager() == null) return null;
+        if (MinionX.getInstance() == null || MinionX.getInstance().getMinionManager() == null)
+            return null;
         return MinionX.getInstance().getMinionManager().getMinionAt(loc);
     }
 
@@ -51,7 +54,8 @@ public final class MinionXAPI {
      * @return unmodifiable list of minions owned by the player
      */
     public static List<Minion> getMinionsByOwner(UUID ownerId) {
-        if (MinionX.getInstance() == null || MinionX.getInstance().getMinionManager() == null) return Collections.emptyList();
+        if (MinionX.getInstance() == null || MinionX.getInstance().getMinionManager() == null)
+            return Collections.emptyList();
         return MinionX.getInstance().getMinionManager().getMinionsByOwner(ownerId);
     }
 
@@ -61,7 +65,8 @@ public final class MinionXAPI {
      * @return collection of all active minions
      */
     public static Collection<Minion> getAllMinions() {
-        if (MinionX.getInstance() == null || MinionX.getInstance().getMinionManager() == null) return Collections.emptyList();
+        if (MinionX.getInstance() == null || MinionX.getInstance().getMinionManager() == null)
+            return Collections.emptyList();
         return MinionX.getInstance().getMinionManager().getAllMinions();
     }
 
@@ -72,7 +77,8 @@ public final class MinionXAPI {
      * @return count of active placed minions
      */
     public static int getPlacedCount(UUID ownerId) {
-        if (MinionX.getInstance() == null || MinionX.getInstance().getPlayerLimitManager() == null) return 0;
+        if (MinionX.getInstance() == null || MinionX.getInstance().getPlayerLimitManager() == null)
+            return 0;
         return MinionX.getInstance().getPlayerLimitManager().getPlacedCount(ownerId);
     }
 
@@ -83,18 +89,21 @@ public final class MinionXAPI {
      * @return maximum minion limit, or -1 if unlimited
      */
     public static int getEffectiveLimit(Player player) {
-        if (MinionX.getInstance() == null || MinionX.getInstance().getPlayerLimitManager() == null) return -1;
+        if (MinionX.getInstance() == null || MinionX.getInstance().getPlayerLimitManager() == null)
+            return -1;
         return MinionX.getInstance().getPlayerLimitManager().getEffectiveLimit(player);
     }
 
     /**
-     * Returns the number of available placement slots remaining for a player (-1 for unlimited).
+     * Returns the number of available placement slots remaining for a player (-1
+     * for unlimited).
      *
      * @param player the player to check
      * @return number of remaining slots, or -1 if unlimited
      */
     public static int getAvailableSlots(Player player) {
-        if (MinionX.getInstance() == null || MinionX.getInstance().getPlayerLimitManager() == null) return -1;
+        if (MinionX.getInstance() == null || MinionX.getInstance().getPlayerLimitManager() == null)
+            return -1;
         return MinionX.getInstance().getPlayerLimitManager().getAvailableSlots(player);
     }
 
@@ -163,14 +172,17 @@ public final class MinionXAPI {
     }
 
     /**
-     * Creates an ItemStack representation of a minion without adding it to an inventory.
+     * Creates an ItemStack representation of a minion without adding it to an
+     * inventory.
      *
      * @param minionTypeOrId internal minion type or custom definition id
-     * @param tier minion tier (1 to maximum configured tier)
-     * @return the configured minion ItemStack, or null if the minion definition was not found
+     * @param tier           minion tier (1 to maximum configured tier)
+     * @return the configured minion ItemStack, or null if the minion definition was
+     *         not found
      */
     public static ItemStack createMinionItem(String minionTypeOrId, int tier) {
-        if (minionTypeOrId == null || org.bukkit.Bukkit.getServer() == null) return null;
+        if (minionTypeOrId == null || org.bukkit.Bukkit.getServer() == null)
+            return null;
         int clampedTier = Math.max(1, Math.min(MinionTier.getMaxTier(), tier));
 
         MinionDefinition customDef = MinionRegistry.get(minionTypeOrId);
@@ -194,7 +206,8 @@ public final class MinionXAPI {
      * @return the configured minion ItemStack, or null if type is null
      */
     public static ItemStack createMinionItem(MinionType type, int tier) {
-        if (type == null || org.bukkit.Bukkit.getServer() == null) return null;
+        if (type == null || org.bukkit.Bukkit.getServer() == null)
+            return null;
         int clampedTier = Math.max(1, Math.min(MinionTier.getMaxTier(), tier));
         return MinionItemFactory.createMinionItem(type, clampedTier, 0);
     }
@@ -202,13 +215,14 @@ public final class MinionXAPI {
     /**
      * Gives a minion item to a player.
      *
-     * @param player target player
+     * @param player         target player
      * @param minionTypeOrId minion type or custom definition id
-     * @param tier tier number
+     * @param tier           tier number
      * @return true if item was successfully created and delivered, false otherwise
      */
     public static boolean giveMinion(Player player, String minionTypeOrId, int tier) {
-        if (player == null || minionTypeOrId == null) return false;
+        if (player == null || minionTypeOrId == null)
+            return false;
         ItemStack stack = createMinionItem(minionTypeOrId, tier);
         if (stack != null) {
             player.getInventory().addItem(stack);

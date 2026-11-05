@@ -69,7 +69,8 @@ public class MinionDefinition {
 
         public DropEntry(ItemStack item, CustomItemSpec customItemSpec, int amount, double chance) {
             this.item = item != null ? item.clone() : new ItemStack(Material.COBBLESTONE);
-            this.customItemSpec = customItemSpec != null ? customItemSpec : CustomItemSpec.fromItemStack(this.item, chance);
+            this.customItemSpec = customItemSpec != null ? customItemSpec
+                    : CustomItemSpec.fromItemStack(this.item, chance);
             this.amount = Math.max(1, amount);
             this.chance = Math.max(0.0, Math.min(1.0, chance));
         }
@@ -106,10 +107,14 @@ public class MinionDefinition {
                 }
                 map.put("amount", amount);
                 map.put("chance", chance);
-                if (customItemSpec.getDisplayName() != null) map.put("display-name", customItemSpec.getDisplayName());
-                if (customItemSpec.getCustomModelData() != null) map.put("custom-model-data", customItemSpec.getCustomModelData());
-                if (!customItemSpec.getLore().isEmpty()) map.put("lore", customItemSpec.getLore());
-                if (customItemSpec.isGlow()) map.put("glow", true);
+                if (customItemSpec.getDisplayName() != null)
+                    map.put("display-name", customItemSpec.getDisplayName());
+                if (customItemSpec.getCustomModelData() != null)
+                    map.put("custom-model-data", customItemSpec.getCustomModelData());
+                if (!customItemSpec.getLore().isEmpty())
+                    map.put("lore", customItemSpec.getLore());
+                if (customItemSpec.isGlow())
+                    map.put("glow", true);
                 if (customItemSpec.getPdcKey() != null) {
                     map.put("pdc-key", customItemSpec.getPdcKey());
                     map.put("pdc-value", customItemSpec.getPdcValue() != null ? customItemSpec.getPdcValue() : "");
@@ -148,24 +153,28 @@ public class MinionDefinition {
     private final Map<Integer, MinionTier.TierData> customTiers = new HashMap<>();
 
     public MinionDefinition(String id, String displayName, MinionArchetype archetype,
-                            String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor, ItemStack defaultHandItem,
-                            Material targetBlock, String targetMob, ItemStack exactDropItem, int xpPerHarvest,
-                            double defaultActionDelay, int defaultStorageSlots) {
+            String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor,
+            ItemStack defaultHandItem,
+            Material targetBlock, String targetMob, ItemStack exactDropItem, int xpPerHarvest,
+            double defaultActionDelay, int defaultStorageSlots) {
         this(id, displayName, archetype, defaultSkullTexture, defaultArmorMaterial, defaultArmorColor, defaultHandItem,
-                targetBlock, targetMob, exactDropItem, null, 0.0, xpPerHarvest, defaultActionDelay, defaultStorageSlots);
+                targetBlock, targetMob, exactDropItem, null, 0.0, xpPerHarvest, defaultActionDelay,
+                defaultStorageSlots);
     }
 
     public MinionDefinition(String id, String displayName, MinionArchetype archetype,
-                            String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor, ItemStack defaultHandItem,
-                            Material targetBlock, String targetMob, List<DropEntry> drops,
-                            int xpPerHarvest, double defaultActionDelay, int defaultStorageSlots) {
+            String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor,
+            ItemStack defaultHandItem,
+            Material targetBlock, String targetMob, List<DropEntry> drops,
+            int xpPerHarvest, double defaultActionDelay, int defaultStorageSlots) {
         this.id = id.toLowerCase();
         this.displayName = displayName;
         this.archetype = archetype != null ? archetype : MinionArchetype.MINER;
         this.defaultSkullTexture = defaultSkullTexture;
         this.defaultArmorMaterial = defaultArmorMaterial != null ? defaultArmorMaterial : Material.LEATHER_CHESTPLATE;
         this.defaultArmorColor = defaultArmorColor != null ? defaultArmorColor : Color.fromRGB(160, 160, 160);
-        this.defaultHandItem = defaultHandItem != null ? defaultHandItem.clone() : new ItemStack(Material.STONE_PICKAXE);
+        this.defaultHandItem = defaultHandItem != null ? defaultHandItem.clone()
+                : new ItemStack(Material.STONE_PICKAXE);
         this.targetBlock = targetBlock != null ? targetBlock : Material.COBBLESTONE;
         this.targetMob = targetMob;
         this.drops = drops != null ? new ArrayList<>(drops) : new ArrayList<>();
@@ -184,17 +193,19 @@ public class MinionDefinition {
     }
 
     public MinionDefinition(String id, String displayName, MinionArchetype archetype,
-                            String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor, ItemStack defaultHandItem,
-                            Material targetBlock, String targetMob, ItemStack exactDropItem,
-                            ItemStack secondaryDropItem, double secondaryDropChance,
-                            int xpPerHarvest, double defaultActionDelay, int defaultStorageSlots) {
+            String defaultSkullTexture, Material defaultArmorMaterial, Color defaultArmorColor,
+            ItemStack defaultHandItem,
+            Material targetBlock, String targetMob, ItemStack exactDropItem,
+            ItemStack secondaryDropItem, double secondaryDropChance,
+            int xpPerHarvest, double defaultActionDelay, int defaultStorageSlots) {
         this.id = id.toLowerCase();
         this.displayName = displayName;
         this.archetype = archetype != null ? archetype : MinionArchetype.MINER;
         this.defaultSkullTexture = defaultSkullTexture;
         this.defaultArmorMaterial = defaultArmorMaterial != null ? defaultArmorMaterial : Material.LEATHER_CHESTPLATE;
         this.defaultArmorColor = defaultArmorColor != null ? defaultArmorColor : Color.fromRGB(160, 160, 160);
-        this.defaultHandItem = defaultHandItem != null ? defaultHandItem.clone() : new ItemStack(Material.STONE_PICKAXE);
+        this.defaultHandItem = defaultHandItem != null ? defaultHandItem.clone()
+                : new ItemStack(Material.STONE_PICKAXE);
         this.targetBlock = targetBlock != null ? targetBlock : Material.COBBLESTONE;
         this.targetMob = targetMob;
         this.exactDropItem = exactDropItem != null ? exactDropItem.clone() : new ItemStack(Material.COBBLESTONE);
@@ -205,7 +216,8 @@ public class MinionDefinition {
             this.drops.add(new DropEntry(this.exactDropItem, this.exactDropItem.getAmount(), 1.0));
         }
         if (this.secondaryDropItem != null && this.secondaryDropChance > 0) {
-            this.drops.add(new DropEntry(this.secondaryDropItem, this.secondaryDropItem.getAmount(), this.secondaryDropChance));
+            this.drops.add(new DropEntry(this.secondaryDropItem, this.secondaryDropItem.getAmount(),
+                    this.secondaryDropChance));
         }
         this.xpPerHarvest = xpPerHarvest;
         this.defaultActionDelay = defaultActionDelay > 0 ? defaultActionDelay : 14.0;
@@ -227,25 +239,29 @@ public class MinionDefinition {
 
     public String getSkullTexture(int tier) {
         TierStyle style = tierStyles.get(tier);
-        if (style != null && style.getSkullTexture() != null) return style.getSkullTexture();
+        if (style != null && style.getSkullTexture() != null)
+            return style.getSkullTexture();
         return defaultSkullTexture;
     }
 
     public Material getArmorMaterial(int tier) {
         TierStyle style = tierStyles.get(tier);
-        if (style != null && style.getArmorMaterial() != null) return style.getArmorMaterial();
+        if (style != null && style.getArmorMaterial() != null)
+            return style.getArmorMaterial();
         return defaultArmorMaterial;
     }
 
     public Color getArmorColor(int tier) {
         TierStyle style = tierStyles.get(tier);
-        if (style != null && style.getArmorColor() != null) return style.getArmorColor();
+        if (style != null && style.getArmorColor() != null)
+            return style.getArmorColor();
         return defaultArmorColor;
     }
 
     public ItemStack getHandItem(int tier) {
         TierStyle style = tierStyles.get(tier);
-        if (style != null && style.getHandItem() != null) return style.getHandItem().clone();
+        if (style != null && style.getHandItem() != null)
+            return style.getHandItem().clone();
         return defaultHandItem.clone();
     }
 
@@ -341,7 +357,8 @@ public class MinionDefinition {
     }
 
     public Material getSaplingMaterial() {
-        if (targetBlock == null) return Material.OAK_SAPLING;
+        if (targetBlock == null)
+            return Material.OAK_SAPLING;
         return switch (targetBlock) {
             case SPRUCE_LOG, SPRUCE_WOOD -> Material.SPRUCE_SAPLING;
             case BIRCH_LOG, BIRCH_WOOD -> Material.BIRCH_SAPLING;
@@ -357,7 +374,8 @@ public class MinionDefinition {
     }
 
     public Material getLeafMaterial() {
-        if (targetBlock == null) return Material.OAK_LEAVES;
+        if (targetBlock == null)
+            return Material.OAK_LEAVES;
         return switch (targetBlock) {
             case SPRUCE_LOG, SPRUCE_WOOD -> Material.SPRUCE_LEAVES;
             case BIRCH_LOG, BIRCH_WOOD -> Material.BIRCH_LEAVES;
@@ -440,7 +458,8 @@ public class MinionDefinition {
     }
 
     public int getUpgradeCost(int currentTier) {
-        if (currentTier >= getMaxTier()) return 0;
+        if (currentTier >= getMaxTier())
+            return 0;
         if (customTiers.containsKey(currentTier)) {
             return customTiers.get(currentTier).getUpgradeCost();
         }

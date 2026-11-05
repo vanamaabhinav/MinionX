@@ -38,12 +38,12 @@ public class MinionItemFactory {
     public static final NamespacedKey SKIN_KEY = new NamespacedKey("minionx", "skin_type");
     public static final NamespacedKey STORAGE_KEY = new NamespacedKey("minionx", "storage_type");
 
-
     /**
      * Creates a placeable minion item for a built-in MinionType.
      */
     public static ItemStack createMinionItem(MinionType type, int tier, int harvested) {
-        if (type == null) return new ItemStack(Material.PLAYER_HEAD);
+        if (type == null)
+            return new ItemStack(Material.PLAYER_HEAD);
         MinionDefinition def = MinionRegistry.get(type.name().toLowerCase());
         int maxTier = def != null ? def.getMaxTier() : type.getMaxTier();
         tier = Math.max(1, Math.min(maxTier, tier));
@@ -54,10 +54,12 @@ public class MinionItemFactory {
             String texture = def != null ? def.getSkullTexture(tier) : type.getSkullTexture();
             if (texture != null && !texture.isEmpty()) {
                 try {
-                    PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                    PlayerProfile profile = Bukkit.createProfile(
+                            UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
                     profile.setProperty(new ProfileProperty("textures", texture));
                     meta.setPlayerProfile(profile);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
 
             String roman = MinionTier.toRoman(tier);
@@ -110,7 +112,8 @@ public class MinionItemFactory {
      * Creates a placeable minion item for a custom data-driven MinionDefinition.
      */
     public static ItemStack createCustomMinionItem(MinionDefinition def, int tier, int harvested) {
-        if (def == null) return new ItemStack(Material.PLAYER_HEAD);
+        if (def == null)
+            return new ItemStack(Material.PLAYER_HEAD);
         tier = Math.max(1, Math.min(def.getMaxTier(), tier));
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
@@ -119,10 +122,12 @@ public class MinionItemFactory {
             String texture = def.getSkullTexture(tier);
             if (texture != null && !texture.isEmpty()) {
                 try {
-                    PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                    PlayerProfile profile = Bukkit.createProfile(
+                            UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
                     profile.setProperty(new ProfileProperty("textures", texture));
                     meta.setPlayerProfile(profile);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
 
             String roman = MinionTier.toRoman(tier);
@@ -174,10 +179,12 @@ public class MinionItemFactory {
     }
 
     public static boolean isMinionItem(ItemStack item) {
-        if (item == null || item.getType() != Material.PLAYER_HEAD) return false;
+        if (item == null || item.getType() != Material.PLAYER_HEAD)
+            return false;
         try {
             ItemMeta meta = item.getItemMeta();
-            if (meta == null) return false;
+            if (meta == null)
+                return false;
             PersistentDataContainer pdc = meta.getPersistentDataContainer();
             return pdc.has(IS_MINION_KEY, PersistentDataType.BYTE);
         } catch (Throwable t) {
@@ -186,49 +193,57 @@ public class MinionItemFactory {
     }
 
     public static MinionType getMinionType(ItemStack item) {
-        if (!isMinionItem(item)) return null;
+        if (!isMinionItem(item))
+            return null;
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
         String typeStr = pdc.get(MINION_TYPE_KEY, PersistentDataType.STRING);
         return MinionType.fromString(typeStr);
     }
 
     public static String getCustomMinionId(ItemStack item) {
-        if (!isMinionItem(item)) return null;
+        if (!isMinionItem(item))
+            return null;
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
         return pdc.get(CUSTOM_MINION_ID_KEY, PersistentDataType.STRING);
     }
 
     public static int getMinionTier(ItemStack item) {
-        if (!isMinionItem(item)) return 1;
+        if (!isMinionItem(item))
+            return 1;
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
         Integer tier = pdc.get(MINION_TIER_KEY, PersistentDataType.INTEGER);
         return tier != null ? tier : 1;
     }
 
     public static int getMinionHarvested(ItemStack item) {
-        if (!isMinionItem(item)) return 0;
+        if (!isMinionItem(item))
+            return 0;
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
         Integer count = pdc.get(MINION_HARVESTED_KEY, PersistentDataType.INTEGER);
         return count != null ? count : 0;
     }
 
     public static String getSkinId(ItemStack item) {
-        if (item == null) return null;
+        if (item == null)
+            return null;
         ItemMeta meta = item.getItemMeta();
-        if (meta == null) return null;
+        if (meta == null)
+            return null;
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         return pdc.get(SKIN_KEY, PersistentDataType.STRING);
     }
 
     /**
-     * Creates a custom Minion Skin item that can be placed into the minion skin slot.
+     * Creates a custom Minion Skin item that can be placed into the minion skin
+     * slot.
      */
 
     /**
      * Creates a placeable Minion Storage item.
      */
     public static ItemStack createStorageItem(com.minionx.api.CustomMinionStorage storage) {
-        if (storage == null) return new ItemStack(Material.CHEST);
+        if (storage == null)
+            return new ItemStack(Material.CHEST);
         ItemStack item = new ItemStack(storage.getMaterial() != null ? storage.getMaterial() : Material.CHEST);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
@@ -249,7 +264,8 @@ public class MinionItemFactory {
     }
 
     public static String getStorageId(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return null;
+        if (item == null || !item.hasItemMeta())
+            return null;
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
         return pdc.get(STORAGE_KEY, PersistentDataType.STRING);
     }
@@ -259,17 +275,20 @@ public class MinionItemFactory {
     }
 
     public static ItemStack createSkinItem(MinionSkin skin) {
-        if (skin == null) return new ItemStack(Material.AIR);
+        if (skin == null)
+            return new ItemStack(Material.AIR);
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
         if (meta != null) {
             String texture = skin.getSkullTexture();
             if (texture != null && !texture.isEmpty()) {
                 try {
-                    PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                    PlayerProfile profile = Bukkit.createProfile(
+                            UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
                     profile.setProperty(new ProfileProperty("textures", texture));
                     meta.setPlayerProfile(profile);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
 
             meta.setDisplayName(ColorUtil.color("&d" + skin.getDisplayName()));
@@ -299,10 +318,12 @@ public class MinionItemFactory {
     }
 
     public static String getFuelId(ItemStack item) {
-        if (item == null) return null;
+        if (item == null)
+            return null;
         try {
             ItemMeta meta = item.getItemMeta();
-            if (meta == null) return null;
+            if (meta == null)
+                return null;
             PersistentDataContainer pdc = meta.getPersistentDataContainer();
             return pdc.get(FUEL_KEY, PersistentDataType.STRING);
         } catch (Throwable t) {
@@ -311,10 +332,12 @@ public class MinionItemFactory {
     }
 
     public static String getUpgradeId(ItemStack item) {
-        if (item == null) return null;
+        if (item == null)
+            return null;
         try {
             ItemMeta meta = item.getItemMeta();
-            if (meta == null) return null;
+            if (meta == null)
+                return null;
             PersistentDataContainer pdc = meta.getPersistentDataContainer();
             return pdc.get(UPGRADE_KEY, PersistentDataType.STRING);
         } catch (Throwable t) {
@@ -326,7 +349,8 @@ public class MinionItemFactory {
      * Creates a custom Upgrade item from a CustomUpgrade definition.
      */
     public static ItemStack createUpgradeItem(CustomUpgrade upgrade) {
-        if (upgrade == null) return new ItemStack(Material.AIR);
+        if (upgrade == null)
+            return new ItemStack(Material.AIR);
         ItemStack item = new ItemStack(upgrade.getMaterial());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
@@ -352,7 +376,8 @@ public class MinionItemFactory {
     }
 
     /**
-     * Creates a custom Upgrade item (Auto-Smelter, Compactor, Diamond Spreading, etc.).
+     * Creates a custom Upgrade item (Auto-Smelter, Compactor, Diamond Spreading,
+     * etc.).
      */
     public static ItemStack createUpgradeItem(MinionUpgradeType upgrade) {
         CustomUpgrade custom = UpgradeRegistry.get(upgrade.name().toLowerCase());
@@ -382,7 +407,8 @@ public class MinionItemFactory {
      * Creates a custom Fuel item from a CustomFuel definition.
      */
     public static ItemStack createFuelItem(CustomFuel fuel) {
-        if (fuel == null) return new ItemStack(Material.AIR);
+        if (fuel == null)
+            return new ItemStack(Material.AIR);
         ItemStack item = new ItemStack(fuel.getMaterial());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
@@ -421,7 +447,8 @@ public class MinionItemFactory {
             meta.setDisplayName(ColorUtil.color("&b" + fuel.getDisplayName()));
             List<String> lore = new ArrayList<>();
             lore.add(ColorUtil.color("&7Increases minion speed by &a+" + (int) (fuel.getSpeedBuff() * 100) + "%.&7"));
-            lore.add(ColorUtil.color("&7Duration: &e" + (fuel.isPermanent() ? "Permanent" : (fuel.getDurationMillis() / (3600 * 1000L)) + " hours")));
+            lore.add(ColorUtil.color("&7Duration: &e"
+                    + (fuel.isPermanent() ? "Permanent" : (fuel.getDurationMillis() / (3600 * 1000L)) + " hours")));
             lore.add(ColorUtil.color("&7"));
             lore.add(ColorUtil.color("&ePlace in a Minion's fuel slot!"));
             meta.setLore(lore);

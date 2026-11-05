@@ -439,6 +439,8 @@ public class ProtectionHookManagerTest {
                     "Player with minionx.bypass.protection must bypass WG placement veto");
 
             // Access: Owner always allowed; for unowned/team checks, testState INTERACT is respected
+            assertTrue(ProtectionHookManager.canAccessMinion(authorizedPlayer, minion),
+                    "Minion owner must always have GUI access regardless of region interact state");
             Minion unownedMinion = new Minion(UUID.randomUUID(), null, MinionType.IRON, 1, testLoc);
             assertTrue(ProtectionHookManager.canAccessMinion(authorizedPlayer, unownedMinion));
             assertFalse(ProtectionHookManager.canAccessMinion(strangerPlayer, unownedMinion));

@@ -33,8 +33,8 @@ public class CustomItemSpec {
     private final String pdcValue;
 
     public CustomItemSpec(Material material, String hookIdentifier, int amount, double chance,
-                          String displayName, List<String> lore, Integer customModelData,
-                          boolean glow, String pdcKey, String pdcValue) {
+            String displayName, List<String> lore, Integer customModelData,
+            boolean glow, String pdcKey, String pdcValue) {
         this.material = material != null ? material : Material.COBBLESTONE;
         this.hookIdentifier = hookIdentifier;
         this.amount = Math.max(1, amount);
@@ -48,7 +48,8 @@ public class CustomItemSpec {
     }
 
     public static CustomItemSpec fromConfigSection(ConfigurationSection sec) {
-        if (sec == null) return new CustomItemSpec(Material.COBBLESTONE, null, 1, 1.0, null, null, null, false, null, null);
+        if (sec == null)
+            return new CustomItemSpec(Material.COBBLESTONE, null, 1, 1.0, null, null, null, false, null, null);
 
         String matName = sec.getString("material", sec.getString("item", "COBBLESTONE"));
         String hook = null;
@@ -57,10 +58,12 @@ public class CustomItemSpec {
         if (matName != null && matName.contains(":")) {
             hook = matName;
             ItemStack resolved = CustomItemHook.getItem(matName);
-            if (resolved != null) mat = resolved.getType();
+            if (resolved != null)
+                mat = resolved.getType();
         } else if (matName != null) {
             Material match = Material.matchMaterial(matName.toUpperCase());
-            if (match != null) mat = match;
+            if (match != null)
+                mat = match;
         }
 
         int amount = sec.getInt("amount", sec.getInt("input-amount", 1));
@@ -76,7 +79,8 @@ public class CustomItemSpec {
     }
 
     public static CustomItemSpec fromMap(Map<?, ?> map) {
-        if (map == null) return new CustomItemSpec(Material.COBBLESTONE, null, 1, 1.0, null, null, null, false, null, null);
+        if (map == null)
+            return new CustomItemSpec(Material.COBBLESTONE, null, 1, 1.0, null, null, null, false, null, null);
 
         Object matObj = map.containsKey("material") ? map.get("material") : map.get("item");
         String matName = matObj != null ? matObj.toString() : "COBBLESTONE";
@@ -86,39 +90,53 @@ public class CustomItemSpec {
         if (matName.contains(":")) {
             hook = matName;
             ItemStack resolved = CustomItemHook.getItem(matName);
-            if (resolved != null) mat = resolved.getType();
+            if (resolved != null)
+                mat = resolved.getType();
         } else {
             Material match = Material.matchMaterial(matName.toUpperCase());
-            if (match != null) mat = match;
+            if (match != null)
+                mat = match;
         }
 
         int amount = 1;
         if (map.containsKey("amount")) {
-            try { amount = Integer.parseInt(map.get("amount").toString()); } catch (Exception ignored) {}
+            try {
+                amount = Integer.parseInt(map.get("amount").toString());
+            } catch (Exception ignored) {
+            }
         }
         double chance = 1.0;
         if (map.containsKey("chance")) {
-            try { chance = Double.parseDouble(map.get("chance").toString()); } catch (Exception ignored) {}
+            try {
+                chance = Double.parseDouble(map.get("chance").toString());
+            } catch (Exception ignored) {
+            }
         }
 
-        String name = map.containsKey("display-name") ? map.get("display-name").toString() :
-                (map.containsKey("name") ? map.get("name").toString() : null);
+        String name = map.containsKey("display-name") ? map.get("display-name").toString()
+                : (map.containsKey("name") ? map.get("name").toString() : null);
 
         List<String> lore = new ArrayList<>();
         if (map.containsKey("lore") && map.get("lore") instanceof List<?> list) {
             for (Object o : list) {
-                if (o != null) lore.add(o.toString());
+                if (o != null)
+                    lore.add(o.toString());
             }
         }
 
         Integer cmd = null;
         if (map.containsKey("custom-model-data")) {
-            try { cmd = Integer.parseInt(map.get("custom-model-data").toString()); } catch (Exception ignored) {}
+            try {
+                cmd = Integer.parseInt(map.get("custom-model-data").toString());
+            } catch (Exception ignored) {
+            }
         }
 
         boolean glow = false;
-        if (map.containsKey("glow")) glow = Boolean.parseBoolean(map.get("glow").toString());
-        else if (map.containsKey("enchanted")) glow = Boolean.parseBoolean(map.get("enchanted").toString());
+        if (map.containsKey("glow"))
+            glow = Boolean.parseBoolean(map.get("glow").toString());
+        else if (map.containsKey("enchanted"))
+            glow = Boolean.parseBoolean(map.get("enchanted").toString());
 
         String pdcK = map.containsKey("pdc-key") ? map.get("pdc-key").toString() : null;
         String pdcV = map.containsKey("pdc-value") ? map.get("pdc-value").toString() : "";
@@ -143,20 +161,26 @@ public class CustomItemSpec {
                 if (stack.hasItemMeta()) {
                     ItemMeta meta = stack.getItemMeta();
                     if (meta != null) {
-                        if (meta.hasDisplayName()) name = meta.getDisplayName();
-                        if (meta.hasLore()) lore = meta.getLore();
-                        if (meta.hasCustomModelData()) cmd = meta.getCustomModelData();
-                        if (meta.hasEnchant(Enchantment.DURABILITY)) glow = true;
+                        if (meta.hasDisplayName())
+                            name = meta.getDisplayName();
+                        if (meta.hasLore())
+                            lore = meta.getLore();
+                        if (meta.hasCustomModelData())
+                            cmd = meta.getCustomModelData();
+                        if (meta.hasEnchant(Enchantment.DURABILITY))
+                            glow = true;
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         return new CustomItemSpec(mat, null, amount, chance, name, lore, cmd, glow, null, null);
     }
 
     public ItemStack build() {
-        if (material == Material.AIR) return new ItemStack(Material.AIR);
+        if (material == Material.AIR)
+            return new ItemStack(Material.AIR);
 
         ItemStack item = null;
         if (hookIdentifier != null && !hookIdentifier.isEmpty()) {
@@ -190,9 +214,11 @@ public class CustomItemSpec {
             if (pdcKey != null && !pdcKey.isEmpty() && pdcValue != null) {
                 try {
                     String[] parts = pdcKey.split(":", 2);
-                    NamespacedKey key = parts.length == 2 ? new NamespacedKey(parts[0], parts[1]) : NamespacedKey.minecraft(parts[0]);
+                    NamespacedKey key = parts.length == 2 ? new NamespacedKey(parts[0], parts[1])
+                            : NamespacedKey.minecraft(parts[0]);
                     meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, pdcValue);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
             item.setItemMeta(meta);
         }
@@ -201,8 +227,10 @@ public class CustomItemSpec {
     }
 
     public boolean matches(ItemStack stack) {
-        if (stack == null || stack.getType() == Material.AIR) return false;
-        if (stack.getType() != material) return false;
+        if (stack == null || stack.getType() == Material.AIR)
+            return false;
+        if (stack.getType() != material)
+            return false;
 
         if (Bukkit.getServer() == null) {
             return true;
@@ -212,28 +240,35 @@ public class CustomItemSpec {
         boolean isCustom = isCustom();
 
         if (isCustom) {
-            if (meta == null) return false;
+            if (meta == null)
+                return false;
             if (customModelData != null) {
-                if (!meta.hasCustomModelData() || meta.getCustomModelData() != customModelData.intValue()) return false;
+                if (!meta.hasCustomModelData() || meta.getCustomModelData() != customModelData.intValue())
+                    return false;
             }
             if (displayName != null && !displayName.isEmpty()) {
-                if (!meta.hasDisplayName()) return false;
+                if (!meta.hasDisplayName())
+                    return false;
                 String expected = ColorUtil.color(displayName);
-                if (!expected.equals(meta.getDisplayName())) return false;
+                if (!expected.equals(meta.getDisplayName()))
+                    return false;
             }
             if (pdcKey != null && !pdcKey.isEmpty() && pdcValue != null) {
                 try {
                     String[] parts = pdcKey.split(":", 2);
-                    NamespacedKey key = parts.length == 2 ? new NamespacedKey(parts[0], parts[1]) : NamespacedKey.minecraft(parts[0]);
+                    NamespacedKey key = parts.length == 2 ? new NamespacedKey(parts[0], parts[1])
+                            : NamespacedKey.minecraft(parts[0]);
                     String val = meta.getPersistentDataContainer().get(key, PersistentDataType.STRING);
-                    if (!pdcValue.equals(val)) return false;
+                    if (!pdcValue.equals(val))
+                        return false;
                 } catch (Exception ignored) {
                     return false;
                 }
             }
             return true;
         } else {
-            // Vanilla matching: strict isolation against items with custom display names or custom model data
+            // Vanilla matching: strict isolation against items with custom display names or
+            // custom model data
             if (meta != null && (meta.hasDisplayName() || meta.hasCustomModelData())) {
                 return false;
             }
@@ -248,14 +283,43 @@ public class CustomItemSpec {
                 || (hookIdentifier != null && !hookIdentifier.isEmpty());
     }
 
-    public Material getMaterial() { return material; }
-    public String getHookIdentifier() { return hookIdentifier; }
-    public int getAmount() { return amount; }
-    public double getChance() { return chance; }
-    public String getDisplayName() { return displayName; }
-    public List<String> getLore() { return Collections.unmodifiableList(lore); }
-    public Integer getCustomModelData() { return customModelData; }
-    public boolean isGlow() { return glow; }
-    public String getPdcKey() { return pdcKey; }
-    public String getPdcValue() { return pdcValue; }
+    public Material getMaterial() {
+        return material;
+    }
+
+    public String getHookIdentifier() {
+        return hookIdentifier;
+    }
+
+    public int getAmount() {
+        return amount;
+    }
+
+    public double getChance() {
+        return chance;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public List<String> getLore() {
+        return Collections.unmodifiableList(lore);
+    }
+
+    public Integer getCustomModelData() {
+        return customModelData;
+    }
+
+    public boolean isGlow() {
+        return glow;
+    }
+
+    public String getPdcKey() {
+        return pdcKey;
+    }
+
+    public String getPdcValue() {
+        return pdcValue;
+    }
 }
