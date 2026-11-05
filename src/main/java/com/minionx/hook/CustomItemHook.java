@@ -31,6 +31,14 @@ public class CustomItemHook {
     private static Method ecoGetByItemStack = null;
     private static Method ecoGetId = null;
 
+    private static boolean oraxenAvailable = false;
+    private static Method oraxenGetItemById = null;
+    private static Method oraxenGetIdByItem = null;
+
+    private static boolean nexoAvailable = false;
+    private static Method nexoItemFromId = null;
+    private static Method nexoIdFromItem = null;
+
     static {
         checkHooks();
     }
@@ -39,6 +47,8 @@ public class CustomItemHook {
         initItemsAdder();
         initMMOItems();
         initEcoItems();
+        initOraxen();
+        initNexo();
     }
 
     private static void initItemsAdder() {
@@ -124,6 +134,47 @@ public class CustomItemHook {
         } catch (Throwable ignored) {}
     }
 
+    private static void initOraxen() {
+        oraxenAvailable = false;
+        oraxenGetItemById = null;
+        oraxenGetIdByItem = null;
+
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) return;
+        if (!Bukkit.getPluginManager().isPluginEnabled("Oraxen")) return;
+
+        try {
+            Class<?> oiClass = null;
+            try {
+                oiClass = Class.forName("io.thito.oraxen.api.OraxenItems");
+            } catch (ClassNotFoundException e) {
+                oiClass = Class.forName("io.thismike.oraxen.api.OraxenItems");
+            }
+            oraxenGetItemById = oiClass.getMethod("getItemById", String.class);
+            try {
+                oraxenGetIdByItem = oiClass.getMethod("getIdByItem", ItemStack.class);
+            } catch (Throwable ignored) {}
+            oraxenAvailable = true;
+        } catch (Throwable ignored) {}
+    }
+
+    private static void initNexo() {
+        nexoAvailable = false;
+        nexoItemFromId = null;
+        nexoIdFromItem = null;
+
+        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null) return;
+        if (!Bukkit.getPluginManager().isPluginEnabled("Nexo")) return;
+
+        try {
+            Class<?> nexoClass = Class.forName("com.nexomc.nexo.api.NexoItems");
+            nexoItemFromId = nexoClass.getMethod("itemFromId", String.class);
+            try {
+                nexoIdFromItem = nexoClass.getMethod("idFromItem", ItemStack.class);
+            } catch (Throwable ignored) {}
+            nexoAvailable = true;
+        } catch (Throwable ignored) {}
+    }
+
     /**
      * Resolves a custom item string into a Bukkit ItemStack.
      * Formats:
@@ -177,7 +228,35 @@ public class CustomItemHook {
             }
         }
 
-        // 4. Vanilla Material fallback
+        // 4. Oraxen (cached reflection)
+        if (raw.toLowerCase().startsWith("oraxen:")) {
+            String id = raw.substring("oraxen:".length());
+            if (oraxenAvailable && oraxenGetItemById != null) {
+                try {
+                    Object builder = oraxenGetItemById.invoke(null, id);
+                    if (builder != null) {
+                        Method buildMethod = builder.getClass().getMethod("build");
+                        return (ItemStack) buildMethod.invoke(builder);
+                    }
+                } catch (Throwable ignored) {}
+            }
+        }
+
+        // 5. Nexo (cached reflection)
+        if (raw.toLowerCase().startsWith("nexo:")) {
+            String id = raw.substring("nexo:".length());
+            if (nexoAvailable && nexoItemFromId != null) {
+                try {
+                    Object builder = nexoItemFromId.invoke(null, id);
+                    if (builder != null) {
+                        Method buildMethod = builder.getClass().getMethod("build");
+                        return (ItemStack) buildMethod.invoke(builder);
+                    }
+                } catch (Throwable ignored) {}
+            }
+        }
+
+        // 6. Vanilla Material fallback
         Material mat = Material.matchMaterial(raw.toUpperCase());
         if (mat != null) {
             return new ItemStack(mat);
@@ -243,6 +322,26 @@ public class CustomItemHook {
             } catch (Throwable ignored) {}
         }
 
+        // 4. Oraxen
+        if (oraxenAvailable && oraxenGetIdByItem != null) {
+            try {
+                Object id = oraxenGetIdByItem.invoke(null, item);
+                if (id != null && !id.toString().isEmpty()) {
+                    return "oraxen:" + id;
+                }
+            } catch (Throwable ignored) {}
+        }
+
+        // 5. Nexo
+        if (nexoAvailable && nexoIdFromItem != null) {
+            try {
+                Object id = nexoIdFromItem.invoke(null, item);
+                if (id != null && !id.toString().isEmpty()) {
+                    return "nexo:" + id;
+                }
+            } catch (Throwable ignored) {}
+        }
+
         return null;
     }
 
@@ -256,5 +355,13 @@ public class CustomItemHook {
 
     public static boolean isEcoItemsAvailable() {
         return ecoItemsAvailable;
+    }
+
+    public static boolean isOraxenAvailable() {
+        return oraxenAvailable;
+    }
+
+    public static boolean isNexoAvailable() {
+        return nexoAvailable;
     }
 }

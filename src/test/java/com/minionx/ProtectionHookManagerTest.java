@@ -389,6 +389,149 @@ public class ProtectionHookManagerTest {
         assertDoesNotThrow(() -> CollectionsHook.recordCollection(null, minion, Material.IRON_INGOT, 5));
     }
 
+    @Test
+    @DisplayName("Simulated WorldGuard 7.x: testState BUILD/INTERACT checks and bypass permissions")
+    public void testSimulatedWorldGuard7ProtectionAndBypass() throws Exception {
+        Player authorizedPlayer = createMockPlayer(AUTHORIZED_UUID, false);
+        Player strangerPlayer = createMockPlayer(strangerId, false);
+        Player wgBypassPlayer = createMockPlayerWithPerms(strangerId, Set.of("worldguard.region.bypass.*"));
+        Player minionxBypassPlayer = createMockPlayerWithPerms(strangerId, Set.of("minionx.bypass.protection"));
+        Minion minion = new Minion(UUID.randomUUID(), AUTHORIZED_UUID, MinionType.IRON, 1, testLoc);
+
+        Field availableField = ProtectionHookManager.class.getDeclaredField("worldGuardAvailable");
+        availableField.setAccessible(true);
+        Field pluginField = ProtectionHookManager.class.getDeclaredField("wgPluginInstance");
+        pluginField.setAccessible(true);
+        Field containerField = ProtectionHookManager.class.getDeclaredField("wgRegionContainer");
+        containerField.setAccessible(true);
+        Field createQueryField = ProtectionHookManager.class.getDeclaredField("wgCreateQuery");
+        createQueryField.setAccessible(true);
+        Field adaptLocField = ProtectionHookManager.class.getDeclaredField("wgAdaptLocation");
+        adaptLocField.setAccessible(true);
+        Field wrapPlayerField = ProtectionHookManager.class.getDeclaredField("wgWrapPlayer");
+        wrapPlayerField.setAccessible(true);
+        Field flagBuildField = ProtectionHookManager.class.getDeclaredField("wgFlagBuild");
+        flagBuildField.setAccessible(true);
+        Field flagInteractField = ProtectionHookManager.class.getDeclaredField("wgFlagInteract");
+        flagInteractField.setAccessible(true);
+        Field testStateField = ProtectionHookManager.class.getDeclaredField("wgTestState");
+        testStateField.setAccessible(true);
+
+        try {
+            availableField.set(null, true);
+            pluginField.set(null, new MockWorldGuardPlugin());
+            containerField.set(null, new MockRegionContainer());
+            createQueryField.set(null, MockRegionContainer.class.getMethod("createQuery"));
+            adaptLocField.set(null, MockWorldGuardAdapter.class.getMethod("adapt", Location.class));
+            wrapPlayerField.set(null, MockWorldGuardPlugin.class.getMethod("wrapPlayer", Player.class));
+            flagBuildField.set(null, "BUILD");
+            flagInteractField.set(null, "INTERACT");
+            testStateField.set(null, MockRegionQuery.class.getMethod("testState", Object.class, Object.class, Object.class));
+
+            // Placement: Authorized player succeeds, stranger fails, bypass player succeeds
+            assertTrue(ProtectionHookManager.canPlaceMinion(authorizedPlayer, testLoc),
+                    "Authorized player must be permitted to place in WorldGuard region");
+            assertFalse(ProtectionHookManager.canPlaceMinion(strangerPlayer, testLoc),
+                    "Stranger must be denied placement in WorldGuard region");
+            assertTrue(ProtectionHookManager.canPlaceMinion(wgBypassPlayer, testLoc),
+                    "Player with worldguard.region.bypass.* must bypass WG placement veto");
+            assertTrue(ProtectionHookManager.canPlaceMinion(minionxBypassPlayer, testLoc),
+                    "Player with minionx.bypass.protection must bypass WG placement veto");
+
+            // Access: Owner always allowed; for unowned/team checks, testState INTERACT is respected
+            Minion unownedMinion = new Minion(UUID.randomUUID(), null, MinionType.IRON, 1, testLoc);
+            assertTrue(ProtectionHookManager.canAccessMinion(authorizedPlayer, unownedMinion));
+            assertFalse(ProtectionHookManager.canAccessMinion(strangerPlayer, unownedMinion));
+        } finally {
+            availableField.set(null, false);
+            pluginField.set(null, null);
+            containerField.set(null, null);
+            createQueryField.set(null, null);
+            adaptLocField.set(null, null);
+            wrapPlayerField.set(null, null);
+            flagBuildField.set(null, null);
+            flagInteractField.set(null, null);
+            testStateField.set(null, null);
+        }
+    }
+
+    @Test
+    @DisplayName("9-point perimeter boundary check denies placement when working area crosses protected border")
+    public void testMinionAreaPerimeterCheckVeto() throws Exception {
+        Player authorizedPlayer = createMockPlayer(AUTHORIZED_UUID, false);
+
+        // Center point (100, 65, 100) is allowed, but boundary at x=102 crosses into forbidden territory (x > 100)
+        World mockWorld = createMockWorld("perimeter_world");
+        Location centerLoc = new Location(mockWorld, 100, 65, 100);
+
+        Field availableField = ProtectionHookManager.class.getDeclaredField("worldGuardAvailable");
+        availableField.setAccessible(true);
+        Field pluginField = ProtectionHookManager.class.getDeclaredField("wgPluginInstance");
+        pluginField.setAccessible(true);
+        Field containerField = ProtectionHookManager.class.getDeclaredField("wgRegionContainer");
+        containerField.setAccessible(true);
+        Field createQueryField = ProtectionHookManager.class.getDeclaredField("wgCreateQuery");
+        createQueryField.setAccessible(true);
+        Field adaptLocField = ProtectionHookManager.class.getDeclaredField("wgAdaptLocation");
+        adaptLocField.setAccessible(true);
+        Field wrapPlayerField = ProtectionHookManager.class.getDeclaredField("wgWrapPlayer");
+        wrapPlayerField.setAccessible(true);
+        Field flagBuildField = ProtectionHookManager.class.getDeclaredField("wgFlagBuild");
+        flagBuildField.setAccessible(true);
+        Field flagInteractField = ProtectionHookManager.class.getDeclaredField("wgFlagInteract");
+        flagInteractField.setAccessible(true);
+        Field testStateField = ProtectionHookManager.class.getDeclaredField("wgTestState");
+        testStateField.setAccessible(true);
+
+        try {
+            availableField.set(null, true);
+            pluginField.set(null, new MockWorldGuardPlugin());
+            containerField.set(null, new MockRegionContainer(new MockPerimeterRegionQuery()));
+            createQueryField.set(null, MockRegionContainer.class.getMethod("createQuery"));
+            adaptLocField.set(null, MockWorldGuardAdapter.class.getMethod("adapt", Location.class));
+            wrapPlayerField.set(null, MockWorldGuardPlugin.class.getMethod("wrapPlayer", Player.class));
+            flagBuildField.set(null, "BUILD");
+            flagInteractField.set(null, "INTERACT");
+            testStateField.set(null, MockPerimeterRegionQuery.class.getMethod("testState", Object.class, Object.class, Object.class));
+
+            // Radius 0: Only center checked -> returns true
+            assertTrue(ProtectionHookManager.canPlaceMinion(authorizedPlayer, centerLoc, 0),
+                    "Radius 0 should only check center location");
+
+            // Radius 2: Outer perimeter points checked (e.g., x=102 > 100) -> returns false!
+            assertFalse(ProtectionHookManager.canPlaceMinion(authorizedPlayer, centerLoc, 2),
+                    "Radius 2 should check 9-point perimeter and deny placement when area crosses border");
+        } finally {
+            availableField.set(null, false);
+            pluginField.set(null, null);
+            containerField.set(null, null);
+            createQueryField.set(null, null);
+            adaptLocField.set(null, null);
+            wrapPlayerField.set(null, null);
+            flagBuildField.set(null, null);
+            flagInteractField.set(null, null);
+            testStateField.set(null, null);
+        }
+    }
+
+    private Player createMockPlayerWithPerms(UUID uuid, Set<String> perms) {
+        return (Player) Proxy.newProxyInstance(
+                Player.class.getClassLoader(),
+                new Class<?>[]{Player.class},
+                (proxy, method, args) -> {
+                    String name = method.getName();
+                    if ("getUniqueId".equals(name)) return uuid;
+                    if ("hasPermission".equals(name) && args != null && args.length > 0) {
+                        return perms.contains(String.valueOf(args[0]).toLowerCase());
+                    }
+                    if ("isOp".equals(name)) return false;
+                    if ("getName".equals(name)) return "TestPlayer_" + uuid.toString().substring(0, 4);
+                    if ("toString".equals(name)) return "MockPlayer[" + uuid + "]";
+                    return null;
+                }
+        );
+    }
+
     private Player createMockPlayer(UUID uuid, boolean isAdmin) {
         return (Player) Proxy.newProxyInstance(
                 Player.class.getClassLoader(),
@@ -509,4 +652,57 @@ public class ProtectionHookManagerTest {
             return ProtectionHookManagerTest.AUTHORIZED_UUID.equals(uuid);
         }
     }
+
+    public static class MockWorldGuardAdapter {
+        public static Object adapt(Location loc) {
+            return loc;
+        }
+    }
+
+    public static class MockWorldGuardPlugin {
+        public Object wrapPlayer(Player player) {
+            return player;
+        }
+    }
+
+    public static class MockRegionContainer {
+        private final Object query;
+
+        public MockRegionContainer() {
+            this(new MockRegionQuery());
+        }
+
+        public MockRegionContainer(Object query) {
+            this.query = query;
+        }
+
+        public Object createQuery() {
+            return query;
+        }
+    }
+
+    public static class MockRegionQuery {
+        public boolean testState(Object loc, Object player, Object flags) {
+            if (player instanceof Player p) {
+                return ProtectionHookManagerTest.AUTHORIZED_UUID.equals(p.getUniqueId());
+            }
+            return false;
+        }
+    }
+
+    public static class MockPerimeterRegionQuery {
+        public boolean testState(Object loc, Object player, Object flags) {
+            if (loc instanceof Location l) {
+                // Deny any coordinates with X > 100 (e.g. 102)
+                if (l.getX() > 100.0) {
+                    return false;
+                }
+            }
+            if (player instanceof Player p) {
+                return ProtectionHookManagerTest.AUTHORIZED_UUID.equals(p.getUniqueId());
+            }
+            return false;
+        }
+    }
+
 }

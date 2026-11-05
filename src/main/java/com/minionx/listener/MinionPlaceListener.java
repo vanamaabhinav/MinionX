@@ -123,14 +123,6 @@ public class MinionPlaceListener implements Listener {
             }
         }
 
-        // 2. Check Land & Claim Permissions (GriefPrevention, BentoBox, WorldGuard, Towny, Lands)
-        if (!ProtectionHookManager.canPlaceMinion(player, placeBlock.getLocation())) {
-            String noPermMsg = config.getString("messages.no-island-place-permission", "&cYou do not have permission to place minions here!");
-            player.sendMessage(ColorUtil.color(noPermMsg));
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-            return;
-        }
-
         String customId = MinionItemFactory.getCustomMinionId(item);
         MinionType type = MinionItemFactory.getMinionType(item);
         int tier = MinionItemFactory.getMinionTier(item);
@@ -153,6 +145,15 @@ public class MinionPlaceListener implements Listener {
             minion.setCustomDefinitionId(customId);
         }
         minion.setTotalHarvested(harvested);
+
+        // 2. Check Land & Claim Permissions across minion working radius (WorldGuard, GriefPrevention, BentoBox, Towny, Lands, SuperiorSkyblock2)
+        int radius = minion.getWorkingRadius();
+        if (!ProtectionHookManager.canPlaceMinion(player, placeBlock.getLocation(), radius)) {
+            String noPermMsg = config.getString("messages.no-island-place-permission", "&cYou do not have permission to place minions here!");
+            player.sendMessage(ColorUtil.color(noPermMsg));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
 
         // Fire MinionPlaceEvent
         com.minionx.api.event.MinionPlaceEvent placeEvent = new com.minionx.api.event.MinionPlaceEvent(player, minion, minionLoc, item);
