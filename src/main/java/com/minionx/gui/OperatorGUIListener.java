@@ -24,6 +24,15 @@ import java.util.HashMap;
 @SuppressWarnings("deprecation")
 public class OperatorGUIListener implements Listener {
 
+    private final java.util.Map<java.util.UUID, Long> clickDebounce = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @EventHandler
+    public void onInventoryClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
+        if (event.getInventory().getHolder() instanceof OperatorHolder) {
+            clickDebounce.remove(event.getPlayer().getUniqueId());
+        }
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getInventory().getHolder() instanceof OperatorHolder holder)) {
@@ -35,6 +44,13 @@ public class OperatorGUIListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
+
+        long now = System.currentTimeMillis();
+        Long lastClick = clickDebounce.get(player.getUniqueId());
+        if (lastClick != null && (now - lastClick) < 75L) {
+            return;
+        }
+        clickDebounce.put(player.getUniqueId(), now);
 
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR || clicked.getType() == Material.BLACK_STAINED_GLASS_PANE || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) {

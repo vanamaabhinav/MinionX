@@ -13,7 +13,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.List;
 
 /**
- * 54-slot In-Game Custom Minion Upgrade & Hopper Creator Studio GUI.
+ * 54-slot In-Game Custom Minion Upgrade and Hopper Creator Studio GUI.
  */
 @SuppressWarnings("deprecation")
 public class UpgradeCreatorGUI {

@@ -28,6 +28,7 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.bukkit.configuration.file.YamlConfiguration;
 import com.minionx.storage.MinionStorage;
@@ -39,6 +40,15 @@ import com.minionx.storage.DatabaseStorage;
  * swift shift-click equipping, and smooth Bedrock/Java inventory navigation.
  */
 public class MinionGUIListener implements Listener {
+
+    private final Map<UUID, Long> clickDebounce = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @EventHandler
+    public void onInventoryClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
+        if (event.getInventory().getHolder() instanceof MinionHolder) {
+            clickDebounce.remove(event.getPlayer().getUniqueId());
+        }
+    }
 
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
@@ -64,6 +74,14 @@ public class MinionGUIListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
+
+        long now = System.currentTimeMillis();
+        Long lastClick = clickDebounce.get(player.getUniqueId());
+        if (lastClick != null && (now - lastClick) < 75L) {
+            event.setCancelled(true);
+            return;
+        }
+        clickDebounce.put(player.getUniqueId(), now);
 
         Minion minion = holder.getMinion();
         if (minion == null) return;

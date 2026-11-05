@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Global repeating task executing the autonomous action cycle for all active minions.
- * Supports MINER, COMBAT, FORAGING (trees & chopping), and FARMING (crops, stems, canes, cacti, mushrooms).
+ * Supports MINER, COMBAT, FORAGING (trees and chopping), and FARMING (crops, stems, canes, cacti, mushrooms).
  * Utilizes a bounded generational priority-queue scheduler with wall-clock due-times and incremental compaction.
  */
 public class MinionTickTask extends BukkitRunnable {

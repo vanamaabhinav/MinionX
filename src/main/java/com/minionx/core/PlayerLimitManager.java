@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages dynamic per-player minion placement limits.
- * Integrates permissions (minions.limit.<N>), LuckPerms meta (minion-limit),
+ * Integrates permissions (minions.limit.{@literal <N>}), LuckPerms meta (minion-limit),
  * bonus progression slots, and bypass checks.
  */
 public class PlayerLimitManager {

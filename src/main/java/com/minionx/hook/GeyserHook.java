@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 import java.util.UUID;
 
 /**
- * Hook providing seamless cross-platform support for GeyserMC & Floodgate Bedrock players.
+ * Hook providing seamless cross-platform support for GeyserMC and Floodgate Bedrock players.
  * Dynamically detects Bedrock clients via Floodgate 2.0+ (isFloodgatePlayer) or GeyserApi (isBedrockPlayer)
  * to adapt touch/controller GUI navigation, custom skull translations, and click event handling without hard dependencies.
  */

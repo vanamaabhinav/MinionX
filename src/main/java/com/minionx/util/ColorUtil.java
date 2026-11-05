@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utility for formatting chat colors and text formatting using '&' color codes.
+ * Utility for formatting chat colors and text formatting using {@code '&'} color codes.
  */
 @SuppressWarnings("deprecation")
 public class ColorUtil {

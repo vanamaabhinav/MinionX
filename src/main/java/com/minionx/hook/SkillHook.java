@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 import java.util.UUID;
 
 /**
- * Integrates directly with RPG & Skill progression plugins (AuraSkills, AureliumSkills, and EcoSkills)
+ * Integrates directly with RPG and Skill progression plugins (AuraSkills, AureliumSkills, and EcoSkills)
  * using cached reflection handles for zero-allocation performance on minion harvest cycles.
  */
 public class SkillHook {
