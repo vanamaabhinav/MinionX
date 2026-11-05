@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * Represents a cosmetic Minion Skin in MinionX.
- * Modifies the minion ArmorStand's head texture, armor material & color, and held tool/weapon.
+ * Modifies the minion ArmorStand's head texture, armor material and color, and held tool/weapon.
  */
 public class MinionSkin {
 

@@ -176,10 +176,14 @@ public class MinionItemFactory {
 
     public static boolean isMinionItem(ItemStack item) {
         if (item == null || item.getType() != Material.PLAYER_HEAD) return false;
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return false;
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        return pdc.has(IS_MINION_KEY, PersistentDataType.BYTE);
+        try {
+            ItemMeta meta = item.getItemMeta();
+            if (meta == null) return false;
+            PersistentDataContainer pdc = meta.getPersistentDataContainer();
+            return pdc.has(IS_MINION_KEY, PersistentDataType.BYTE);
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     public static MinionType getMinionType(ItemStack item) {

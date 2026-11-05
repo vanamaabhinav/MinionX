@@ -69,13 +69,20 @@ All notable changes to **MinionX** are documented in this file.
 - **Direct Hook Invocation (`MinionInteractListener`)**: Replaced internal legacy `IslandHookManager` delegation with direct `ProtectionHookManager.canAccessMinion` call while retaining `IslandHookManager` for external compatibility.
 - **Multi-Variant Custom Item Price Matching (`PriceRegistry`)**: Enhanced `getPrice(ItemStack)` to check full namespaced IDs (`itemsadder:custom_ores:ruby`), plugin-trimmed IDs (`custom_ores:ruby`), and short IDs (`ruby`).
 
+#### 9. Public Developer API Expansion & Javadoc Remediation
+- **Public API Surface Hardening (`MinionXAPI`)**: Added `getMinion(UUID)`, `createMinionItem(typeOrId, tier)`, `createMinionItem(MinionType, tier)`, `isMinionItem(ItemStack)`, `registerCustomStorage(CustomMinionStorage)`, `registerCustomSkin(MinionSkin)`, and `isQuarantined()`.
+- **Bulletproof Minion Item Check (`MinionItemFactory`)**: Wrapped PDC item metadata retrieval in `isMinionItem(ItemStack)` with defensive null/exception handling to eliminate potential NPEs when evaluated against mock or unloaded item instances.
+- **Doclint & HTML Entity Remediation (`MinionSkin`)**: Corrected bare ampersand entity in `MinionSkin.java` class Javadoc, achieving clean `javadoc -Xdoclint:all` compilation without fatal errors.
+- **Comprehensive API Tests (`DeveloperApiTest`)**: Added 3 unit tests verifying item generation, identification, UUID lookups, and dynamic registrations.
+
 ---
 
 ### Verification & Technical Metrics
-- **Test Suite**: 261 unit tests passed across 36 test classes (`100% pass rate`).
+- **Test Suite**: 264 unit tests passed across 37 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac 21 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
+- **Documentation Checks**: Validated with `javadoc 21 -Xdoclint:all,-missing` (**0 errors, 0 warnings**).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
-- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (501,282 bytes).
+- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (501,663 bytes).
 
 ---
 
