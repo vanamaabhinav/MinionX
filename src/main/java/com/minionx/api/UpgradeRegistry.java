@@ -47,6 +47,8 @@ public class UpgradeRegistry {
                 if ("BUDGET_HOPPER".equalsIgnoreCase(typeStr) || "ENCHANTED_HOPPER".equalsIgnoreCase(typeStr) ||
                         "AUTO_SELLER".equalsIgnoreCase(typeStr) || "HOPPER".equalsIgnoreCase(typeStr)) {
                     behavior = CustomUpgrade.UpgradeBehavior.AUTO_SELLER;
+                } else if ("POTATO_SPREADING".equalsIgnoreCase(typeStr) || "SPREADING".equalsIgnoreCase(typeStr)) {
+                    behavior = CustomUpgrade.UpgradeBehavior.ITEM_SPREADING;
                 } else {
                     try {
                         behavior = CustomUpgrade.UpgradeBehavior.valueOf(typeStr.toUpperCase());
@@ -71,7 +73,29 @@ public class UpgradeRegistry {
                     areaExpansion = 1;
                 }
 
-                CustomUpgrade upgrade = new CustomUpgrade(key, displayName, mat, behavior, speedBuff, chance, sellRatio, areaExpansion, lore, glow, customModelData);
+                BonusDropEntry spreadingItem = null;
+                if (upSec.isConfigurationSection("spreading-item")) {
+                    spreadingItem = BonusDropEntry.fromConfig(upSec.getConfigurationSection("spreading-item").getValues(false));
+                } else if (upSec.isString("spreading-item")) {
+                    Material sMat = Material.matchMaterial(upSec.getString("spreading-item"));
+                    if (sMat != null) {
+                        spreadingItem = new BonusDropEntry(sMat, upSec.getInt("spreading-amount", 1), chance > 0 ? chance : 0.10);
+                    }
+                } else if (behavior == CustomUpgrade.UpgradeBehavior.ITEM_SPREADING && spreadingItem == null) {
+                    spreadingItem = new BonusDropEntry(mat, 1, chance > 0 ? chance : 0.10);
+                }
+
+                List<BonusDropEntry> bonusDrops = new ArrayList<>();
+                if (upSec.isList("bonus-drops")) {
+                    for (Map<?, ?> bMap : upSec.getMapList("bonus-drops")) {
+                        BonusDropEntry bEntry = BonusDropEntry.fromConfig(bMap);
+                        if (bEntry != null) {
+                            bonusDrops.add(bEntry);
+                        }
+                    }
+                }
+
+                CustomUpgrade upgrade = new CustomUpgrade(key, displayName, mat, behavior, speedBuff, chance, sellRatio, areaExpansion, spreadingItem, bonusDrops, lore, glow, customModelData);
                 UPGRADES.put(key.toLowerCase(), upgrade);
             }
         }
@@ -100,8 +124,27 @@ public class UpgradeRegistry {
                 ColorUtil.color(List.of("&7Automatically compresses items into their", "&7enchanted compressed forms.")), true, 0));
 
         registerDefaultIfMissing("diamond_spreading", new CustomUpgrade("diamond_spreading", ColorUtil.color("&bDiamond Spreading"), Material.DIAMOND,
-                CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING, 0.0, 0.10,
+                CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING, 0.0, 0.10, 0.0, 0,
+                new BonusDropEntry(Material.DIAMOND, 1, 0.10), Collections.emptyList(),
                 ColorUtil.color(List.of("&7Adds a 10% chance to generate diamonds", "&7when harvesting resources.")), true, 0));
+
+        registerDefaultIfMissing("potato_spreading", new CustomUpgrade("potato_spreading", ColorUtil.color("&ePotato Spreading"), Material.POTATO,
+                CustomUpgrade.UpgradeBehavior.ITEM_SPREADING, 0.0, 0.10, 0.0, 0,
+                new BonusDropEntry(Material.POTATO, 1, 0.10), Collections.emptyList(),
+                ColorUtil.color(List.of("&7Adds a 10% chance to generate potatoes", "&7when harvesting resources.")), true, 0));
+
+        List<BonusDropEntry> potatoBonusList = List.of(
+                new BonusDropEntry(Material.POTATO, 1, 0.25),
+                new BonusDropEntry(Material.POISONOUS_POTATO, 1, 0.10),
+                new BonusDropEntry(Material.BAKED_POTATO, 2, 0.05)
+        );
+        registerDefaultIfMissing("bountiful_potato", new CustomUpgrade("bountiful_potato", ColorUtil.color("&6Bountiful Potato"), Material.GOLDEN_CARROT,
+                CustomUpgrade.UpgradeBehavior.BONUS_DROPS, 0.0, 0.0, 0.0, 0,
+                null, potatoBonusList,
+                ColorUtil.color(List.of("&7Grants bonus potato drops on harvest:",
+                        "&7- &e25% &7chance for &fPotato",
+                        "&7- &e10% &7chance for &fPoisonous Potato",
+                        "&7- &e5% &7chance for &f2x Baked Potato")), true, 0));
 
         registerDefaultIfMissing("minion_expander", new CustomUpgrade("minion_expander", ColorUtil.color("&aMinion Expander"), Material.PISTON,
                 CustomUpgrade.UpgradeBehavior.SPEED_BUFF, 0.05, 0.0, 0.0, 1,
@@ -130,6 +173,9 @@ public class UpgradeRegistry {
 
         if (com.minionx.MinionX.getInstance() == null) return;
         java.io.File file = new java.io.File(com.minionx.MinionX.getInstance().getDataFolder(), "upgrades.yml");
+        if (file.getParentFile() != null && !file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
         org.bukkit.configuration.file.YamlConfiguration config = file.exists()
                 ? org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file)
                 : new org.bukkit.configuration.file.YamlConfiguration();
@@ -156,6 +202,16 @@ public class UpgradeRegistry {
         }
         if (upgrade.getLore() != null && !upgrade.getLore().isEmpty()) {
             config.set(path + ".lore", upgrade.getLore());
+        }
+        if (upgrade.getSpreadingItem() != null) {
+            config.set(path + ".spreading-item", upgrade.getSpreadingItem().toConfigMap());
+        }
+        if (upgrade.hasBonusDrops()) {
+            List<Map<String, Object>> bList = new ArrayList<>();
+            for (BonusDropEntry b : upgrade.getBonusDrops()) {
+                bList.add(b.toConfigMap());
+            }
+            config.set(path + ".bonus-drops", bList);
         }
 
         try {

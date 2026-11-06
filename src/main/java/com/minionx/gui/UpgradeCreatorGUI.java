@@ -68,6 +68,8 @@ public class UpgradeCreatorGUI {
             case COMPACTOR -> Material.DROPPER;
             case SUPER_COMPACTOR -> Material.DISPENSER;
             case DIAMOND_SPREADING -> Material.DIAMOND;
+            case ITEM_SPREADING -> Material.POTATO;
+            case BONUS_DROPS -> Material.GOLDEN_CARROT;
             case SPEED_BUFF -> Material.SUGAR;
         };
         inv.setItem(10, createNamedItem(behaviorIcon, ColorUtil.color("&6Upgrade Function / Type"),
@@ -96,9 +98,11 @@ public class UpgradeCreatorGUI {
                             ColorUtil.color("&7"),
                             ColorUtil.color("&aLeft-Click: &f+5%"),
                             ColorUtil.color("&cRight-Click: &f-5%"))));
-        } else if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING) {
-            inv.setItem(12, createNamedItem(Material.DIAMOND, ColorUtil.color("&bDiamond Bonus Chance"),
-                    List.of(ColorUtil.color("&7Current: &b" + (int) Math.round(session.getChance() * 100) + "% chance"),
+        } else if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING ||
+                   session.getBehavior() == CustomUpgrade.UpgradeBehavior.ITEM_SPREADING) {
+            Material iconMat = session.getBehavior() == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING ? Material.DIAMOND : session.getMaterial();
+            inv.setItem(12, createNamedItem(iconMat, ColorUtil.color("&eBonus Spreading Chance"),
+                    List.of(ColorUtil.color("&7Current: &e" + (int) Math.round(session.getChance() * 100) + "% chance"),
                             ColorUtil.color("&7"),
                             ColorUtil.color("&aLeft-Click: &f+5%"),
                             ColorUtil.color("&cRight-Click: &f-5%"))));

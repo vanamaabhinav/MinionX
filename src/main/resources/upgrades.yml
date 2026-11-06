@@ -10,6 +10,10 @@
 #                        Enchanted forms using recipes defined in `recipes.yml`.
 #   DIAMOND_SPREADING  - Adds a configurable percentage chance (`chance: 0.10` = 10%)
 #                        to produce bonus diamonds on every single harvest action.
+#   ITEM_SPREADING     - General item spreading! Configure any item (`spreading-item: POTATO`),
+#                        chance, and quantity to generate bonus resources on harvest.
+#   BONUS_DROPS        - Multi-item bonus generator! Define a list of `bonus-drops` where
+#                        each drop entry specifies its own material, amount, and chance.
 #   SPEED_BUFF         - Multiplies minion action speed (`speed-buff: 0.20` = +20%).
 #                        Stacks additively or multiplicatively with fuels.
 #   AUTO_SELLER        - Equipped in the Automated Shipping slot (Slot 28). When minion
@@ -55,6 +59,40 @@ upgrades:
     lore:
       - "&7Adds a 10% chance to generate diamonds"
       - "&7when harvesting resources."
+
+  potato_spreading:
+    display-name: "&ePotato Spreading"
+    material: POTATO
+    type: ITEM_SPREADING
+    chance: 0.10
+    spreading-item:
+      material: POTATO
+      amount: 1
+    glow: true
+    lore:
+      - "&7Adds a 10% chance to generate potatoes"
+      - "&7when harvesting resources."
+
+  bountiful_potato:
+    display-name: "&6Bountiful Potato"
+    material: GOLDEN_CARROT
+    type: BONUS_DROPS
+    bonus-drops:
+      - material: POTATO
+        amount: 1
+        chance: 0.25
+      - material: POISONOUS_POTATO
+        amount: 1
+        chance: 0.10
+      - material: BAKED_POTATO
+        amount: 2
+        chance: 0.05
+    glow: true
+    lore:
+      - "&7Grants bonus potato drops on harvest:"
+      - "&7- &e25% &7chance for &fPotato"
+      - "&7- &e10% &7chance for &fPoisonous Potato"
+      - "&7- &e5% &7chance for &f2x Baked Potato"
 
   minion_expander:
     display-name: "&aMinion Expander"

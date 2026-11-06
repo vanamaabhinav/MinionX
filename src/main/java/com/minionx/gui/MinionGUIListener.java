@@ -1340,6 +1340,34 @@ public class MinionGUIListener implements Listener {
     }
 
     private void handleUpgradeShiftClick(Player player, Minion minion, ItemStack clicked, CustomUpgrade upgrade) {
+        if (upgrade == null) return;
+
+        if (upgrade.isAutoSeller()) {
+            handleShippingShiftClick(player, minion, clicked, upgrade);
+            return;
+        }
+
+        if (!isStackableUpgrade(upgrade) && hasSameUpgradeEquipped(minion, upgrade, -1)) {
+            player.sendMessage(ColorUtil.color("&cThis minion already has this unique upgrade equipped!"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
+        if (upgrade.getAreaExpansion() > 0 && minion.getLocation() != null) {
+            int targetSlot = minion.getCustomUpgrade1() == null ? 1 : (minion.getCustomUpgrade2() == null ? 2 : 0);
+            if (targetSlot > 0) {
+                int otherExp = (targetSlot == 1 ? (minion.getCustomUpgrade2() != null ? minion.getCustomUpgrade2().getAreaExpansion() : 0)
+                                                : (minion.getCustomUpgrade1() != null ? minion.getCustomUpgrade1().getAreaExpansion() : 0));
+                int prospectiveRadius = 2 + otherExp + upgrade.getAreaExpansion();
+                if (!ProtectionHookManager.canPlaceMinion(player, minion.getLocation(), prospectiveRadius)) {
+                    int dim = prospectiveRadius * 2 + 1;
+                    player.sendMessage(ColorUtil.color("&cCannot equip expander! The expanded operational area (" + dim + "x" + dim + ") reaches into a protected region."));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                    return;
+                }
+            }
+        }
+
         if (minion.getCustomUpgrade1() == null) {
             consumeItem(clicked, 1);
             minion.setUpgrade1(upgrade);
@@ -1391,6 +1419,12 @@ public class MinionGUIListener implements Listener {
         if (upgrade != null) {
             if (upgrade.isAutoSeller()) {
                 player.sendMessage(ColorUtil.color("&cAuto-Sellers (Hoppers) must be placed in the Automated Shipping slot (Slot 28)!"));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
+            }
+
+            if (!isStackableUpgrade(upgrade) && hasSameUpgradeEquipped(minion, upgrade, slotNum)) {
+                player.sendMessage(ColorUtil.color("&cThis minion already has this unique upgrade equipped!"));
                 player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                 return;
             }
@@ -1483,5 +1517,34 @@ public class MinionGUIListener implements Listener {
         if (skill != null && xpPer > 0) {
             SkillHook.addSkillXp(player, skill, xpPer * amount);
         }
+    }
+
+    private boolean isStackableUpgrade(CustomUpgrade upgrade) {
+        if (upgrade == null) return false;
+        return upgrade.getBehavior() == CustomUpgrade.UpgradeBehavior.SPEED_BUFF;
+    }
+
+    private boolean hasSameUpgradeEquipped(Minion minion, CustomUpgrade upgrade, int targetSlot) {
+        if (minion == null || upgrade == null) return false;
+        String id = upgrade.getId();
+        if (targetSlot != 1) {
+            CustomUpgrade u1 = minion.getCustomUpgrade1();
+            if (u1 != null && (u1.getId().equalsIgnoreCase(id) || (u1.getBehavior() == upgrade.getBehavior() && isExclusiveBehavior(u1.getBehavior())))) {
+                return true;
+            }
+        }
+        if (targetSlot != 2) {
+            CustomUpgrade u2 = minion.getCustomUpgrade2();
+            if (u2 != null && (u2.getId().equalsIgnoreCase(id) || (u2.getBehavior() == upgrade.getBehavior() && isExclusiveBehavior(u2.getBehavior())))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isExclusiveBehavior(CustomUpgrade.UpgradeBehavior b) {
+        return b == CustomUpgrade.UpgradeBehavior.AUTO_SMELTER
+                || b == CustomUpgrade.UpgradeBehavior.COMPACTOR
+                || b == CustomUpgrade.UpgradeBehavior.SUPER_COMPACTOR;
     }
 }

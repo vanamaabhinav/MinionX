@@ -102,13 +102,23 @@ All notable changes to **MinionX** are documented in this file.
 - **Defensive Directory Creation (`MinionTier`, `MinionRegistry`, `FuelRegistry`)**: Added `file.getParentFile().mkdirs()` checks ensuring clean first-time directory creation when saving custom definitions.
 - **Zero Unnecessary Files**: Removed legacy `.bak` files and Python bytecode caches.
 
+#### 12. Fuels & Upgrades Subsystem Audit, Dynamic Item Spreading & Multi-Drop Upgrades
+- **Offline Fuel Segmentation Fix (AUD-F01 & AUD-F02)**: Resolved critical logic condition in `OfflineCalculator.java` where temporary fuel burning out while offline was skipped because `isFuelActive()` evaluated to false at calculation time. The calculation now segments offline downtime into two phases: active fuel boost period (Segment 1) up to `fuelEnd`, followed by baseline minion speed (Segment 2), deactivating the expired fuel cleanly.
+- **Expander Boundary Claim Guarding (AUD-U01)**: Added claim perimeter check to shift-clicking Minion Expanders in `MinionGUIListener.java` (`ProtectionHookManager.canPlaceMinion(player, loc, 2 + expansion)`), preventing unauthorized enlargement into protected land.
+- **Dynamic Configurable Item Spreading (AUD-U02 & AUD-U03)**: Decoupled hardcoded diamond spreading logic in `MinionTickTask.java` and `OfflineCalculator.java`. Any item can now be configured as a spreading drop with custom material, amount, chance, display name, and custom model data. Registered default `potato_spreading` upgrade (10% chance for Potato drop).
+- **Multi-Drop Bonus Generator Upgrades (`BONUS_DROPS`)**: Introduced `BONUS_DROPS` behavior supporting multiple distinct items per upgrade, each with individual probability chances, amounts, custom display names, custom model data, and external plugin hook IDs. Added default showcase `bountiful_potato` (`Bountiful Potato`: 25% Potato, 10% Poisonous Potato, 5% Baked Potato x2).
+- **Duplicate Unique Upgrade Prevention (AUD-U04)**: Blocked equipping duplicate unique non-stackable upgrades (e.g. 2x Super Compactor or 2x Auto-Smelter) across both slot-click and shift-click interactions in `MinionGUIListener.java`.
+- **Defensive Directory Creation (AUD-U05)**: Added `file.getParentFile().mkdirs()` in `UpgradeRegistry.saveCustomUpgrade()` to prevent `FileNotFoundException` when saving new upgrades on fresh servers.
+- **Synchronized Offline Simulation**: Remainder channels (`bonus_<material>_<chance>`) accurately track fractional yields across offline catchup cycles, maintaining identical item generation ratios between online ticking and offline catchup.
+
 ### Verification & Technical Metrics
-- **Test Suite**: 287 unit tests passed across 41 test classes (`100% pass rate`).
+- **Test Suite**: 293 unit tests passed across 42 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac --release 17 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
 - **Documentation Checks**: Validated with `javadoc -Xdoclint:all,-missing` (**0 errors, 0 warnings**).
+- **Static Analysis**: Checked with zero IDE warnings (**0 unused imports, 0 unused private members**).
 - **Bytecode Verification**: Verified `Major Version 61.0` (Java 17 target).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
-- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (515,423 bytes).
+- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (522,520 bytes).
 
 ---
 

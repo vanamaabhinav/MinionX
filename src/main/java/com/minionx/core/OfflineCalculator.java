@@ -6,7 +6,9 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Offline production engine.
@@ -67,9 +69,9 @@ public class OfflineCalculator {
 
         // 3. Segment downtime across fuel expiration boundaries to apply appropriate speed multipliers
         long fuelEnd = minion.getFuelEndTime();
-        if (fuelEnd > 0 && fuelEnd > lastAction && fuelEnd < now && minion.isFuelActive()) {
+        if (fuelEnd > 0 && fuelEnd > lastAction && fuelEnd < now && minion.getFuelId() != null) {
             // Segment 1: from lastAction to fuelEnd with fuel speed boost
-            int added1 = simulateSegment(minion, lastAction, fuelEnd);
+            int added1 = simulateSegment(minion, lastAction, fuelEnd, true);
             if (minion.getState() == MinionState.FULL) {
                 minion.setLastActionTime(now);
                 return added1;
@@ -77,21 +79,21 @@ public class OfflineCalculator {
             // Deactivate fuel at boundary
             minion.setFuel((CustomFuel) null);
             // Segment 2: from fuelEnd to now without fuel
-            int added2 = simulateSegment(minion, fuelEnd, now);
+            int added2 = simulateSegment(minion, fuelEnd, now, false);
             return added1 + added2;
         } else {
-            if (fuelEnd > 0 && fuelEnd <= lastAction && minion.isFuelActive()) {
+            if (fuelEnd > 0 && fuelEnd <= lastAction && minion.getFuelId() != null) {
                 minion.setFuel((CustomFuel) null);
             }
-            return simulateSegment(minion, lastAction, now);
+            return simulateSegment(minion, lastAction, now, minion.isFuelActive());
         }
     }
 
-    private static int simulateSegment(Minion minion, long segStart, long segEnd) {
+    private static int simulateSegment(Minion minion, long segStart, long segEnd, boolean fuelActive) {
         if (segEnd <= segStart) return 0;
         long elapsedMillis = segEnd - segStart;
 
-        double delaySeconds = minion.getEffectiveActionDelay();
+        double delaySeconds = getSegmentDelay(minion, fuelActive);
         if (delaySeconds <= 0) delaySeconds = 14.0;
         long actionMillis = (long) (delaySeconds * 1000L);
         if (actionMillis <= 0) actionMillis = 1000L;
@@ -124,12 +126,37 @@ public class OfflineCalculator {
         boolean hasSecondary = def != null && def.hasSecondaryDrop() && def.getSecondaryDropChance() > 0 && def.getSecondaryDropItem() != null;
         long secChanceMicros = (def != null && hasSecondary) ? (long) (def.getSecondaryDropChance() * 1_000_000.0) : 0L;
 
-        boolean hasSpreading = com.minionx.util.FeatureToggle.isUpgradesEnabled() &&
-                (minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
-                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING));
+        List<BonusDropEntry> activeBonusDrops = new ArrayList<>();
+        if (com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
+            CustomUpgrade u1 = minion.getCustomUpgrade1();
+            if (u1 != null) {
+                if (u1.isSpreading() && u1.getSpreadingItem() != null) {
+                    activeBonusDrops.add(u1.getSpreadingItem());
+                }
+                if (u1.hasBonusDrops()) {
+                    activeBonusDrops.addAll(u1.getBonusDrops());
+                }
+            }
+            CustomUpgrade u2 = minion.getCustomUpgrade2();
+            if (u2 != null) {
+                if (u2.isSpreading() && u2.getSpreadingItem() != null) {
+                    activeBonusDrops.add(u2.getSpreadingItem());
+                }
+                if (u2.hasBonusDrops()) {
+                    activeBonusDrops.addAll(u2.getBonusDrops());
+                }
+            }
+            if (activeBonusDrops.isEmpty() && minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)) {
+                activeBonusDrops.add(new BonusDropEntry(Material.DIAMOND, 1, 0.10));
+            }
+        }
 
         long curSecRem = minion.getChannelRemainder("secondary");
-        long curDiaRem = minion.getChannelRemainder("diamond_spreading");
+        Map<BonusDropEntry, Long> bonusRemainders = new LinkedHashMap<>();
+        for (BonusDropEntry b : activeBonusDrops) {
+            String chKey = getBonusChannelKey(b);
+            bonusRemainders.put(b, minion.getChannelRemainder(chKey));
+        }
 
         long successfulHarvests = 0;
         int actualAdded = 0;
@@ -153,11 +180,18 @@ public class OfflineCalculator {
                 cycleDrops.add(secStack);
             }
 
-            long nextDiaRem = curDiaRem + (hasSpreading ? 100_000L : 0L);
-            long diaDropCount = nextDiaRem / 1_000_000L;
-            nextDiaRem = nextDiaRem % 1_000_000L;
-            if (diaDropCount > 0) {
-                cycleDrops.add(new ItemStack(Material.DIAMOND, (int) diaDropCount));
+            Map<BonusDropEntry, Long> nextBonusRemainders = new LinkedHashMap<>();
+            for (BonusDropEntry b : activeBonusDrops) {
+                long curRem = bonusRemainders.getOrDefault(b, 0L);
+                long nextRem = curRem + (long) (b.getChance() * 1_000_000.0);
+                long bCount = nextRem / 1_000_000L;
+                nextRem = nextRem % 1_000_000L;
+                if (bCount > 0) {
+                    ItemStack bStack = b.createItemStack();
+                    bStack.setAmount((int) Math.min(64, bCount * b.getAmount()));
+                    cycleDrops.add(bStack);
+                }
+                nextBonusRemainders.put(b, nextRem);
             }
 
             // Test adding all drops for this cycle
@@ -183,7 +217,7 @@ public class OfflineCalculator {
 
             // Cycle succeeded! Commit working remainders
             curSecRem = nextSecRem;
-            curDiaRem = nextDiaRem;
+            bonusRemainders.putAll(nextBonusRemainders);
             successfulHarvests++;
             actualAdded += baseStack.getAmount();
 
@@ -193,7 +227,9 @@ public class OfflineCalculator {
         }
 
         if (hasSecondary) minion.setChannelRemainder("secondary", curSecRem);
-        if (hasSpreading) minion.setChannelRemainder("diamond_spreading", curDiaRem);
+        for (Map.Entry<BonusDropEntry, Long> entry : bonusRemainders.entrySet()) {
+            minion.setChannelRemainder(getBonusChannelKey(entry.getKey()), entry.getValue());
+        }
 
         minion.incrementHarvested((int) Math.min(Integer.MAX_VALUE, successfulHarvests));
         minion.addStoredXp((int) Math.min(Integer.MAX_VALUE, successfulHarvests * (long) xpPerHarvest));
@@ -233,5 +269,34 @@ public class OfflineCalculator {
             if (drop.getType() == Material.RAW_COPPER) return new ItemStack(Material.COPPER_INGOT, drop.getAmount());
         }
         return drop;
+    }
+
+    private static double getSegmentDelay(Minion minion, boolean fuelActive) {
+        double base = minion.getBaseActionDelay();
+        double totalBuff = 0.0;
+        if (com.minionx.util.FeatureToggle.isFuelsEnabled() && fuelActive) {
+            CustomFuel f = minion.getCustomFuel();
+            if (f != null && f.getSpeedBuff() > 0) {
+                totalBuff += f.getSpeedBuff();
+            }
+        }
+        if (com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
+            CustomUpgrade u1 = minion.getCustomUpgrade1();
+            if (u1 != null && u1.getSpeedBuff() > 0) {
+                totalBuff += u1.getSpeedBuff();
+            }
+            CustomUpgrade u2 = minion.getCustomUpgrade2();
+            if (u2 != null && u2.getSpeedBuff() > 0) {
+                totalBuff += u2.getSpeedBuff();
+            }
+        }
+        return base / (1.0 + totalBuff);
+    }
+
+    private static String getBonusChannelKey(BonusDropEntry b) {
+        if (b.getMaterial() == Material.DIAMOND && Math.abs(b.getChance() - 0.10) < 1e-4) {
+            return "diamond_spreading";
+        }
+        return "bonus_" + b.getMaterial().name().toLowerCase() + "_" + (int) Math.round(b.getChance() * 1000);
     }
 }

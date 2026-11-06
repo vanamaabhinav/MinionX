@@ -108,7 +108,13 @@ public class UpgradeCreatorSession {
     }
 
     public CustomUpgrade buildUpgrade() {
-        return new CustomUpgrade(id, displayName, material, behavior, speedBuff, chance, sellRatio, lore, glowing, 0);
+        com.minionx.api.BonusDropEntry spreading = null;
+        if (behavior == CustomUpgrade.UpgradeBehavior.ITEM_SPREADING) {
+            spreading = new com.minionx.api.BonusDropEntry(material, 1, chance > 0 ? chance : 0.10);
+        } else if (behavior == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING) {
+            spreading = new com.minionx.api.BonusDropEntry(org.bukkit.Material.DIAMOND, 1, chance > 0 ? chance : 0.10);
+        }
+        return new CustomUpgrade(id, displayName, material, behavior, speedBuff, chance, sellRatio, 0, spreading, java.util.Collections.emptyList(), lore, glowing, 0);
     }
 
     private static String capitalize(String str) {

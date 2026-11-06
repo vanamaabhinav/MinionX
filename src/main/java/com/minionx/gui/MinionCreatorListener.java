@@ -1366,7 +1366,8 @@ public class MinionCreatorListener implements Listener {
                 player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
                 UpgradeCreatorGUI.open(player, session);
                 return;
-            } else if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING) {
+            } else if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING ||
+                       session.getBehavior() == CustomUpgrade.UpgradeBehavior.ITEM_SPREADING) {
                 double delta = (event.isShiftClick() ? 0.10 : 0.05) * (event.isLeftClick() ? 1 : -1);
                 session.setChance(Math.round((session.getChance() + delta) * 100.0) / 100.0);
                 player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);

@@ -1250,11 +1250,46 @@ public class MinionTickTask extends BukkitRunnable {
             finalDrops.add(drop);
         }
 
-        // Diamond Spreading check
-        boolean hasSpreading = minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)
-                || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING);
-        if (hasSpreading && Math.random() < 0.10) {
-            finalDrops.add(new ItemStack(Material.DIAMOND, 1));
+        // Evaluate Spreading & Bonus Drops
+        if (com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
+            boolean handledSpreading = false;
+            CustomUpgrade u1 = minion.getCustomUpgrade1();
+            if (u1 != null) {
+                if (u1.isSpreading() && u1.getSpreadingItem() != null) {
+                    handledSpreading = true;
+                    if (Math.random() < u1.getSpreadingItem().getChance()) {
+                        finalDrops.add(u1.getSpreadingItem().createItemStack());
+                    }
+                }
+                if (u1.hasBonusDrops()) {
+                    for (com.minionx.api.BonusDropEntry b : u1.getBonusDrops()) {
+                        if (Math.random() < b.getChance()) {
+                            finalDrops.add(b.createItemStack());
+                        }
+                    }
+                }
+            }
+            CustomUpgrade u2 = minion.getCustomUpgrade2();
+            if (u2 != null) {
+                if (u2.isSpreading() && u2.getSpreadingItem() != null) {
+                    handledSpreading = true;
+                    if (Math.random() < u2.getSpreadingItem().getChance()) {
+                        finalDrops.add(u2.getSpreadingItem().createItemStack());
+                    }
+                }
+                if (u2.hasBonusDrops()) {
+                    for (com.minionx.api.BonusDropEntry b : u2.getBonusDrops()) {
+                        if (Math.random() < b.getChance()) {
+                            finalDrops.add(b.createItemStack());
+                        }
+                    }
+                }
+            }
+            if (!handledSpreading && minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)) {
+                if (Math.random() < 0.10) {
+                    finalDrops.add(new ItemStack(Material.DIAMOND, 1));
+                }
+            }
         }
 
         int totalXp = (xpPerCount > 0 ? xpPerCount : 1) * harvestCount;

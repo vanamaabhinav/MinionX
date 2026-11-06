@@ -1,10 +1,12 @@
 package com.minionx.api;
 
 import org.bukkit.Material;
+
+import java.util.Collections;
 import java.util.List;
 
 /**
- * Represents a configurable Minion Upgrade / Accessory defined in config.yml.
+ * Represents a configurable Minion Upgrade / Accessory defined in upgrades.yml.
  */
 public class CustomUpgrade {
 
@@ -13,6 +15,8 @@ public class CustomUpgrade {
         COMPACTOR,
         SUPER_COMPACTOR,
         DIAMOND_SPREADING,
+        ITEM_SPREADING,
+        BONUS_DROPS,
         SPEED_BUFF,
         AUTO_SELLER
     }
@@ -25,22 +29,31 @@ public class CustomUpgrade {
     private final double chance;    // e.g. 0.10 for 10%
     private final double sellRatio; // e.g. 0.50 for Budget Hopper, 0.90 for Enchanted Hopper
     private final int areaExpansion; // e.g. 1 for Minion Expander (+1 radius, 5x5 -> 7x7)
+    private final BonusDropEntry spreadingItem;
+    private final List<BonusDropEntry> bonusDrops;
     private final List<String> lore;
     private final boolean glowing;
     private final int customModelData;
 
     public CustomUpgrade(String id, String displayName, Material material, UpgradeBehavior behavior,
                          double speedBuff, double chance, List<String> lore, boolean glowing, int customModelData) {
-        this(id, displayName, material, behavior, speedBuff, chance, 0.0, 0, lore, glowing, customModelData);
+        this(id, displayName, material, behavior, speedBuff, chance, 0.0, 0, null, Collections.emptyList(), lore, glowing, customModelData);
     }
 
     public CustomUpgrade(String id, String displayName, Material material, UpgradeBehavior behavior,
                          double speedBuff, double chance, double sellRatio, List<String> lore, boolean glowing, int customModelData) {
-        this(id, displayName, material, behavior, speedBuff, chance, sellRatio, 0, lore, glowing, customModelData);
+        this(id, displayName, material, behavior, speedBuff, chance, sellRatio, 0, null, Collections.emptyList(), lore, glowing, customModelData);
     }
 
     public CustomUpgrade(String id, String displayName, Material material, UpgradeBehavior behavior,
                          double speedBuff, double chance, double sellRatio, int areaExpansion,
+                         List<String> lore, boolean glowing, int customModelData) {
+        this(id, displayName, material, behavior, speedBuff, chance, sellRatio, areaExpansion, null, Collections.emptyList(), lore, glowing, customModelData);
+    }
+
+    public CustomUpgrade(String id, String displayName, Material material, UpgradeBehavior behavior,
+                         double speedBuff, double chance, double sellRatio, int areaExpansion,
+                         BonusDropEntry spreadingItem, List<BonusDropEntry> bonusDrops,
                          List<String> lore, boolean glowing, int customModelData) {
         this.id = id.toLowerCase();
         this.displayName = displayName;
@@ -50,6 +63,8 @@ public class CustomUpgrade {
         this.chance = chance;
         this.sellRatio = sellRatio;
         this.areaExpansion = Math.max(0, areaExpansion);
+        this.spreadingItem = spreadingItem;
+        this.bonusDrops = bonusDrops != null ? List.copyOf(bonusDrops) : Collections.emptyList();
         this.lore = lore;
         this.glowing = glowing;
         this.customModelData = customModelData;
@@ -89,6 +104,28 @@ public class CustomUpgrade {
 
     public int getAreaExpansion() {
         return areaExpansion;
+    }
+
+    public boolean isSpreading() {
+        return behavior == UpgradeBehavior.ITEM_SPREADING || behavior == UpgradeBehavior.DIAMOND_SPREADING || spreadingItem != null;
+    }
+
+    public BonusDropEntry getSpreadingItem() {
+        if (spreadingItem != null) {
+            return spreadingItem;
+        }
+        if (behavior == UpgradeBehavior.DIAMOND_SPREADING) {
+            return new BonusDropEntry(Material.DIAMOND, 1, chance > 0 ? chance : 0.10);
+        }
+        return null;
+    }
+
+    public boolean hasBonusDrops() {
+        return !bonusDrops.isEmpty();
+    }
+
+    public List<BonusDropEntry> getBonusDrops() {
+        return bonusDrops;
     }
 
     public List<String> getLore() {
