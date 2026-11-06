@@ -2,6 +2,7 @@ package com.minionx.core;
 
 import com.minionx.MinionX;
 import com.minionx.api.*;
+import com.minionx.api.BonusDropEntry;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
@@ -20,6 +21,8 @@ import java.util.Map;
  * - Inventory/storage saturation stops simulation without dropping or deleting unpriced items.
  */
 public class OfflineCalculator {
+
+    private OfflineCalculator() {}
 
     public static int processOfflineCatchup(Minion minion) {
         if (minion == null) return 0;
