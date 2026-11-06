@@ -3,6 +3,7 @@ package com.minionx;
 import com.minionx.api.*;
 import com.minionx.core.Minion;
 import com.minionx.core.OfflineCalculator;
+import com.minionx.gui.UpgradeCreatorSession;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,8 +21,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * Test suite verifying Fuels and Upgrades audit remediations:
  * - AUD-F01/AUD-F02: Offline fuel segmentation when temporary fuel burns out during offline period.
  * - AUD-U01/AUD-U04: Claim protection on expander and duplicate unique upgrade rejection.
- * - Dynamic configurable item spreading (e.g., Potato Spreading).
- * - Multi-drop bonus generator upgrades (e.g., Bountiful Potato).
+ * - Unified multi-behavior upgrade capabilities.
+ * - Extensible multi-item spreading schema (Diamond Spreading, Potato Spreading, Bountiful Potato).
+ * - In-game upgrade creator session multi-behavior builder.
  */
 public class FuelsAndUpgradesAuditTest {
 
@@ -54,11 +57,20 @@ public class FuelsAndUpgradesAuditTest {
     }
 
     @Test
-    @DisplayName("AUD-02: Potato Spreading and Bountiful Potato upgrades are loaded and properly structured")
+    @DisplayName("AUD-02: Diamond Spreading, Potato Spreading and Bountiful Potato upgrades are loaded under unified ITEM_SPREADING")
     public void testRegistryShowcases() {
+        CustomUpgrade diamondSpreading = UpgradeRegistry.get("diamond_spreading");
+        assertNotNull(diamondSpreading, "diamond_spreading should be registered in UpgradeRegistry");
+        assertTrue(diamondSpreading.isSpreading());
+        assertTrue(diamondSpreading.hasBehavior(CustomUpgrade.UpgradeBehavior.ITEM_SPREADING));
+        assertNotNull(diamondSpreading.getSpreadingItem());
+        assertEquals(Material.DIAMOND, diamondSpreading.getSpreadingItem().getMaterial());
+        assertEquals(0.10, diamondSpreading.getSpreadingItem().getChance(), 1e-6);
+
         CustomUpgrade potatoSpreading = UpgradeRegistry.get("potato_spreading");
         assertNotNull(potatoSpreading, "potato_spreading should be registered in UpgradeRegistry");
         assertTrue(potatoSpreading.isSpreading());
+        assertTrue(potatoSpreading.hasBehavior(CustomUpgrade.UpgradeBehavior.ITEM_SPREADING));
         assertNotNull(potatoSpreading.getSpreadingItem());
         assertEquals(Material.POTATO, potatoSpreading.getSpreadingItem().getMaterial());
         assertEquals(0.10, potatoSpreading.getSpreadingItem().getChance(), 1e-6);
@@ -66,18 +78,19 @@ public class FuelsAndUpgradesAuditTest {
         CustomUpgrade bountifulPotato = UpgradeRegistry.get("bountiful_potato");
         assertNotNull(bountifulPotato, "bountiful_potato should be registered in UpgradeRegistry");
         assertEquals("§6Bountiful Potato", bountifulPotato.getDisplayName());
+        assertTrue(bountifulPotato.isSpreading());
         assertTrue(bountifulPotato.hasBonusDrops());
-        assertEquals(3, bountifulPotato.getBonusDrops().size());
+        assertEquals(3, bountifulPotato.getSpreadingItems().size());
 
-        BonusDropEntry drop1 = bountifulPotato.getBonusDrops().get(0);
+        BonusDropEntry drop1 = bountifulPotato.getSpreadingItems().get(0);
         assertEquals(Material.POTATO, drop1.getMaterial());
         assertEquals(0.25, drop1.getChance(), 1e-6);
 
-        BonusDropEntry drop2 = bountifulPotato.getBonusDrops().get(1);
+        BonusDropEntry drop2 = bountifulPotato.getSpreadingItems().get(1);
         assertEquals(Material.POISONOUS_POTATO, drop2.getMaterial());
         assertEquals(0.10, drop2.getChance(), 1e-6);
 
-        BonusDropEntry drop3 = bountifulPotato.getBonusDrops().get(2);
+        BonusDropEntry drop3 = bountifulPotato.getSpreadingItems().get(2);
         assertEquals(Material.BAKED_POTATO, drop3.getMaterial());
         assertEquals(2, drop3.getAmount());
         assertEquals(0.05, drop3.getChance(), 1e-6);
@@ -189,8 +202,102 @@ public class FuelsAndUpgradesAuditTest {
         assertNotEquals(CustomUpgrade.UpgradeBehavior.SPEED_BUFF, compactor.getBehavior());
         assertNotEquals(CustomUpgrade.UpgradeBehavior.SPEED_BUFF, autoSmelter.getBehavior());
 
-        // Expander & Flycatcher are SPEED_BUFF (stackable)
-        assertEquals(CustomUpgrade.UpgradeBehavior.SPEED_BUFF, expander.getBehavior());
-        assertEquals(CustomUpgrade.UpgradeBehavior.SPEED_BUFF, flycatcher.getBehavior());
+        // Expander & Flycatcher have SPEED_BUFF
+        assertTrue(expander.hasBehavior(CustomUpgrade.UpgradeBehavior.SPEED_BUFF));
+        assertTrue(expander.hasBehavior(CustomUpgrade.UpgradeBehavior.EXPANDER));
+        assertTrue(flycatcher.hasBehavior(CustomUpgrade.UpgradeBehavior.SPEED_BUFF));
+    }
+
+    @Test
+    @DisplayName("AUD-U05: Multi-behavior upgrade combining Auto-Smelt, Speed Buff, and Multi-Item Spreading")
+    public void testMultiBehaviorUpgradeExecution() {
+        BonusDropEntry diamondDrop = new BonusDropEntry(Material.DIAMOND, 1, 0.10);
+        BonusDropEntry emeraldDrop = new BonusDropEntry(Material.EMERALD, 1, 0.05);
+
+        CustomUpgrade hybrid = new CustomUpgrade("blazing_fortune", "Blazing Fortune", Material.BLAZE_ROD,
+                Set.of(CustomUpgrade.UpgradeBehavior.AUTO_SMELTER, CustomUpgrade.UpgradeBehavior.SPEED_BUFF, CustomUpgrade.UpgradeBehavior.ITEM_SPREADING),
+                0.20, 0.0, 0.0, 0,
+                List.of(diamondDrop, emeraldDrop),
+                List.of("&7Smelts ores, +20% speed, drops diamonds & emeralds!"), true, 0);
+
+        assertTrue(hybrid.isAutoSmelter());
+        assertTrue(hybrid.isSpreading());
+        assertEquals(0.20, hybrid.getSpeedBuff(), 1e-6);
+        assertEquals(2, hybrid.getSpreadingItems().size());
+
+        UpgradeRegistry.register(hybrid);
+        Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), MinionType.IRON, 11, null);
+        minion.setUpgrade1(hybrid);
+
+        // Verification 1: Speed buff applies (+20% speed reduces delay)
+        double baseDelay = minion.getBaseActionDelay();
+        double effectiveDelay = minion.getEffectiveActionDelay();
+        assertEquals(baseDelay / 1.20, effectiveDelay, 1e-4);
+
+        // Verification 2: Minion has both behaviors recognized
+        assertTrue(minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.AUTO_SMELTER));
+        assertTrue(minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.ITEM_SPREADING));
+
+        // Verification 3: Offline simulation smelts and generates bonus drops
+        long now = System.currentTimeMillis();
+        long downtimeMillis = 200 * Math.round(effectiveDelay * 2 * 1000L);
+        minion.setLastActionTime(now - downtimeMillis);
+
+        OfflineCalculator.processOfflineCatchup(minion);
+
+        int ironIngots = 0;
+        int diamonds = 0;
+        int emeralds = 0;
+
+        for (ItemStack item : minion.getInventory()) {
+            if (item != null) {
+                if (item.getType() == Material.IRON_INGOT) ironIngots += item.getAmount();
+                else if (item.getType() == Material.DIAMOND) diamonds += item.getAmount();
+                else if (item.getType() == Material.EMERALD) emeralds += item.getAmount();
+            }
+        }
+
+        assertTrue(ironIngots > 0, "Iron should have been smelted into ingots");
+        assertTrue(diamonds >= 15 && diamonds <= 25, "Expected ~20 diamonds from 10% spreading, got: " + diamonds);
+        assertTrue(emeralds >= 5 && emeralds <= 15, "Expected ~10 emeralds from 5% spreading, got: " + emeralds);
+    }
+
+    @Test
+    @DisplayName("AUD-U06: UpgradeCreatorSession accurately configures and builds multi-behavior upgrades with spreading shelf")
+    public void testUpgradeCreatorSessionBuilder() {
+        UpgradeCreatorSession session = new UpgradeCreatorSession("custom_master");
+        session.setDisplayName("&cMaster Accessory");
+        session.setMaterial(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE);
+
+        // Configure multi-behaviors
+        session.setBehaviorActive(CustomUpgrade.UpgradeBehavior.AUTO_SMELTER, true);
+        session.setSpeedBuff(0.15);
+        session.setAreaExpansion(1);
+        session.cycleCompactorMode(); // 0 -> 1 (COMPACTOR)
+
+        // Configure multi-item spreading shelf
+        session.addSpreadingItem(new BonusDropEntry(Material.DIAMOND, 1, 0.15));
+        session.addSpreadingItem(new BonusDropEntry(Material.GOLD_INGOT, 2, 0.20));
+
+        CustomUpgrade built = session.buildUpgrade();
+        assertNotNull(built);
+        assertEquals("custom_master", built.getId());
+        assertEquals("&cMaster Accessory", built.getDisplayName());
+        assertEquals(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE, built.getMaterial());
+
+        // Assert all capabilities present
+        assertTrue(built.isAutoSmelter());
+        assertTrue(built.isCompactor());
+        assertTrue(built.isSpreading());
+        assertEquals(0.15, built.getSpeedBuff(), 1e-6);
+        assertEquals(1, built.getAreaExpansion());
+        assertEquals(2, built.getSpreadingItems().size());
+
+        assertEquals(Material.DIAMOND, built.getSpreadingItems().get(0).getMaterial());
+        assertEquals(0.15, built.getSpreadingItems().get(0).getChance(), 1e-6);
+
+        assertEquals(Material.GOLD_INGOT, built.getSpreadingItems().get(1).getMaterial());
+        assertEquals(2, built.getSpreadingItems().get(1).getAmount());
+        assertEquals(0.20, built.getSpreadingItems().get(1).getChance(), 1e-6);
     }
 }

@@ -440,17 +440,17 @@ public class CompressionManager {
         if (minion == null) return false;
         if (minion.hasUpgrade(MinionUpgradeType.SUPER_COMPACTOR)) return true;
         CustomUpgrade u1 = minion.getCustomUpgrade1();
-        if (u1 != null && u1.getBehavior() == CustomUpgrade.UpgradeBehavior.SUPER_COMPACTOR) return true;
+        if (u1 != null && u1.hasBehavior(CustomUpgrade.UpgradeBehavior.SUPER_COMPACTOR)) return true;
         CustomUpgrade u2 = minion.getCustomUpgrade2();
-        return u2 != null && u2.getBehavior() == CustomUpgrade.UpgradeBehavior.SUPER_COMPACTOR;
+        return u2 != null && u2.hasBehavior(CustomUpgrade.UpgradeBehavior.SUPER_COMPACTOR);
     }
 
     public static boolean hasStandardCompactor(Minion minion) {
         if (minion == null) return false;
         if (minion.hasUpgrade(MinionUpgradeType.COMPACTOR)) return true;
         CustomUpgrade u1 = minion.getCustomUpgrade1();
-        if (u1 != null && u1.getBehavior() == CustomUpgrade.UpgradeBehavior.COMPACTOR) return true;
+        if (u1 != null && u1.hasBehavior(CustomUpgrade.UpgradeBehavior.COMPACTOR)) return true;
         CustomUpgrade u2 = minion.getCustomUpgrade2();
-        return u2 != null && u2.getBehavior() == CustomUpgrade.UpgradeBehavior.COMPACTOR;
+        return u2 != null && u2.hasBehavior(CustomUpgrade.UpgradeBehavior.COMPACTOR);
     }
 }

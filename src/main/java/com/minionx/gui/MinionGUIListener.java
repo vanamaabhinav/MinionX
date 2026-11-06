@@ -1521,7 +1521,12 @@ public class MinionGUIListener implements Listener {
 
     private boolean isStackableUpgrade(CustomUpgrade upgrade) {
         if (upgrade == null) return false;
-        return upgrade.getBehavior() == CustomUpgrade.UpgradeBehavior.SPEED_BUFF;
+        for (CustomUpgrade.UpgradeBehavior b : upgrade.getBehaviors()) {
+            if (isExclusiveBehavior(b)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean hasSameUpgradeEquipped(Minion minion, CustomUpgrade upgrade, int targetSlot) {
@@ -1529,14 +1534,24 @@ public class MinionGUIListener implements Listener {
         String id = upgrade.getId();
         if (targetSlot != 1) {
             CustomUpgrade u1 = minion.getCustomUpgrade1();
-            if (u1 != null && (u1.getId().equalsIgnoreCase(id) || (u1.getBehavior() == upgrade.getBehavior() && isExclusiveBehavior(u1.getBehavior())))) {
-                return true;
+            if (u1 != null) {
+                if (u1.getId().equalsIgnoreCase(id)) return true;
+                for (CustomUpgrade.UpgradeBehavior b : upgrade.getBehaviors()) {
+                    if (isExclusiveBehavior(b) && u1.hasBehavior(b)) {
+                        return true;
+                    }
+                }
             }
         }
         if (targetSlot != 2) {
             CustomUpgrade u2 = minion.getCustomUpgrade2();
-            if (u2 != null && (u2.getId().equalsIgnoreCase(id) || (u2.getBehavior() == upgrade.getBehavior() && isExclusiveBehavior(u2.getBehavior())))) {
-                return true;
+            if (u2 != null) {
+                if (u2.getId().equalsIgnoreCase(id)) return true;
+                for (CustomUpgrade.UpgradeBehavior b : upgrade.getBehaviors()) {
+                    if (isExclusiveBehavior(b) && u2.hasBehavior(b)) {
+                        return true;
+                    }
+                }
             }
         }
         return false;

@@ -188,13 +188,15 @@ public class MinionStorage implements AutoCloseable {
         persistenceExecutor.submit(() -> {
             try {
                 T result = task.call();
-                future.complete(result);
-            } catch (Throwable t) {
-                future.completeExceptionally(t);
-            } finally {
                 if (minionId != null) {
                     barrierMinions.remove(minionId);
                 }
+                future.complete(result);
+            } catch (Throwable t) {
+                if (minionId != null) {
+                    barrierMinions.remove(minionId);
+                }
+                future.completeExceptionally(t);
             }
         });
         return future;

@@ -111,14 +111,22 @@ All notable changes to **MinionX** are documented in this file.
 - **Defensive Directory Creation (AUD-U05)**: Added `file.getParentFile().mkdirs()` in `UpgradeRegistry.saveCustomUpgrade()` to prevent `FileNotFoundException` when saving new upgrades on fresh servers.
 - **Synchronized Offline Simulation**: Remainder channels (`bonus_<material>_<chance>`) accurately track fractional yields across offline catchup cycles, maintaining identical item generation ratios between online ticking and offline catchup.
 
+#### 13. Multi-Behavior Upgrade Architecture & Modular In-Game Studio
+- **Composite Multi-Behavior Capabilities (`CustomUpgrade`)**: Upgraded `CustomUpgrade` from single-behavior to composite `Set<UpgradeBehavior>` capabilities. An upgrade can now simultaneously combine multiple characteristics (e.g. `AUTO_SMELTER`, `SPEED_BUFF`, `EXPANDER`, `ITEM_SPREADING`, and `AUTO_SELLER`) executing in parallel across both online ticking and offline catchup simulation.
+- **Unified Multi-Item Spreading Engine**: Eliminated redundant `DIAMOND_SPREADING` and `BONUS_DROPS` enums in favor of a single unified `ITEM_SPREADING` schema. Spreading upgrades can define multiple distinct bonus items with individual materials, quantities, probabilities, display names, custom model data, and external hook IDs.
+- **In-Game Upgrade Creator Studio Overhaul (`UpgradeCreatorGUI`)**: Redesigned the 54-slot upgrade studio into a modular capability dashboard:
+  - Row 1 features dedicated controls for Auto-Smelter toggle, 3-state Compactor mode cycle (`NONE` / `STANDARD` / `SUPER`), Speed Buff (+/- 5%), Area Expansion (+/- 1 block), and Auto-Seller (+/- 5%).
+  - Rows 2–3 feature an interactive Multi-Item Spreading Shelf (Slots 20–24) supporting direct cursor item setting, chance tuning, quantity tuning, drop deletion via [Q], and adding new items via Slot 25.
+- **Concurrency Barrier Precedence (`MinionStorage`)**: Guaranteed that `barrierMinions.remove(minionId)` runs before completing the barrier `CompletableFuture`, eliminating race conditions when awaiting barrier task completion.
+
 ### Verification & Technical Metrics
-- **Test Suite**: 293 unit tests passed across 42 test classes (`100% pass rate`).
+- **Test Suite**: 295 unit tests passed across 42 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac --release 17 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
 - **Documentation Checks**: Validated with `javadoc -Xdoclint:all,-missing` (**0 errors, 0 warnings**).
 - **Static Analysis**: Checked with zero IDE warnings (**0 unused imports, 0 unused private members**).
 - **Bytecode Verification**: Verified `Major Version 61.0` (Java 17 target).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
-- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (522,520 bytes).
+- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (525,654 bytes).
 
 ---
 

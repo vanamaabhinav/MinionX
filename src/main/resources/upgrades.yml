@@ -1,26 +1,31 @@
 # ==============================================================================
 # MinionX - Custom Upgrades Configuration (upgrades.yml)
 # ==============================================================================
-# Supported Upgrade Types:
+# Supported Upgrade Behaviors:
 #   AUTO_SMELTER       - Instantly smelts raw ores into ingots and blocks into smooth
 #                        variants (e.g., Cobblestone -> Stone, Raw Iron -> Iron Ingot).
 #   COMPACTOR          - Compacts 9 raw items into their basic 3x3 block forms
 #                        (e.g., 9 Iron Ingots -> 1 Iron Block).
 #   SUPER_COMPACTOR    - Advanced compression! Compresses 160 items into their
 #                        Enchanted forms using recipes defined in `recipes.yml`.
-#   DIAMOND_SPREADING  - Adds a configurable percentage chance (`chance: 0.10` = 10%)
-#                        to produce bonus diamonds on every single harvest action.
-#   ITEM_SPREADING     - General item spreading! Configure any item (`spreading-item: POTATO`),
-#                        chance, and quantity to generate bonus resources on harvest.
-#   BONUS_DROPS        - Multi-item bonus generator! Define a list of `bonus-drops` where
-#                        each drop entry specifies its own material, amount, and chance.
+#   ITEM_SPREADING     - Universal item spreading! Configure 1 or multiple items
+#                        under `spreading-items:` with individual material, amount,
+#                        and chance to generate bonus resources on harvests.
 #   SPEED_BUFF         - Multiplies minion action speed (`speed-buff: 0.20` = +20%).
 #                        Stacks additively or multiplicatively with fuels.
+#   EXPANDER           - Expands working perimeter by +X blocks (`area-expansion: 1`).
 #   AUTO_SELLER        - Equipped in the Automated Shipping slot (Slot 28). When minion
 #                        inventory and linked storage are 100% full, overflow items are
 #                        automatically sold for coins using base NPC prices from `prices.yml`
 #                        multiplied by `sell-ratio` (e.g. 0.50 = 50%, 0.90 = 90%).
 #                        Accumulated coins can be collected with a single click.
+#
+# Multi-Behavior Support:
+#   An upgrade can combine multiple behaviors simultaneously! E.g.:
+#     behaviors:
+#       - AUTO_SMELTER
+#       - SPEED_BUFF
+#       - ITEM_SPREADING
 #
 # ==============================================================================
 
@@ -53,8 +58,12 @@ upgrades:
   diamond_spreading:
     display-name: "&bDiamond Spreading"
     material: DIAMOND
-    type: DIAMOND_SPREADING
-    chance: 0.10
+    behaviors:
+      - ITEM_SPREADING
+    spreading-items:
+      - material: DIAMOND
+        amount: 1
+        chance: 0.10
     glow: true
     lore:
       - "&7Adds a 10% chance to generate diamonds"
@@ -63,11 +72,12 @@ upgrades:
   potato_spreading:
     display-name: "&ePotato Spreading"
     material: POTATO
-    type: ITEM_SPREADING
-    chance: 0.10
-    spreading-item:
-      material: POTATO
-      amount: 1
+    behaviors:
+      - ITEM_SPREADING
+    spreading-items:
+      - material: POTATO
+        amount: 1
+        chance: 0.10
     glow: true
     lore:
       - "&7Adds a 10% chance to generate potatoes"
@@ -76,8 +86,9 @@ upgrades:
   bountiful_potato:
     display-name: "&6Bountiful Potato"
     material: GOLDEN_CARROT
-    type: BONUS_DROPS
-    bonus-drops:
+    behaviors:
+      - ITEM_SPREADING
+    spreading-items:
       - material: POTATO
         amount: 1
         chance: 0.25
@@ -97,7 +108,9 @@ upgrades:
   minion_expander:
     display-name: "&aMinion Expander"
     material: PISTON
-    type: SPEED_BUFF
+    behaviors:
+      - SPEED_BUFF
+      - EXPANDER
     speed-buff: 0.05
     area-expansion: 1
     glow: true
@@ -127,7 +140,7 @@ upgrades:
   budget_hopper:
     display-name: "&eBudget Hopper"
     material: HOPPER
-    type: BUDGET_HOPPER
+    type: AUTO_SELLER
     sell-ratio: 0.50
     glow: true
     lore:
@@ -137,7 +150,7 @@ upgrades:
   enchanted_hopper:
     display-name: "&6Enchanted Hopper"
     material: HOPPER
-    type: ENCHANTED_HOPPER
+    type: AUTO_SELLER
     sell-ratio: 0.90
     glow: true
     lore:

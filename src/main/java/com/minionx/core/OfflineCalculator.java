@@ -129,25 +129,12 @@ public class OfflineCalculator {
         List<BonusDropEntry> activeBonusDrops = new ArrayList<>();
         if (com.minionx.util.FeatureToggle.isUpgradesEnabled()) {
             CustomUpgrade u1 = minion.getCustomUpgrade1();
-            if (u1 != null) {
-                if (u1.isSpreading() && u1.getSpreadingItem() != null) {
-                    activeBonusDrops.add(u1.getSpreadingItem());
-                }
-                if (u1.hasBonusDrops()) {
-                    activeBonusDrops.addAll(u1.getBonusDrops());
-                }
+            if (u1 != null && u1.isSpreading()) {
+                activeBonusDrops.addAll(u1.getSpreadingItems());
             }
             CustomUpgrade u2 = minion.getCustomUpgrade2();
-            if (u2 != null) {
-                if (u2.isSpreading() && u2.getSpreadingItem() != null) {
-                    activeBonusDrops.add(u2.getSpreadingItem());
-                }
-                if (u2.hasBonusDrops()) {
-                    activeBonusDrops.addAll(u2.getBonusDrops());
-                }
-            }
-            if (activeBonusDrops.isEmpty() && minion.hasUpgrade(MinionUpgradeType.DIAMOND_SPREADING)) {
-                activeBonusDrops.add(new BonusDropEntry(Material.DIAMOND, 1, 0.10));
+            if (u2 != null && u2.isSpreading()) {
+                activeBonusDrops.addAll(u2.getSpreadingItems());
             }
         }
 

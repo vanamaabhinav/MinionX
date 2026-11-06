@@ -529,10 +529,10 @@ public class Minion {
         if (behavior == null)
             return false;
         CustomUpgrade u1 = getCustomUpgrade1();
-        if (u1 != null && u1.getBehavior() == behavior)
+        if (u1 != null && u1.hasBehavior(behavior))
             return true;
         CustomUpgrade u2 = getCustomUpgrade2();
-        return u2 != null && u2.getBehavior() == behavior;
+        return u2 != null && u2.hasBehavior(behavior);
     }
 
     public boolean hasUpgrade(MinionUpgradeType upgradeType) {

@@ -11,7 +11,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Registry managing all configured upgrades and accessories loaded dynamically from config.yml.
+ * Registry managing all configured upgrades and accessories loaded dynamically from upgrades.yml.
+ * Supports multi-behavior capabilities and unified multi-item spreading.
  */
 @SuppressWarnings("deprecation")
 public class UpgradeRegistry {
@@ -42,26 +43,23 @@ public class UpgradeRegistry {
                 Material mat = Material.matchMaterial(matName);
                 if (mat == null) mat = Material.IRON_BLOCK;
 
-                String typeStr = upSec.getString("type", "SPEED_BUFF");
-                CustomUpgrade.UpgradeBehavior behavior;
-                if ("BUDGET_HOPPER".equalsIgnoreCase(typeStr) || "ENCHANTED_HOPPER".equalsIgnoreCase(typeStr) ||
-                        "AUTO_SELLER".equalsIgnoreCase(typeStr) || "HOPPER".equalsIgnoreCase(typeStr)) {
-                    behavior = CustomUpgrade.UpgradeBehavior.AUTO_SELLER;
-                } else if ("POTATO_SPREADING".equalsIgnoreCase(typeStr) || "SPREADING".equalsIgnoreCase(typeStr)) {
-                    behavior = CustomUpgrade.UpgradeBehavior.ITEM_SPREADING;
-                } else {
-                    try {
-                        behavior = CustomUpgrade.UpgradeBehavior.valueOf(typeStr.toUpperCase());
-                    } catch (IllegalArgumentException e) {
-                        behavior = CustomUpgrade.UpgradeBehavior.SPEED_BUFF;
+                Set<CustomUpgrade.UpgradeBehavior> behaviors = EnumSet.noneOf(CustomUpgrade.UpgradeBehavior.class);
+                if (upSec.isList("behaviors")) {
+                    for (String bStr : upSec.getStringList("behaviors")) {
+                        CustomUpgrade.UpgradeBehavior b = parseBehavior(bStr);
+                        if (b != null) behaviors.add(b);
                     }
+                } else {
+                    String typeStr = upSec.getString("type", upSec.getString("behavior", "SPEED_BUFF"));
+                    CustomUpgrade.UpgradeBehavior b = parseBehavior(typeStr);
+                    if (b != null) behaviors.add(b);
                 }
 
                 double speedBuff = upSec.getDouble("speed-buff", 0.0);
                 double chance = upSec.getDouble("chance", 0.0);
                 double sellRatio = upSec.getDouble("sell-ratio", upSec.getDouble("sell_ratio", 0.0));
-                if (sellRatio <= 0.0 && behavior == CustomUpgrade.UpgradeBehavior.AUTO_SELLER) {
-                    sellRatio = "ENCHANTED_HOPPER".equalsIgnoreCase(typeStr) ? 0.90 : 0.50;
+                if (sellRatio <= 0.0 && behaviors.contains(CustomUpgrade.UpgradeBehavior.AUTO_SELLER)) {
+                    sellRatio = key.contains("enchanted") ? 0.90 : 0.50;
                 }
 
                 List<String> rawLore = upSec.getStringList("lore");
@@ -73,34 +71,71 @@ public class UpgradeRegistry {
                     areaExpansion = 1;
                 }
 
-                BonusDropEntry spreadingItem = null;
-                if (upSec.isConfigurationSection("spreading-item")) {
-                    spreadingItem = BonusDropEntry.fromConfig(upSec.getConfigurationSection("spreading-item").getValues(false));
-                } else if (upSec.isString("spreading-item")) {
-                    Material sMat = Material.matchMaterial(upSec.getString("spreading-item"));
-                    if (sMat != null) {
-                        spreadingItem = new BonusDropEntry(sMat, upSec.getInt("spreading-amount", 1), chance > 0 ? chance : 0.10);
+                List<BonusDropEntry> spreadingItems = new ArrayList<>();
+                if (upSec.isList("spreading-items")) {
+                    for (Map<?, ?> bMap : upSec.getMapList("spreading-items")) {
+                        BonusDropEntry bEntry = BonusDropEntry.fromConfig(bMap);
+                        if (bEntry != null) spreadingItems.add(bEntry);
                     }
-                } else if (behavior == CustomUpgrade.UpgradeBehavior.ITEM_SPREADING && spreadingItem == null) {
-                    spreadingItem = new BonusDropEntry(mat, 1, chance > 0 ? chance : 0.10);
                 }
-
-                List<BonusDropEntry> bonusDrops = new ArrayList<>();
                 if (upSec.isList("bonus-drops")) {
                     for (Map<?, ?> bMap : upSec.getMapList("bonus-drops")) {
                         BonusDropEntry bEntry = BonusDropEntry.fromConfig(bMap);
-                        if (bEntry != null) {
-                            bonusDrops.add(bEntry);
-                        }
+                        if (bEntry != null) spreadingItems.add(bEntry);
+                    }
+                }
+                if (upSec.isConfigurationSection("spreading-item")) {
+                    BonusDropEntry bEntry = BonusDropEntry.fromConfig(upSec.getConfigurationSection("spreading-item").getValues(false));
+                    if (bEntry != null) spreadingItems.add(bEntry);
+                } else if (upSec.isString("spreading-item")) {
+                    Material sMat = Material.matchMaterial(upSec.getString("spreading-item"));
+                    if (sMat != null) {
+                        spreadingItems.add(new BonusDropEntry(sMat, upSec.getInt("spreading-amount", 1), chance > 0 ? chance : 0.10));
                     }
                 }
 
-                CustomUpgrade upgrade = new CustomUpgrade(key, displayName, mat, behavior, speedBuff, chance, sellRatio, areaExpansion, spreadingItem, bonusDrops, lore, glow, customModelData);
+                if (!spreadingItems.isEmpty()) {
+                    behaviors.add(CustomUpgrade.UpgradeBehavior.ITEM_SPREADING);
+                }
+                if (speedBuff > 0) {
+                    behaviors.add(CustomUpgrade.UpgradeBehavior.SPEED_BUFF);
+                }
+                if (areaExpansion > 0) {
+                    behaviors.add(CustomUpgrade.UpgradeBehavior.EXPANDER);
+                }
+                if (sellRatio > 0) {
+                    behaviors.add(CustomUpgrade.UpgradeBehavior.AUTO_SELLER);
+                }
+                if (behaviors.isEmpty()) {
+                    behaviors.add(CustomUpgrade.UpgradeBehavior.SPEED_BUFF);
+                }
+
+                CustomUpgrade upgrade = new CustomUpgrade(key, displayName, mat, behaviors, speedBuff, chance, sellRatio, areaExpansion, spreadingItems, lore, glow, customModelData);
                 UPGRADES.put(key.toLowerCase(), upgrade);
             }
         }
 
         registerDefaults();
+    }
+
+    public static CustomUpgrade.UpgradeBehavior parseBehavior(String typeStr) {
+        if (typeStr == null || typeStr.isBlank()) return CustomUpgrade.UpgradeBehavior.SPEED_BUFF;
+        String s = typeStr.trim().toUpperCase();
+        if ("BUDGET_HOPPER".equals(s) || "ENCHANTED_HOPPER".equals(s) || "AUTO_SELLER".equals(s) || "HOPPER".equals(s)) {
+            return CustomUpgrade.UpgradeBehavior.AUTO_SELLER;
+        }
+        if ("POTATO_SPREADING".equals(s) || "DIAMOND_SPREADING".equals(s) || "ITEM_SPREADING".equals(s) ||
+                "SPREADING".equals(s) || "BONUS_DROPS".equals(s)) {
+            return CustomUpgrade.UpgradeBehavior.ITEM_SPREADING;
+        }
+        if ("EXPANDER".equals(s) || "MINION_EXPANDER".equals(s)) {
+            return CustomUpgrade.UpgradeBehavior.EXPANDER;
+        }
+        try {
+            return CustomUpgrade.UpgradeBehavior.valueOf(s);
+        } catch (IllegalArgumentException e) {
+            return CustomUpgrade.UpgradeBehavior.SPEED_BUFF;
+        }
     }
 
     private static void registerDefaults() {
@@ -124,13 +159,13 @@ public class UpgradeRegistry {
                 ColorUtil.color(List.of("&7Automatically compresses items into their", "&7enchanted compressed forms.")), true, 0));
 
         registerDefaultIfMissing("diamond_spreading", new CustomUpgrade("diamond_spreading", ColorUtil.color("&bDiamond Spreading"), Material.DIAMOND,
-                CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING, 0.0, 0.10, 0.0, 0,
-                new BonusDropEntry(Material.DIAMOND, 1, 0.10), Collections.emptyList(),
+                Set.of(CustomUpgrade.UpgradeBehavior.ITEM_SPREADING), 0.0, 0.10, 0.0, 0,
+                List.of(new BonusDropEntry(Material.DIAMOND, 1, 0.10)),
                 ColorUtil.color(List.of("&7Adds a 10% chance to generate diamonds", "&7when harvesting resources.")), true, 0));
 
         registerDefaultIfMissing("potato_spreading", new CustomUpgrade("potato_spreading", ColorUtil.color("&ePotato Spreading"), Material.POTATO,
-                CustomUpgrade.UpgradeBehavior.ITEM_SPREADING, 0.0, 0.10, 0.0, 0,
-                new BonusDropEntry(Material.POTATO, 1, 0.10), Collections.emptyList(),
+                Set.of(CustomUpgrade.UpgradeBehavior.ITEM_SPREADING), 0.0, 0.10, 0.0, 0,
+                List.of(new BonusDropEntry(Material.POTATO, 1, 0.10)),
                 ColorUtil.color(List.of("&7Adds a 10% chance to generate potatoes", "&7when harvesting resources.")), true, 0));
 
         List<BonusDropEntry> potatoBonusList = List.of(
@@ -139,15 +174,16 @@ public class UpgradeRegistry {
                 new BonusDropEntry(Material.BAKED_POTATO, 2, 0.05)
         );
         registerDefaultIfMissing("bountiful_potato", new CustomUpgrade("bountiful_potato", ColorUtil.color("&6Bountiful Potato"), Material.GOLDEN_CARROT,
-                CustomUpgrade.UpgradeBehavior.BONUS_DROPS, 0.0, 0.0, 0.0, 0,
-                null, potatoBonusList,
+                Set.of(CustomUpgrade.UpgradeBehavior.ITEM_SPREADING), 0.0, 0.0, 0.0, 0,
+                potatoBonusList,
                 ColorUtil.color(List.of("&7Grants bonus potato drops on harvest:",
                         "&7- &e25% &7chance for &fPotato",
                         "&7- &e10% &7chance for &fPoisonous Potato",
                         "&7- &e5% &7chance for &f2x Baked Potato")), true, 0));
 
         registerDefaultIfMissing("minion_expander", new CustomUpgrade("minion_expander", ColorUtil.color("&aMinion Expander"), Material.PISTON,
-                CustomUpgrade.UpgradeBehavior.SPEED_BUFF, 0.05, 0.0, 0.0, 1,
+                Set.of(CustomUpgrade.UpgradeBehavior.SPEED_BUFF, CustomUpgrade.UpgradeBehavior.EXPANDER), 0.05, 0.0, 0.0, 1,
+                Collections.emptyList(),
                 ColorUtil.color(List.of("&7Increases production speed by &a+5%&7.", "&7Expands working area by &a+1 block&7.", "&7(5x5 -> 7x7 -> 9x9 when stacked!)")), true, 0));
 
         registerDefaultIfMissing("flycatcher", new CustomUpgrade("flycatcher", ColorUtil.color("&dFlycatcher"), Material.STRING,
@@ -183,7 +219,18 @@ public class UpgradeRegistry {
         String path = "upgrades." + upgrade.getId().toLowerCase();
         config.set(path + ".display-name", upgrade.getDisplayName());
         config.set(path + ".material", upgrade.getMaterial().name());
-        config.set(path + ".type", upgrade.getBehavior().name());
+
+        if (upgrade.getBehaviors().size() > 1) {
+            List<String> bNames = new ArrayList<>();
+            for (CustomUpgrade.UpgradeBehavior b : upgrade.getBehaviors()) {
+                bNames.add(b.name());
+            }
+            config.set(path + ".behaviors", bNames);
+            config.set(path + ".type", upgrade.getBehavior().name());
+        } else {
+            config.set(path + ".type", upgrade.getBehavior().name());
+        }
+
         if (upgrade.getSpeedBuff() > 0) {
             config.set(path + ".speed-buff", upgrade.getSpeedBuff());
         }
@@ -203,15 +250,12 @@ public class UpgradeRegistry {
         if (upgrade.getLore() != null && !upgrade.getLore().isEmpty()) {
             config.set(path + ".lore", upgrade.getLore());
         }
-        if (upgrade.getSpreadingItem() != null) {
-            config.set(path + ".spreading-item", upgrade.getSpreadingItem().toConfigMap());
-        }
-        if (upgrade.hasBonusDrops()) {
-            List<Map<String, Object>> bList = new ArrayList<>();
-            for (BonusDropEntry b : upgrade.getBonusDrops()) {
-                bList.add(b.toConfigMap());
+        if (upgrade.isSpreading() && !upgrade.getSpreadingItems().isEmpty()) {
+            List<Map<String, Object>> sList = new ArrayList<>();
+            for (BonusDropEntry b : upgrade.getSpreadingItems()) {
+                sList.add(b.toConfigMap());
             }
-            config.set(path + ".bonus-drops", bList);
+            config.set(path + ".spreading-items", sList);
         }
 
         try {

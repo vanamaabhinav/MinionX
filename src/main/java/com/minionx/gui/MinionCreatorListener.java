@@ -6,6 +6,7 @@ import com.minionx.api.MinionDefinition;
 import com.minionx.api.MinionRegistry;
 import com.minionx.item.MinionItemFactory;
 import com.minionx.util.ColorUtil;
+import com.minionx.api.BonusDropEntry;
 import com.minionx.api.CustomFuel;
 import com.minionx.api.FuelRegistry;
 import com.destroystokyo.paper.profile.ProfileProperty;
@@ -1327,59 +1328,53 @@ public class MinionCreatorListener implements Listener {
             return;
         }
 
-        // Slot 10: Behavior / Function Type Cycle
+        // Slot 6: Glow Toggle
+        if (slot == 6) {
+            session.setGlowing(!session.isGlowing());
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.3f);
+            UpgradeCreatorGUI.open(player, session);
+            return;
+        }
+
+        // Slot 10: Auto-Smelter Toggle
         if (slot == 10) {
-            CustomUpgrade.UpgradeBehavior[] behaviors = CustomUpgrade.UpgradeBehavior.values();
-            int curIdx = 0;
-            for (int i = 0; i < behaviors.length; i++) {
-                if (behaviors[i] == session.getBehavior()) {
-                    curIdx = i;
-                    break;
-                }
-            }
-            CustomUpgrade.UpgradeBehavior next = behaviors[(curIdx + 1) % behaviors.length];
-            session.setBehavior(next);
-            // Default reasonable values when switching
-            if (next == CustomUpgrade.UpgradeBehavior.AUTO_SELLER && session.getSellRatio() <= 0.05) {
-                session.setSellRatio(0.50);
-            } else if (next == CustomUpgrade.UpgradeBehavior.SPEED_BUFF && session.getSpeedBuff() <= 0.0) {
-                session.setSpeedBuff(0.10);
-            } else if (next == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING && session.getChance() <= 0.0) {
-                session.setChance(0.10);
-            }
+            session.toggleBehavior(CustomUpgrade.UpgradeBehavior.AUTO_SMELTER);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
             UpgradeCreatorGUI.open(player, session);
             return;
         }
 
-        // Slot 12: Tuning (Sell Ratio / Speed / Chance)
-        if (slot == 12) {
-            if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.AUTO_SELLER) {
-                double delta = (event.isShiftClick() ? 0.10 : 0.05) * (event.isLeftClick() ? 1 : -1);
-                session.setSellRatio(Math.round((session.getSellRatio() + delta) * 100.0) / 100.0);
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
-                UpgradeCreatorGUI.open(player, session);
-                return;
-            } else if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.SPEED_BUFF) {
-                double delta = (event.isShiftClick() ? 0.10 : 0.05) * (event.isLeftClick() ? 1 : -1);
-                session.setSpeedBuff(Math.round((session.getSpeedBuff() + delta) * 100.0) / 100.0);
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
-                UpgradeCreatorGUI.open(player, session);
-                return;
-            } else if (session.getBehavior() == CustomUpgrade.UpgradeBehavior.DIAMOND_SPREADING ||
-                       session.getBehavior() == CustomUpgrade.UpgradeBehavior.ITEM_SPREADING) {
-                double delta = (event.isShiftClick() ? 0.10 : 0.05) * (event.isLeftClick() ? 1 : -1);
-                session.setChance(Math.round((session.getChance() + delta) * 100.0) / 100.0);
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
-                UpgradeCreatorGUI.open(player, session);
-                return;
-            }
+        // Slot 11: Compactor Mode Cycle
+        if (slot == 11) {
+            session.cycleCompactorMode();
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            UpgradeCreatorGUI.open(player, session);
+            return;
         }
 
-        // Slot 14: Glow Toggle
+        // Slot 12: Speed Buff Tuner
+        if (slot == 12) {
+            double delta = (event.isShiftClick() ? 0.10 : 0.05) * (event.isLeftClick() ? 1 : -1);
+            session.setSpeedBuff(Math.max(0.0, Math.round((session.getSpeedBuff() + delta) * 100.0) / 100.0));
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            UpgradeCreatorGUI.open(player, session);
+            return;
+        }
+
+        // Slot 13: Area Expansion Tuner
+        if (slot == 13) {
+            int delta = event.isLeftClick() ? 1 : -1;
+            session.setAreaExpansion(Math.max(0, session.getAreaExpansion() + delta));
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+            UpgradeCreatorGUI.open(player, session);
+            return;
+        }
+
+        // Slot 14: Auto-Seller Ratio Tuner
         if (slot == 14) {
-            session.setGlowing(!session.isGlowing());
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.3f);
+            double delta = (event.isShiftClick() ? 0.10 : 0.05) * (event.isLeftClick() ? 1 : -1);
+            session.setSellRatio(Math.max(0.0, Math.round((session.getSellRatio() + delta) * 100.0) / 100.0));
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
             UpgradeCreatorGUI.open(player, session);
             return;
         }
@@ -1392,6 +1387,50 @@ public class MinionCreatorListener implements Listener {
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aGave you 1x test copy of: &e" + preview.getDisplayName()));
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
             return;
+        }
+
+        // Slots 20-24: Multi-Item Spreading Shelf
+        if (slot >= 20 && slot <= 24) {
+            int idx = slot - 20;
+            var items = session.getSpreadingItems();
+            if (idx < items.size()) {
+                if (event.getAction() == org.bukkit.event.inventory.InventoryAction.DROP_ONE_SLOT ||
+                    event.getAction() == org.bukkit.event.inventory.InventoryAction.DROP_ALL_SLOT ||
+                    event.getClick() == org.bukkit.event.inventory.ClickType.DROP ||
+                    event.getClick() == org.bukkit.event.inventory.ClickType.CONTROL_DROP ||
+                    event.getClick() == org.bukkit.event.inventory.ClickType.MIDDLE) {
+                    session.removeSpreadingItem(idx);
+                    player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 0.7f, 1.2f);
+                    UpgradeCreatorGUI.open(player, session);
+                    return;
+                }
+                BonusDropEntry current = items.get(idx);
+                if (cursor != null && cursor.getType() != Material.AIR) {
+                    BonusDropEntry updated = new BonusDropEntry(cursor.getType(), current.getAmount(), current.getChance());
+                    session.setSpreadingItem(idx, updated);
+                    player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.7f, 1.3f);
+                } else if (event.isShiftClick()) {
+                    int delta = event.isLeftClick() ? 1 : -1;
+                    int newAmount = Math.max(1, Math.min(64, current.getAmount() + delta));
+                    BonusDropEntry updated = new BonusDropEntry(current.getMaterial(), newAmount, current.getChance());
+                    session.setSpreadingItem(idx, updated);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                } else {
+                    double delta = event.isLeftClick() ? 0.05 : -0.05;
+                    double newChance = Math.max(0.01, Math.min(1.0, Math.round((current.getChance() + delta) * 100.0) / 100.0));
+                    BonusDropEntry updated = new BonusDropEntry(current.getMaterial(), current.getAmount(), newChance);
+                    session.setSpreadingItem(idx, updated);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
+                }
+                UpgradeCreatorGUI.open(player, session);
+                return;
+            } else if (idx == items.size()) {
+                Material newMat = (cursor != null && cursor.getType() != Material.AIR) ? cursor.getType() : UpgradeCreatorGUI.PRESET_SPREADING[0];
+                session.addSpreadingItem(new BonusDropEntry(newMat, 1, 0.10));
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.4f);
+                UpgradeCreatorGUI.open(player, session);
+                return;
+            }
         }
 
         // Slot 49: Save & Deploy
