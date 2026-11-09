@@ -443,14 +443,20 @@ public class MinionStorage implements AutoCloseable {
             } catch (Exception ignored) {}
         }
 
-        // 4. Atomic move with fallback
+        // 4. Atomic move with fallback (resilient across Windows file locking)
         try {
             Files.move(tempFile.toPath(), targetFile.toPath(),
                     StandardCopyOption.ATOMIC_MOVE,
                     StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(tempFile.toPath(), targetFile.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception e) {
+            try {
+                Files.move(tempFile.toPath(), targetFile.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (Exception ex) {
+                Files.copy(tempFile.toPath(), targetFile.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING);
+                tempFile.delete();
+            }
         }
 
         // 5. Post-move semantic validation of target file

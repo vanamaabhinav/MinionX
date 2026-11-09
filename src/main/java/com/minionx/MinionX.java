@@ -205,6 +205,7 @@ public class MinionX extends JavaPlugin {
     private org.bukkit.configuration.file.FileConfiguration messagesConfig;
     private org.bukkit.configuration.file.FileConfiguration minionsConfig;
     private org.bukkit.configuration.file.FileConfiguration skinsConfig;
+    private org.bukkit.configuration.file.FileConfiguration storagesConfig;
 
     public org.bukkit.configuration.file.FileConfiguration loadSubConfig(String fileName, boolean shouldSaveDefault) {
         java.io.File file = new java.io.File(getDataFolder(), fileName);
@@ -244,6 +245,9 @@ public class MinionX extends JavaPlugin {
         boolean skinsEnabled = com.minionx.util.FeatureToggle.isSkinsEnabled();
         this.skinsConfig = loadSubConfig("skins.yml", skinsEnabled);
 
+        boolean storageEnabled = com.minionx.util.FeatureToggle.isStorageChestsEnabled();
+        this.storagesConfig = loadSubConfig("storages.yml", storageEnabled);
+
         org.bukkit.configuration.ConfigurationSection tiersSec = tiersConfig.contains("tiers")
                 ? tiersConfig.getConfigurationSection("tiers")
                 : getConfig().getConfigurationSection("tiers");
@@ -272,6 +276,11 @@ public class MinionX extends JavaPlugin {
                 : getConfig().getConfigurationSection("compression-recipes");
         CompressionManager.loadRecipes(recipesSec);
 
+        org.bukkit.configuration.ConfigurationSection compSec = recipesConfig.contains("compactor-recipes")
+                ? recipesConfig.getConfigurationSection("compactor-recipes")
+                : getConfig().getConfigurationSection("compactor-recipes");
+        CompressionManager.loadCompactorRecipes(compSec);
+
         MinionRegistry.load(minionsConfig);
 
         if (skinsEnabled) {
@@ -283,10 +292,19 @@ public class MinionX extends JavaPlugin {
             MinionSkinRegistry.load((org.bukkit.configuration.ConfigurationSection) null);
         }
 
-        MinionStorageRegistry.load();
+        if (storageEnabled) {
+            org.bukkit.configuration.ConfigurationSection storagesSec = (storagesConfig != null && storagesConfig.contains("storages"))
+                    ? storagesConfig.getConfigurationSection("storages")
+                    : storagesConfig;
+            MinionStorageRegistry.load(storagesSec);
+        } else {
+            MinionStorageRegistry.load((org.bukkit.configuration.ConfigurationSection) null);
+        }
+
         PriceRegistry.load();
         getLogger().info("Loaded " + MinionTier.getMaxTier() + " tiers, " + FuelRegistry.getKeys().size() + " fuels, " +
-                UpgradeRegistry.getKeys().size() + " upgrades, " + MinionSkinRegistry.getAll().size() + " skins, and " + MinionRegistry.getAll().size() + " minion definitions.");
+                UpgradeRegistry.getKeys().size() + " upgrades, " + MinionSkinRegistry.getAll().size() + " skins, " +
+                MinionStorageRegistry.getAll().size() + " storages, and " + MinionRegistry.getAll().size() + " minion definitions.");
     }
 
     public String getMessage(String path, String defaultValue) {
@@ -330,4 +348,5 @@ public class MinionX extends JavaPlugin {
     public org.bukkit.configuration.file.FileConfiguration getMessagesConfig() { return messagesConfig; }
     public org.bukkit.configuration.file.FileConfiguration getMinionsConfig() { return minionsConfig; }
     public org.bukkit.configuration.file.FileConfiguration getSkinsConfig() { return skinsConfig; }
+    public org.bukkit.configuration.file.FileConfiguration getStoragesConfig() { return storagesConfig; }
 }

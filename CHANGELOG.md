@@ -119,8 +119,16 @@ All notable changes to **MinionX** are documented in this file.
   - Rows 2–3 feature an interactive Multi-Item Spreading Shelf (Slots 20–24) supporting direct cursor item setting, chance tuning, quantity tuning, drop deletion via [Q], and adding new items via Slot 25.
 - **Concurrency Barrier Precedence (`MinionStorage`)**: Guaranteed that `barrierMinions.remove(minionId)` runs before completing the barrier `CompletableFuture`, eliminating race conditions when awaiting barrier task completion.
 
+#### 14. Configuration Files Audit, Discrepancy Remediation, & Bundled Template
+- **Compactor Recipes Dynamic Loader Fix (`MinionX.java`)**: Resolved an issue where `compactor-recipes:` in `recipes.yml` was bypassed during startup; `MinionX.loadRegistries()` now invokes `CompressionManager.loadCompactorRecipes(compSec)`.
+- **Target Aliases in Minion Definitions (`MinionRegistry.java`)**: Added resolution support for `target-crop`, `target-log`, and `target-sapling` configuration keys, aligning runtime parsing with the documented YAML schema.
+- **Default Storage Template Resource (`src/main/resources/storages.yml`)**: Bundled a fully documented `storages.yml` default template containing standard storage chests (`small_storage`, `medium_storage`, `large_storage`, `max_storage`), loaded automatically when storage chests are enabled.
+- **Message Fallback Parity (`config.yml`)**: Added missing fuel messages (`fuel-burned-out`, `fuel-extended`, `cannot-stack-permanent-fuel`) to the fallback messages section in `config.yml`.
+- **Windows File System Lock Recovery (`MinionStorage.java`)**: Added fallback file copy/delete when atomic moves on Windows encounter transient destination file locks.
+- **Automated Configuration Audit Test Suite (`ConfigAuditAndRemediationTest.java`)**: Added 8 automated tests validating YAML syntax, compactor recipes, target aliases, storage registries, message parity, upgrade schema, and fuels across all resources.
+
 ### Verification & Technical Metrics
-- **Test Suite**: 295 unit tests passed across 42 test classes (`100% pass rate`).
+- **Test Suite**: 303 unit tests passed across 43 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac --release 17 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
 - **Documentation Checks**: Validated with `javadoc -Xdoclint:all,-missing` (**0 errors, 0 warnings**).
 - **Static Analysis**: Checked with zero IDE warnings (**0 unused imports, 0 unused private members**).

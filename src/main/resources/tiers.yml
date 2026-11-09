@@ -19,6 +19,10 @@
 #                      - item: COAL
 #                        amount: 32
 #
+# Precedence & Automatic Inventory Compression:
+#   - When `upgrade-requirements` is defined, it takes strict precedence over `upgrade-cost`.
+#   - If only `upgrade-cost` is defined and costs exceed 640 items (Tier 5+), MinionX automatically
+#     converts the cost into matching Enchanted items from `recipes.yml` so it fits in player inventories!
 # ==============================================================================
 
 tiers:

@@ -1,0 +1,73 @@
+# ==============================================================================
+# MinionX - External Storage Chests Configuration (storages.yml)
+# ==============================================================================
+# Minion Storage chests are physical chests placed adjacent to a minion to expand
+# its item storage capacity beyond its internal inventory.
+#
+# Placement & Linking:
+#   - Place any storage chest directly adjacent (North, South, East, West) to a placed minion.
+#   - MinionX automatically links the chest to the minion with particle effects and sound.
+#   - Shift-Right-Clicking or breaking the chest safely returns the chest and all stored items.
+#   - Minion and chest items can be collected together with a single click in the Minion GUI.
+#
+# Symmetrical UI Layouts:
+#   - Unlocked storage slots in the chest GUI radiate symmetrically from the center:
+#     * Capacity 3:  3 centered slots (1x3)
+#     * Capacity 9:  9 centered slots (1x9 or 3x3)
+#     * Capacity 15: 15 centered slots (3x5)
+#     * Capacity 27: Full chest (3x9)
+#
+# In-Game Creator & Commands:
+#   - Give Storage: /minion give <player> storage <storage_id> [amount]
+#   - Live Studio:  /minion create storage (or /minionx -> Storage Vault)
+#
+# Schema:
+#   <storage_id>:
+#     display-name: "&aDisplay Name"
+#     capacity: <slots>              # Unlocked storage slots (e.g. 3, 9, 15, 27)
+#     material: CHEST                # Vanilla chest material: CHEST, TRAPPED_CHEST, BARREL, ENDER_CHEST
+#     lore:
+#       - "&7Lore description line 1"
+#       - "&7Lore description line 2"
+# ==============================================================================
+
+storages:
+  small_storage:
+    display-name: "&aSmall Minion Storage"
+    capacity: 3
+    material: CHEST
+    lore:
+      - "&7Places next to a minion to expand"
+      - "&7storage by &e3 slots&7."
+      - "&7"
+      - "&ePlace adjacent to minion to link!"
+
+  medium_storage:
+    display-name: "&9Medium Minion Storage"
+    capacity: 9
+    material: CHEST
+    lore:
+      - "&7Places next to a minion to expand"
+      - "&7storage by &e9 slots&7 (3x3 grid)."
+      - "&7"
+      - "&ePlace adjacent to minion to link!"
+
+  large_storage:
+    display-name: "&5Large Minion Storage"
+    capacity: 15
+    material: CHEST
+    lore:
+      - "&7Places next to a minion to expand"
+      - "&7storage by &e15 slots&7 (3x5 grid)."
+      - "&7"
+      - "&ePlace adjacent to minion to link!"
+
+  max_storage:
+    display-name: "&6Max Minion Storage"
+    capacity: 27
+    material: CHEST
+    lore:
+      - "&7Places next to a minion to expand"
+      - "&7storage by &e27 slots&7 (Full chest)."
+      - "&7"
+      - "&ePlace adjacent to minion to link!"

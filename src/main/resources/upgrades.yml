@@ -20,13 +20,23 @@
 #                        multiplied by `sell-ratio` (e.g. 0.50 = 50%, 0.90 = 90%).
 #                        Accumulated coins can be collected with a single click.
 #
-# Multi-Behavior Support:
-#   An upgrade can combine multiple behaviors simultaneously! E.g.:
-#     behaviors:
-#       - AUTO_SMELTER
-#       - SPEED_BUFF
-#       - ITEM_SPREADING
+# Multi-Behavior vs Single Type Schema:
+#   You can configure upgrades using either `type:` or `behaviors:`:
+#     - `type: <BEHAVIOR>`: Single-behavior shorthand (e.g. `type: AUTO_SMELTER`).
+#       Ideal for simple standalone upgrades.
+#     - `behaviors: [...]`: Multi-behavior YAML list allowing a single upgrade to combine
+#       multiple functions simultaneously! E.g.:
+#         behaviors:
+#           - SPEED_BUFF
+#           - EXPANDER
+#           - ITEM_SPREADING
+#     - Precedence: If both `type:` and `behaviors:` are present, `behaviors:` takes precedence.
 #
+# Associated Configuration Keys per Behavior:
+#   - ITEM_SPREADING: `spreading-items:` (List of items with material, amount, chance, etc.)
+#   - SPEED_BUFF:     `speed-buff:` (Double multiplier, e.g. 0.20 = +20% speed)
+#   - EXPANDER:       `area-expansion:` (Integer blocks, e.g. 1 = +1 block radius)
+#   - AUTO_SELLER:    `sell-ratio:` (Double ratio, e.g. 0.50 = 50%, 0.90 = 90% NPC sell price)
 # ==============================================================================
 
 upgrades:

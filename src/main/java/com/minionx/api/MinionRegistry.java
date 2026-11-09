@@ -103,6 +103,9 @@ public class MinionRegistry {
             }
 
             String targetBlockName = sec.getString("target-block");
+            if (targetBlockName == null) {
+                targetBlockName = sec.getString("target-crop", sec.getString("target-log", sec.getString("target-sapling")));
+            }
             Material targetBlock = targetBlockName != null ? Material.matchMaterial(targetBlockName) : null;
             String targetMob = sec.getString("target-mob", sec.getString("target-entity"));
 

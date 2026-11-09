@@ -19,12 +19,20 @@ public class MinionStorageRegistry {
     private static final Map<String, CustomMinionStorage> STORAGES = new ConcurrentHashMap<>();
 
     public static void load() {
+        load((ConfigurationSection) null);
+    }
+
+    public static void load(ConfigurationSection section) {
         STORAGES.clear();
         if (!com.minionx.util.FeatureToggle.isStorageChestsEnabled()) {
             return;
         }
         registerDefaults();
-        loadCustomStorages();
+        if (section != null) {
+            loadFromSection(section);
+        } else {
+            loadCustomStorages();
+        }
     }
 
     private static void registerDefaults() {
@@ -80,6 +88,10 @@ public class MinionStorageRegistry {
 
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
         ConfigurationSection section = config.getConfigurationSection("storages");
+        loadFromSection(section != null ? section : config);
+    }
+
+    public static void loadFromSection(ConfigurationSection section) {
         if (section == null) return;
 
         for (String id : section.getKeys(false)) {

@@ -9,7 +9,8 @@
 #   - minions.yml   : for Custom minions with multi-drop chances & equipment
 #   - fuels.yml     : for Custom fuels, speed buffs, durations & glowing effects
 #   - upgrades.yml  : for Custom upgrades, accessories, hoppers & expanders
-#   - recipes.yml   : for COmpactor/Super Compactor 3000 compression recipes
+#   - storages.yml  : for External storage chests, capacities & custom lores
+#   - recipes.yml   : for Compactor/Super Compactor 3000 compression recipes
 #   - messages.yml  : for Chat messages, broadcasts, alerts & minion dialogues
 # ==============================================================================
 
@@ -372,6 +373,9 @@ gui:
 # ==============================================================================
 messages:
   prefix: "&6&l[Minion&c&lX&6&l] &r"
+  fuel-burned-out: "&cThe active %fuel% burned out and was consumed!"
+  fuel-extended: "&aEquipped &f%amount%x %fuel%&a! Fuel duration: &e%time%&a."
+  cannot-stack-permanent-fuel: "&cThis minion already has permanent fuel installed!"
   placed: "&aYou placed a %minion%!"
   picked-up: "&eYou picked up your %minion%!"
   upgraded: "&aUpgraded %minion% to Tier %tier%!"
