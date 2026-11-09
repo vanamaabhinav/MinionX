@@ -1,7 +1,5 @@
 package com.minionx.gui;
 
-import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.util.ColorUtil;
 import com.minionx.util.SkullUtil;
 import org.bukkit.Bukkit;
@@ -16,7 +14,6 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 54-slot In-Game Custom Skin Creator Studio GUI.

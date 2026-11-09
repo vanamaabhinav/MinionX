@@ -3,8 +3,6 @@ package com.minionx.visual;
 import com.minionx.util.ServerCompatibilityUtil;
 import com.minionx.util.SkullUtil;
 
-import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.api.MinionDefinition;
 import com.minionx.api.MinionRegistry;
 import com.minionx.api.MinionSkin;
@@ -18,11 +16,8 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-
-import java.util.UUID;
 
 /**
  * Handles spawning, styling, and despawning of the visual ArmorStand minion entity.

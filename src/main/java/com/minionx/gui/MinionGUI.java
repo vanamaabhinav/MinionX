@@ -1,7 +1,5 @@
 package com.minionx.gui;
 
-import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.MinionX;
 import com.minionx.api.CustomFuel;
 import com.minionx.api.CustomUpgrade;
@@ -21,10 +19,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Builds the authentic 54-slot Hypixel-style Minion chest interface.

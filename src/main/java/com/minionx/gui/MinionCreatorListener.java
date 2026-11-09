@@ -10,7 +10,6 @@ import com.minionx.util.SkullUtil;
 import com.minionx.api.BonusDropEntry;
 import com.minionx.api.CustomFuel;
 import com.minionx.api.FuelRegistry;
-import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.api.CustomMinionStorage;
 import com.minionx.api.CustomUpgrade;
 import com.minionx.api.MinionSkin;
@@ -31,7 +30,6 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

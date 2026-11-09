@@ -1,12 +1,9 @@
 package com.minionx.item;
 
-import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.MinionX;
 import com.minionx.api.*;
 import com.minionx.util.ColorUtil;
 import com.minionx.util.SkullUtil;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -20,7 +17,6 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Creates custom items representing Minions, Upgrades, and Fuels.
