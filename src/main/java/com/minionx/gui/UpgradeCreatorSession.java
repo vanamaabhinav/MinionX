@@ -8,7 +8,7 @@ import java.util.*;
 
 /**
  * Stores state while an administrator configures a custom upgrade or hopper in the Upgrade Creator Studio.
- * Supports multi-behavior selection and multi-item spreading configurations.
+ * Supports multi-behavior selection, cursor item icon extraction, and multi-item spreading configurations.
  */
 @SuppressWarnings("deprecation")
 public class UpgradeCreatorSession {

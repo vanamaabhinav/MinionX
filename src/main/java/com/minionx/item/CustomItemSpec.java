@@ -19,6 +19,7 @@ import java.util.*;
 /**
  * Unified custom item specification supporting identical configuration
  * schemas across recipes.yml, minions.yml, fuels.yml, and in-game studios.
+ * Preserves custom display names, lores, enchantments, and custom skull skins.
  */
 @SuppressWarnings("deprecation")
 public class CustomItemSpec {
