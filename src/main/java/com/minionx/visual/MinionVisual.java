@@ -1,6 +1,7 @@
 package com.minionx.visual;
 
 import com.minionx.util.ServerCompatibilityUtil;
+import com.minionx.util.SkullUtil;
 
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
@@ -242,17 +243,7 @@ public class MinionVisual {
     }
 
     private static ItemStack createCustomSkull(String base64Texture) {
-        ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
-        if (base64Texture == null || base64Texture.isEmpty()) return skull;
-
-        SkullMeta meta = (SkullMeta) skull.getItemMeta();
-        if (meta != null) {
-            PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(base64Texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-            profile.setProperty(new ProfileProperty("textures", base64Texture));
-            meta.setPlayerProfile(profile);
-            skull.setItemMeta(meta);
-        }
-        return skull;
+        return SkullUtil.createSkull(base64Texture);
     }
 
     private static ItemStack createDyedArmor(Material material, Color color) {

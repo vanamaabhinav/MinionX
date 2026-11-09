@@ -5,6 +5,7 @@ import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.MinionX;
 import com.minionx.api.*;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.SkullUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -53,13 +54,7 @@ public class MinionItemFactory {
         if (meta != null) {
             String texture = def != null ? def.getSkullTexture(tier) : type.getSkullTexture();
             if (texture != null && !texture.isEmpty()) {
-                try {
-                    PlayerProfile profile = Bukkit.createProfile(
-                            UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-                    profile.setProperty(new ProfileProperty("textures", texture));
-                    meta.setPlayerProfile(profile);
-                } catch (Exception ignored) {
-                }
+                SkullUtil.applySkin(meta, texture);
             }
 
             String roman = MinionTier.toRoman(tier);
@@ -121,13 +116,7 @@ public class MinionItemFactory {
         if (meta != null) {
             String texture = def.getSkullTexture(tier);
             if (texture != null && !texture.isEmpty()) {
-                try {
-                    PlayerProfile profile = Bukkit.createProfile(
-                            UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-                    profile.setProperty(new ProfileProperty("textures", texture));
-                    meta.setPlayerProfile(profile);
-                } catch (Exception ignored) {
-                }
+                SkullUtil.applySkin(meta, texture);
             }
 
             String roman = MinionTier.toRoman(tier);
@@ -282,13 +271,7 @@ public class MinionItemFactory {
         if (meta != null) {
             String texture = skin.getSkullTexture();
             if (texture != null && !texture.isEmpty()) {
-                try {
-                    PlayerProfile profile = Bukkit.createProfile(
-                            UUID.nameUUIDFromBytes(texture.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-                    profile.setProperty(new ProfileProperty("textures", texture));
-                    meta.setPlayerProfile(profile);
-                } catch (Exception ignored) {
-                }
+                SkullUtil.applySkin(meta, texture);
             }
 
             meta.setDisplayName(ColorUtil.color("&d" + skin.getDisplayName()));

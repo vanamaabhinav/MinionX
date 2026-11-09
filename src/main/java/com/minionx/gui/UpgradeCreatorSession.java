@@ -10,6 +10,7 @@ import java.util.*;
  * Stores state while an administrator configures a custom upgrade or hopper in the Upgrade Creator Studio.
  * Supports multi-behavior selection and multi-item spreading configurations.
  */
+@SuppressWarnings("deprecation")
 public class UpgradeCreatorSession {
 
     private String id;
@@ -21,6 +22,7 @@ public class UpgradeCreatorSession {
     private double sellRatio;
     private int areaExpansion;
     private boolean glowing;
+    private int customModelData;
     private List<String> lore;
     private final List<BonusDropEntry> spreadingItems = new ArrayList<>();
 
@@ -34,6 +36,7 @@ public class UpgradeCreatorSession {
         this.sellRatio = 0.50;
         this.areaExpansion = 0;
         this.glowing = true;
+        this.customModelData = 0;
         this.lore = new ArrayList<>(List.of("&7Custom minion upgrade accessory."));
     }
 
@@ -61,6 +64,36 @@ public class UpgradeCreatorSession {
         if (material != null && !material.isAir()) {
             this.material = material;
         }
+    }
+
+    public void applyIconFrom(org.bukkit.inventory.ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return;
+        this.material = item.getType();
+        if (item.hasItemMeta()) {
+            org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                if (meta.hasDisplayName()) {
+                    this.displayName = meta.getDisplayName();
+                }
+                if (meta.hasLore() && meta.getLore() != null && !meta.getLore().isEmpty()) {
+                    this.lore = new ArrayList<>(meta.getLore());
+                }
+                if (meta.hasCustomModelData()) {
+                    this.customModelData = meta.getCustomModelData();
+                }
+                if (meta.hasItemFlag(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS) || meta.hasEnchants()) {
+                    this.glowing = true;
+                }
+            }
+        }
+    }
+
+    public int getCustomModelData() {
+        return customModelData;
+    }
+
+    public void setCustomModelData(int customModelData) {
+        this.customModelData = customModelData;
     }
 
     public Set<CustomUpgrade.UpgradeBehavior> getBehaviors() {
@@ -215,7 +248,7 @@ public class UpgradeCreatorSession {
             activeBehaviors.add(CustomUpgrade.UpgradeBehavior.SPEED_BUFF);
         }
 
-        return new CustomUpgrade(id, displayName, material, activeBehaviors, speedBuff, chance, sellRatio, areaExpansion, spreadingItems, lore, glowing, 0);
+        return new CustomUpgrade(id, displayName, material, activeBehaviors, speedBuff, chance, sellRatio, areaExpansion, spreadingItems, lore, glowing, customModelData);
     }
 
     private static String capitalize(String str) {

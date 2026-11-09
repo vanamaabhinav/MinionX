@@ -329,7 +329,7 @@ collection-commands:
 # ==============================================================================
 gui:
   # Custom lore lines for the central minion status head (Slot 4).
-  # Supported Placeholders: %delay%, %harvested%, %stored%, %capacity%, %status%, %tier_roman%
+  # Supported Placeholders: %delay%, %harvested%, %stored%, %capacity%, %status%, %tier%, %tier_roman%
   head-lore:
     - "&7Current Tier: &e%tier_roman%"
     - "&7Time Between Actions: &a%delay%s"

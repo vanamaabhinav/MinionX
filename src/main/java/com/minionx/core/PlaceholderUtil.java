@@ -112,6 +112,8 @@ public class PlaceholderUtil {
 
             result = result.replace("%minion_type%", minion.getDisplayName())
                            .replace("%minion_type_id%", minion.getCustomDefinitionId() != null ? minion.getCustomDefinitionId() : (minion.getType() != null ? minion.getType().name().toLowerCase() : "minion"))
+                           .replace("%tier%", String.valueOf(minion.getTier()))
+                           .replace("%tier_roman%", MinionTier.toRoman(minion.getTier()))
                            .replace("%minion_tier%", String.valueOf(minion.getTier()))
                            .replace("%minion_tier_roman%", MinionTier.toRoman(minion.getTier()))
                            .replace("%total_harvested%", String.valueOf(minion.getTotalHarvested()))

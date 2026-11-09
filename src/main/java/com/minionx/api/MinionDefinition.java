@@ -119,6 +119,10 @@ public class MinionDefinition {
                     map.put("lore", customItemSpec.getLore());
                 if (customItemSpec.isGlow())
                     map.put("glow", true);
+                if (!customItemSpec.getEnchantments().isEmpty())
+                    map.put("enchantments", customItemSpec.getEnchantments());
+                if (customItemSpec.getSkullTexture() != null && !customItemSpec.getSkullTexture().isEmpty())
+                    map.put("skull-texture", customItemSpec.getSkullTexture());
                 if (customItemSpec.getPdcKey() != null) {
                     map.put("pdc-key", customItemSpec.getPdcKey());
                     map.put("pdc-value", customItemSpec.getPdcValue() != null ? customItemSpec.getPdcValue() : "");

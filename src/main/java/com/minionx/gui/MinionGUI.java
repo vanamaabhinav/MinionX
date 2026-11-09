@@ -10,6 +10,7 @@ import com.minionx.api.MinionRegistry;
 import com.minionx.api.MinionTier;
 import com.minionx.core.Minion;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.SkullUtil;
 import com.minionx.util.UpgradeCostHelper;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -165,11 +166,7 @@ public class MinionGUI {
             }
 
             if (texture != null && !texture.isEmpty()) {
-                try {
-                    PlayerProfile profile = Bukkit.createProfile(UUID.nameUUIDFromBytes(texture.getBytes(StandardCharsets.UTF_8)));
-                    profile.setProperty(new ProfileProperty("textures", texture));
-                    meta.setPlayerProfile(profile);
-                } catch (Exception ignored) {}
+                SkullUtil.applySkin(meta, texture);
             }
 
             meta.setDisplayName(ColorUtil.color("&a" + minion.getDisplayName() + " Minion " + MinionTier.toRoman(minion.getTier())));
@@ -181,6 +178,10 @@ public class MinionGUI {
             if (configuredLore != null && !configuredLore.isEmpty()) {
                 for (String line : configuredLore) {
                     lore.add(ColorUtil.color(line
+                            .replace("%tier%", String.valueOf(minion.getTier()))
+                            .replace("%tier_roman%", MinionTier.toRoman(minion.getTier()))
+                            .replace("%minion_tier%", String.valueOf(minion.getTier()))
+                            .replace("%minion_tier_roman%", MinionTier.toRoman(minion.getTier()))
                             .replace("%delay%", String.format("%.1f", minion.getEffectiveActionDelay()))
                             .replace("%harvested%", String.valueOf(minion.getTotalHarvested()))
                             .replace("%stored%", String.valueOf(minion.getTotalStoredCount()))

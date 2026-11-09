@@ -37,6 +37,29 @@ public class BonusDropEntry {
         this.hookId = hookId;
     }
 
+    public static BonusDropEntry fromItemStack(ItemStack item, double chance) {
+        if (item == null || item.getType() == Material.AIR) {
+            return new BonusDropEntry(Material.POTATO, 1, chance);
+        }
+        Material mat = item.getType();
+        int amount = Math.max(1, item.getAmount());
+        String name = null;
+        int cmd = 0;
+        String hook = CustomItemHook.identifyCustomItem(item);
+        if (item.hasItemMeta()) {
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                if (meta.hasDisplayName()) {
+                    name = meta.getDisplayName();
+                }
+                if (meta.hasCustomModelData()) {
+                    cmd = meta.getCustomModelData();
+                }
+            }
+        }
+        return new BonusDropEntry(mat, amount, chance, name, cmd, hook);
+    }
+
     public Material getMaterial() {
         return material;
     }

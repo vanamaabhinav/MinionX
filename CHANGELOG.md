@@ -127,8 +127,26 @@ All notable changes to **MinionX** are documented in this file.
 - **Windows File System Lock Recovery (`MinionStorage.java`)**: Added fallback file copy/delete when atomic moves on Windows encounter transient destination file locks.
 - **Automated Configuration Audit Test Suite (`ConfigAuditAndRemediationTest.java`)**: Added 8 automated tests validating YAML syntax, compactor recipes, target aliases, storage registries, message parity, upgrade schema, and fuels across all resources.
 
+#### 15. In-Game Creator Metadata Preservation, Unified Head Engine, & %tier_roman% Fixes
+- **Placeholder Formatting (`MinionGUI.java` & `PlaceholderUtil.java`)**:
+  - Resolved an issue where the central minion head item in `MinionGUI` rendered `%tier_roman%` literally on the GUI stat lore.
+  - Added full replacement support for `%tier%`, `%tier_roman%`, `%minion_tier%`, and `%minion_tier_roman%` in `MinionGUI.java` and `PlaceholderUtil.java`.
+- **Unified Head Skin Engine (`SkullUtil.java`)**:
+  - Implemented centralized `SkullUtil` handling skull texture extraction and skin application across minion armor stands, GUI menus, items, and in-game creator studios.
+  - Supports Base64 texture payloads, direct Mojang skin URLs (`textures.minecraft.net/texture/...`), 64-character hex skin hashes, player usernames (`^[a-zA-Z0-9_]{3,16}$`), and player UUIDs.
+  - Eliminates silent Steve head fallbacks when setting custom minion skins or player heads.
+- **Full-Fidelity Custom Item Specification (`CustomItemSpec.java`)**:
+  - Added native support for `skull-texture` and `enchantments` map in `CustomItemSpec`.
+  - Updated `fromItemStack(ItemStack)` to preserve custom display names, multi-line lore, all active enchantments, glowing effect, and skull skins.
+  - Updated `isCustom()` to detect items with custom lore, enchantments, or skull textures, ensuring they are preserved intact during YAML serialization (`toConfigMap`) and deserialization (`fromMap`).
+- **In-Game Creator Studio Cursor Preservation**:
+  - `MinionCreatorListener`: Slot 10 (Miner target) clones the cursor item to preserve custom metadata instead of creating an empty `new ItemStack(Material)`.
+  - `MinionCreatorListener`: Slot 15 (Skull Texture) and Slot 10 (Skin Creator) utilize `SkullUtil.extractTexture(cursor)` to copy skin textures from held player heads.
+  - `MinionCreatorGUI`: Slots 12 and 13 display custom lore lines, active enchantments, and custom head texture status alongside slot instructions instead of overwriting the item's lore in the menu.
+  - `UpgradeCreatorListener` & `UpgradeCreatorSession`: Slot 4 uses `applyIconFrom(cursor)` to preserve custom display name, lore, custom model data, and glow on upgrade items. Slots 20–24 use `BonusDropEntry.fromItemStack(cursor)` to preserve custom attributes on spreading bonus items.
+
 ### Verification & Technical Metrics
-- **Test Suite**: 303 unit tests passed across 43 test classes (`100% pass rate`).
+- **Test Suite**: 310 unit tests passed across 44 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac --release 17 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
 - **Documentation Checks**: Validated with `javadoc -Xdoclint:all,-missing` (**0 errors, 0 warnings**).
 - **Static Analysis**: Checked with zero IDE warnings (**0 unused imports, 0 unused private members**).

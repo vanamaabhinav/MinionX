@@ -3,6 +3,7 @@ package com.minionx.gui;
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.SkullUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Material;
@@ -128,17 +129,7 @@ public class MinionSkinCreatorGUI {
     }
 
     public static void applyTexture(SkullMeta meta, String texture) {
-        if (texture == null || texture.isEmpty()) return;
-        try {
-            if (texture.length() > 36 || texture.startsWith("ey")) {
-                PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
-                profile.setProperty(new ProfileProperty("textures", texture));
-                meta.setPlayerProfile(profile);
-            } else if (texture.matches("^[a-zA-Z0-9_]{3,16}$")) {
-                PlayerProfile profile = Bukkit.createProfile(texture);
-                meta.setPlayerProfile(profile);
-            }
-        } catch (Throwable ignored) {}
+        SkullUtil.applySkin(meta, texture);
     }
 
     private static ItemStack createNamedItem(Material mat, String name, List<String> lore) {

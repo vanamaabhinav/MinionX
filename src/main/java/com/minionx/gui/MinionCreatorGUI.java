@@ -2,6 +2,7 @@ package com.minionx.gui;
 
 import com.minionx.api.MinionArchetype;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.SkullUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Material;
@@ -127,6 +128,19 @@ public class MinionCreatorGUI {
         List<String> dLore = new ArrayList<>();
         dLore.add(ColorUtil.color("&7Primary Drop: &f" + dropDispName));
         dLore.add(ColorUtil.color("&7Amount: &fx" + drop.getAmount()));
+        if (dMeta != null && dMeta.hasLore() && dMeta.getLore() != null && !dMeta.getLore().isEmpty()) {
+            dLore.add(ColorUtil.color("&7Custom Lore:"));
+            for (String l : dMeta.getLore()) {
+                dLore.add(ColorUtil.color("  " + l));
+            }
+        }
+        if (dMeta != null && dMeta.hasEnchants()) {
+            dLore.add(ColorUtil.color("&7Enchantments: &b" + dMeta.getEnchants().size() + " active"));
+        }
+        if (drop.getType() == Material.PLAYER_HEAD) {
+            String headTex = SkullUtil.extractTexture(drop);
+            dLore.add(ColorUtil.color("&7Custom Head: &e" + (headTex != null ? "Textured" : "Steve / Vanilla")));
+        }
         dLore.add(ColorUtil.color("&7"));
         dLore.add(ColorUtil.color("&8Guaranteed item produced on every minion harvest cycle."));
         dLore.add(ColorUtil.color("&8Preserves lore, NBT tags, enchants & custom model data."));
@@ -148,6 +162,19 @@ public class MinionCreatorGUI {
             List<String> sLore = new ArrayList<>();
             sLore.add(ColorUtil.color("&7Secondary Drop: &f" + secName));
             sLore.add(ColorUtil.color("&7Drop Chance: &e" + pct + "%"));
+            if (secMeta != null && secMeta.hasLore() && secMeta.getLore() != null && !secMeta.getLore().isEmpty()) {
+                sLore.add(ColorUtil.color("&7Custom Lore:"));
+                for (String l : secMeta.getLore()) {
+                    sLore.add(ColorUtil.color("  " + l));
+                }
+            }
+            if (secMeta != null && secMeta.hasEnchants()) {
+                sLore.add(ColorUtil.color("&7Enchantments: &b" + secMeta.getEnchants().size() + " active"));
+            }
+            if (secClone.getType() == Material.PLAYER_HEAD) {
+                String headTex = SkullUtil.extractTexture(secClone);
+                sLore.add(ColorUtil.color("&7Custom Head: &e" + (headTex != null ? "Textured" : "Steve / Vanilla")));
+            }
             sLore.add(ColorUtil.color("&7"));
             sLore.add(ColorUtil.color("&8Bonus drop rolled on each harvest cycle."));
             sLore.add(ColorUtil.color("&7"));
@@ -187,7 +214,14 @@ public class MinionCreatorGUI {
             skullLore.add(ColorUtil.color("&3[Per-Tier Mode: Setting head specifically for Tier " + selectedTier + "]"));
         }
         String skullTitle = session.isPerTierMode() ? "&bSkull Texture (Tier " + selectedTier + ")" : "&bSkull Texture";
-        inv.setItem(15, createNamedItem(Material.PLAYER_HEAD, ColorUtil.color(skullTitle), skullLore));
+        ItemStack skullSlotItem = SkullUtil.createSkull(currentSkull);
+        ItemMeta sSlotMeta = skullSlotItem.getItemMeta();
+        if (sSlotMeta != null) {
+            sSlotMeta.setDisplayName(ColorUtil.color(skullTitle));
+            sSlotMeta.setLore(skullLore);
+            skullSlotItem.setItemMeta(sSlotMeta);
+        }
+        inv.setItem(15, skullSlotItem);
 
         // Slot 16: Armor & Color
         inv.setItem(16, createArmorItem(session));
@@ -343,7 +377,7 @@ public class MinionCreatorGUI {
         if (meta != null) {
             String texture = session.getEffectiveSkullTexture(session.getSelectedTier());
             if (texture != null && !texture.isEmpty()) {
-                MinionSkinCreatorGUI.applyTexture(meta, texture);
+                SkullUtil.applySkin(meta, texture);
             }
             meta.setDisplayName(ColorUtil.color(session.getDisplayName()));
 

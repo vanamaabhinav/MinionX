@@ -2,6 +2,7 @@ package com.minionx.item;
 
 import com.minionx.hook.CustomItemHook;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.SkullUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -10,6 +11,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
@@ -31,10 +33,18 @@ public class CustomItemSpec {
     private final boolean glow;
     private final String pdcKey;
     private final String pdcValue;
+    private final String skullTexture;
+    private final Map<String, Integer> enchantments;
 
     public CustomItemSpec(Material material, String hookIdentifier, int amount, double chance,
             String displayName, List<String> lore, Integer customModelData,
             boolean glow, String pdcKey, String pdcValue) {
+        this(material, hookIdentifier, amount, chance, displayName, lore, customModelData, glow, pdcKey, pdcValue, null, null);
+    }
+
+    public CustomItemSpec(Material material, String hookIdentifier, int amount, double chance,
+            String displayName, List<String> lore, Integer customModelData,
+            boolean glow, String pdcKey, String pdcValue, String skullTexture, Map<String, Integer> enchantments) {
         this.material = material != null ? material : Material.COBBLESTONE;
         this.hookIdentifier = hookIdentifier;
         this.amount = Math.max(1, amount);
@@ -45,6 +55,10 @@ public class CustomItemSpec {
         this.glow = glow;
         this.pdcKey = pdcKey;
         this.pdcValue = pdcValue;
+        this.skullTexture = skullTexture;
+        this.enchantments = (enchantments != null && !enchantments.isEmpty())
+                ? Collections.unmodifiableMap(new LinkedHashMap<>(enchantments))
+                : Collections.emptyMap();
     }
 
     public static CustomItemSpec fromConfigSection(ConfigurationSection sec) {
@@ -74,8 +88,33 @@ public class CustomItemSpec {
         boolean glow = sec.getBoolean("glow", sec.getBoolean("enchanted", false));
         String pdcK = sec.getString("pdc-key", sec.getString("pdc.key"));
         String pdcV = sec.getString("pdc-value", sec.getString("pdc.value", ""));
+        String skullTex = sec.getString("skull-texture", sec.getString("texture", sec.getString("skin")));
 
-        return new CustomItemSpec(mat, hook, amount, chance, name, lore, cmd, glow, pdcK, pdcV);
+        Map<String, Integer> enchants = new LinkedHashMap<>();
+        if (sec.isConfigurationSection("enchantments")) {
+            ConfigurationSection enchSec = sec.getConfigurationSection("enchantments");
+            if (enchSec != null) {
+                for (String key : enchSec.getKeys(false)) {
+                    enchants.put(key.toUpperCase(), enchSec.getInt(key, 1));
+                }
+            }
+        } else if (sec.isList("enchantments")) {
+            for (String s : sec.getStringList("enchantments")) {
+                if (s != null) {
+                    String[] parts = s.split(":", 2);
+                    int lvl = 1;
+                    if (parts.length > 1) {
+                        try {
+                            lvl = Integer.parseInt(parts[1].trim());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    enchants.put(parts[0].trim().toUpperCase(), lvl);
+                }
+            }
+        }
+
+        return new CustomItemSpec(mat, hook, amount, chance, name, lore, cmd, glow, pdcK, pdcV, skullTex, enchants);
     }
 
     public static CustomItemSpec fromMap(Map<?, ?> map) {
@@ -140,8 +179,37 @@ public class CustomItemSpec {
 
         String pdcK = map.containsKey("pdc-key") ? map.get("pdc-key").toString() : null;
         String pdcV = map.containsKey("pdc-value") ? map.get("pdc-value").toString() : "";
+        String skullTex = map.containsKey("skull-texture") ? map.get("skull-texture").toString()
+                : (map.containsKey("texture") ? map.get("texture").toString()
+                : (map.containsKey("skin") ? map.get("skin").toString() : null));
 
-        return new CustomItemSpec(mat, hook, amount, chance, name, lore, cmd, glow, pdcK, pdcV);
+        Map<String, Integer> enchants = new LinkedHashMap<>();
+        if (map.containsKey("enchantments") && map.get("enchantments") instanceof Map<?, ?> eMap) {
+            for (Map.Entry<?, ?> e : eMap.entrySet()) {
+                if (e.getKey() != null && e.getValue() != null) {
+                    try {
+                        enchants.put(e.getKey().toString().toUpperCase(), Integer.parseInt(e.getValue().toString()));
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        } else if (map.containsKey("enchantments") && map.get("enchantments") instanceof List<?> list) {
+            for (Object o : list) {
+                if (o != null) {
+                    String[] parts = o.toString().split(":", 2);
+                    int lvl = 1;
+                    if (parts.length > 1) {
+                        try {
+                            lvl = Integer.parseInt(parts[1].trim());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    enchants.put(parts[0].trim().toUpperCase(), lvl);
+                }
+            }
+        }
+
+        return new CustomItemSpec(mat, hook, amount, chance, name, lore, cmd, glow, pdcK, pdcV, skullTex, enchants);
     }
 
     public static CustomItemSpec fromItemStack(ItemStack stack, double chance) {
@@ -155,6 +223,9 @@ public class CustomItemSpec {
         List<String> lore = null;
         Integer cmd = null;
         boolean glow = false;
+        String skullTex = null;
+        Map<String, Integer> enchants = new LinkedHashMap<>();
+        String hook = CustomItemHook.identifyCustomItem(stack);
 
         if (Bukkit.getServer() != null) {
             try {
@@ -167,15 +238,28 @@ public class CustomItemSpec {
                             lore = meta.getLore();
                         if (meta.hasCustomModelData())
                             cmd = meta.getCustomModelData();
+                        if (meta.hasItemFlag(ItemFlag.HIDE_ENCHANTS))
+                            glow = true;
                         if (meta.hasEnchant(Enchantment.DURABILITY))
                             glow = true;
+                        if (meta.hasEnchants()) {
+                            for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
+                                if (entry.getKey() != null) {
+                                    String enchName = entry.getKey().getKey().getKey().toUpperCase();
+                                    enchants.put(enchName, entry.getValue());
+                                }
+                            }
+                        }
+                        if (mat == Material.PLAYER_HEAD) {
+                            skullTex = SkullUtil.extractTexture(stack);
+                        }
                     }
                 }
             } catch (Exception ignored) {
             }
         }
 
-        return new CustomItemSpec(mat, null, amount, chance, name, lore, cmd, glow, null, null);
+        return new CustomItemSpec(mat, hook, amount, chance, name, lore, cmd, glow, null, null, skullTex, enchants);
     }
 
     public ItemStack build() {
@@ -207,9 +291,24 @@ public class CustomItemSpec {
             if (customModelData != null && customModelData > 0) {
                 meta.setCustomModelData(customModelData);
             }
+            if (enchantments != null && !enchantments.isEmpty()) {
+                for (Map.Entry<String, Integer> e : enchantments.entrySet()) {
+                    try {
+                        NamespacedKey key = NamespacedKey.minecraft(e.getKey().toLowerCase());
+                        Enchantment ench = Enchantment.getByKey(key);
+                        if (ench != null) {
+                            meta.addEnchant(ench, e.getValue(), true);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
             if (glow) {
                 meta.addEnchant(Enchantment.DURABILITY, 1, true);
                 meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            }
+            if (material == Material.PLAYER_HEAD && skullTexture != null && !skullTexture.isEmpty() && meta instanceof SkullMeta skullMeta) {
+                SkullUtil.applySkin(skullMeta, skullTexture);
             }
             if (pdcKey != null && !pdcKey.isEmpty() && pdcValue != null) {
                 try {
@@ -253,6 +352,13 @@ public class CustomItemSpec {
                 if (!expected.equals(meta.getDisplayName()))
                     return false;
             }
+            if (skullTexture != null && !skullTexture.isEmpty() && material == Material.PLAYER_HEAD) {
+                String stackTex = SkullUtil.extractTexture(stack);
+                if (stackTex == null)
+                    return false;
+                if (!stackTex.equalsIgnoreCase(skullTexture))
+                    return false;
+            }
             if (pdcKey != null && !pdcKey.isEmpty() && pdcValue != null) {
                 try {
                     String[] parts = pdcKey.split(":", 2);
@@ -267,9 +373,12 @@ public class CustomItemSpec {
             }
             return true;
         } else {
-            // Vanilla matching: strict isolation against items with custom display names or
-            // custom model data
+            // Vanilla matching: strict isolation against items with custom display names,
+            // custom model data, or custom textures
             if (meta != null && (meta.hasDisplayName() || meta.hasCustomModelData())) {
+                return false;
+            }
+            if (material == Material.PLAYER_HEAD && SkullUtil.extractTexture(stack) != null) {
                 return false;
             }
             return true;
@@ -279,6 +388,10 @@ public class CustomItemSpec {
     public boolean isCustom() {
         return (customModelData != null && customModelData > 0)
                 || (displayName != null && !displayName.isEmpty())
+                || (!lore.isEmpty())
+                || glow
+                || (!enchantments.isEmpty())
+                || (skullTexture != null && !skullTexture.isEmpty())
                 || (pdcKey != null && !pdcKey.isEmpty())
                 || (hookIdentifier != null && !hookIdentifier.isEmpty());
     }
@@ -321,5 +434,13 @@ public class CustomItemSpec {
 
     public String getPdcValue() {
         return pdcValue;
+    }
+
+    public String getSkullTexture() {
+        return skullTexture;
+    }
+
+    public Map<String, Integer> getEnchantments() {
+        return enchantments;
     }
 }

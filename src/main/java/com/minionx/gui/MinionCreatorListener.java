@@ -6,6 +6,7 @@ import com.minionx.api.MinionDefinition;
 import com.minionx.api.MinionRegistry;
 import com.minionx.item.MinionItemFactory;
 import com.minionx.util.ColorUtil;
+import com.minionx.util.SkullUtil;
 import com.minionx.api.BonusDropEntry;
 import com.minionx.api.CustomFuel;
 import com.minionx.api.FuelRegistry;
@@ -276,7 +277,7 @@ public class MinionCreatorListener implements Listener {
                 if (cursor != null && cursor.getType().isBlock() && cursor.getType().isSolid()) {
                     session.setTargetBlock(cursor.getType());
                     session.setTargetMob(null);
-                    session.setExactDropItem(new ItemStack(cursor.getType()));
+                    session.setExactDropItem(cursor.clone());
                     player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSet mining target to " + cursor.getType().name() + "."));
                     player.playSound(player.getLocation(), Sound.BLOCK_STONE_PLACE, 1.0f, 1.2f);
                     MinionCreatorGUI.open(player, session);
@@ -473,22 +474,20 @@ public class MinionCreatorListener implements Listener {
         if (slot == 15) {
             int targetTier = session.getSelectedTier();
             if (cursor != null && cursor.getType() == Material.PLAYER_HEAD) {
-                SkullMeta sMeta = (SkullMeta) cursor.getItemMeta();
-                if (sMeta != null && sMeta.getPlayerProfile() != null) {
-                    for (var prop : sMeta.getPlayerProfile().getProperties()) {
-                        if ("textures".equalsIgnoreCase(prop.getName())) {
-                            if (session.isPerTierMode()) {
-                                session.setTierSkullTexture(targetTier, prop.getValue());
-                            } else {
-                                session.setSkullTexture(prop.getValue());
-                            }
-                            break;
-                        }
+                String extracted = SkullUtil.extractTexture(cursor);
+                if (extracted != null && !extracted.isEmpty()) {
+                    if (session.isPerTierMode()) {
+                        session.setTierSkullTexture(targetTier, extracted);
+                    } else {
+                        session.setSkullTexture(extracted);
                     }
+                    String tierNote = session.isPerTierMode() ? " for Tier " + targetTier : "";
+                    player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aCopied skull texture from held head" + tierNote + "."));
+                    player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
+                } else {
+                    player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&cCould not extract skin texture from held head."));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                 }
-                String tierNote = session.isPerTierMode() ? " for Tier " + targetTier : "";
-                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aCopied skull texture from held head" + tierNote + "."));
-                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
                 MinionCreatorGUI.open(player, session);
                 return;
             }
@@ -868,15 +867,13 @@ public class MinionCreatorListener implements Listener {
 
         if (slot == 10) {
             if (cursor != null && cursor.getType() == Material.PLAYER_HEAD) {
-                if (cursor.getItemMeta() instanceof SkullMeta sm && sm.getPlayerProfile() != null) {
-                    for (ProfileProperty prop : sm.getPlayerProfile().getProperties()) {
-                        if ("textures".equalsIgnoreCase(prop.getName())) {
-                            session.setSkullTexture(prop.getValue());
-                            player.sendMessage(ColorUtil.color("&aCopied skull texture from held player head!"));
-                            MinionSkinCreatorGUI.open(player, session);
-                            return;
-                        }
-                    }
+                String extracted = SkullUtil.extractTexture(cursor);
+                if (extracted != null && !extracted.isEmpty()) {
+                    session.setSkullTexture(extracted);
+                    player.sendMessage(ColorUtil.color("&aCopied skull texture from held player head!"));
+                    player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.2f);
+                    MinionSkinCreatorGUI.open(player, session);
+                    return;
                 }
             }
             promptChat(player, () -> MinionSkinCreatorGUI.open(player, session),
@@ -1310,8 +1307,11 @@ public class MinionCreatorListener implements Listener {
         // Slot 4: Item Material Selector
         if (slot == 4) {
             if (cursor != null && cursor.getType() != Material.AIR) {
-                session.setMaterial(cursor.getType());
-                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSet upgrade icon to: &e" + cursor.getType().name()));
+                session.applyIconFrom(cursor);
+                String itemName = (cursor.hasItemMeta() && cursor.getItemMeta().hasDisplayName())
+                        ? cursor.getItemMeta().getDisplayName()
+                        : cursor.getType().name();
+                player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aSet upgrade icon to: &e" + itemName));
             } else {
                 Material[] mats = UpgradeCreatorGUI.PRESET_MATERIALS;
                 int curIdx = 0;
@@ -1406,7 +1406,7 @@ public class MinionCreatorListener implements Listener {
                 }
                 BonusDropEntry current = items.get(idx);
                 if (cursor != null && cursor.getType() != Material.AIR) {
-                    BonusDropEntry updated = new BonusDropEntry(cursor.getType(), current.getAmount(), current.getChance());
+                    BonusDropEntry updated = BonusDropEntry.fromItemStack(cursor, current.getChance());
                     session.setSpreadingItem(idx, updated);
                     player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.7f, 1.3f);
                 } else if (event.isShiftClick()) {
@@ -1425,8 +1425,10 @@ public class MinionCreatorListener implements Listener {
                 UpgradeCreatorGUI.open(player, session);
                 return;
             } else if (idx == items.size()) {
-                Material newMat = (cursor != null && cursor.getType() != Material.AIR) ? cursor.getType() : UpgradeCreatorGUI.PRESET_SPREADING[0];
-                session.addSpreadingItem(new BonusDropEntry(newMat, 1, 0.10));
+                BonusDropEntry newEntry = (cursor != null && cursor.getType() != Material.AIR)
+                        ? BonusDropEntry.fromItemStack(cursor, 0.10)
+                        : new BonusDropEntry(UpgradeCreatorGUI.PRESET_SPREADING[0], 1, 0.10);
+                session.addSpreadingItem(newEntry);
                 player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.4f);
                 UpgradeCreatorGUI.open(player, session);
                 return;
