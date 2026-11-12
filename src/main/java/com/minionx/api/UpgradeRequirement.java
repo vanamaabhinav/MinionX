@@ -117,6 +117,23 @@ public class UpgradeRequirement {
             } catch (Exception ignored) {
                 return false;
             }
+        } else if ((displayName == null || displayName.isEmpty()) && customModelData <= 0) {
+            // Plain vanilla item requirement: strictly reject items with compressed PDC tag, custom model data, or custom display names
+            try {
+                if (stack.hasItemMeta()) {
+                    org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+                    if (meta != null) {
+                        if (meta.hasDisplayName() || meta.hasCustomModelData()) {
+                            return false;
+                        }
+                        var pdc = meta.getPersistentDataContainer();
+                        if (pdc.has(com.minionx.core.CompressionManager.COMPRESSED_KEY, org.bukkit.persistence.PersistentDataType.STRING)) {
+                            return false;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
         }
         return true;
     }

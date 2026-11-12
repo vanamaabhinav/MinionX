@@ -21,6 +21,8 @@ import java.util.*;
 @SuppressWarnings("deprecation")
 public class CompressionManager {
 
+    public static final NamespacedKey COMPRESSED_KEY = new NamespacedKey("minionx", "compressed");
+
     public static class CompressionRecipe {
         private final String id;
         private final CustomItemSpec inputSpec;
@@ -76,7 +78,25 @@ public class CompressionManager {
         public CustomItemSpec getOutputSpec() { return outputSpec; }
         public Material getInputMaterial() { return inputMaterial; }
         public int getInputAmount() { return inputAmount; }
-        public ItemStack createOutput() { return outputSpec != null ? outputSpec.build() : outputItem.clone(); }
+        public ItemStack createOutput() {
+            ItemStack item = outputSpec != null ? outputSpec.build() : outputItem.clone();
+            if (item != null && item.getType() != Material.AIR) {
+                try {
+                    if (org.bukkit.Bukkit.getServer() != null && item.hasItemMeta()) {
+                        ItemMeta meta = item.getItemMeta();
+                        if (meta != null) {
+                            var pdc = meta.getPersistentDataContainer();
+                            if (!pdc.has(COMPRESSED_KEY, PersistentDataType.STRING)) {
+                                pdc.set(COMPRESSED_KEY, PersistentDataType.STRING, id != null ? id : "compressed");
+                                item.setItemMeta(meta);
+                            }
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+            return item;
+        }
         public Integer getInputCustomModelData() { return inputCustomModelData; }
         public String getInputDisplayName() { return inputDisplayName; }
         public String getInputPdcKey() { return inputPdcKey; }
@@ -133,6 +153,36 @@ public class CompressionManager {
 
     public static CompressionRecipe getRecipe(String id) {
         return RECIPES.get(id);
+    }
+
+    public static boolean isCompressed(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return false;
+        try {
+            if (org.bukkit.Bukkit.getServer() != null && item.hasItemMeta()) {
+                ItemMeta meta = item.getItemMeta();
+                if (meta != null) {
+                    return meta.getPersistentDataContainer().has(COMPRESSED_KEY, PersistentDataType.STRING);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    public static ItemStack applyAutoSmelt(ItemStack item) {
+        if (item == null) return null;
+        Material mat = item.getType();
+        int amount = item.getAmount();
+        if (mat == Material.COBBLESTONE) return new ItemStack(Material.STONE, amount);
+        if (mat == Material.RAW_IRON) return new ItemStack(Material.IRON_INGOT, amount);
+        if (mat == Material.RAW_GOLD) return new ItemStack(Material.GOLD_INGOT, amount);
+        if (mat == Material.RAW_COPPER) return new ItemStack(Material.COPPER_INGOT, amount);
+        if (mat.name().endsWith("_LOG") || mat.name().endsWith("_WOOD")) return new ItemStack(Material.CHARCOAL, amount);
+        if (mat == Material.SAND) return new ItemStack(Material.GLASS, amount);
+        if (mat == Material.CLAY_BALL) return new ItemStack(Material.BRICK, amount);
+        if (mat == Material.CACTUS) return new ItemStack(Material.GREEN_DYE, amount);
+        if (mat == Material.POTATO) return new ItemStack(Material.BAKED_POTATO, amount);
+        return item;
     }
 
     public static CompressionRecipe getRecipe(Material material) {

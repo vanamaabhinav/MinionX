@@ -253,10 +253,7 @@ public class OfflineCalculator {
         boolean hasSmelter = minion.hasUpgrade(MinionUpgradeType.AUTO_SMELTER)
                 || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.AUTO_SMELTER);
         if (hasSmelter) {
-            if (drop.getType() == Material.COBBLESTONE) return new ItemStack(Material.STONE, drop.getAmount());
-            if (drop.getType() == Material.RAW_IRON) return new ItemStack(Material.IRON_INGOT, drop.getAmount());
-            if (drop.getType() == Material.RAW_GOLD) return new ItemStack(Material.GOLD_INGOT, drop.getAmount());
-            if (drop.getType() == Material.RAW_COPPER) return new ItemStack(Material.COPPER_INGOT, drop.getAmount());
+            return CompressionManager.applyAutoSmelt(drop);
         }
         return drop;
     }

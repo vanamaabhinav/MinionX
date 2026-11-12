@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * anti-dupe click debouncing, ID sanitization, numeric bounding,
  * and multi-item tier upgrade requirement matching.
  */
+@SuppressWarnings("deprecation")
 public class InGameCreatorsAuditTest {
 
     @BeforeEach
@@ -140,6 +141,22 @@ public class InGameCreatorsAuditTest {
         assertTrue(customReq.hasCustomDisplayName());
         assertEquals("§bEnchanted Diamond", customReq.getDisplayName());
         assertFalse(customReq.matches(new ItemStack(Material.DIAMOND, 64)));
+
+        // Enchanted item with custom meta must be rejected by plain requirement if server is available
+        if (org.bukkit.Bukkit.getServer() != null) {
+            ItemStack enchantedItem = new ItemStack(Material.DIAMOND, 16);
+            org.bukkit.inventory.meta.ItemMeta meta = enchantedItem.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName("§aEnchanted Diamond");
+                enchantedItem.setItemMeta(meta);
+                assertFalse(plainReq.matches(enchantedItem), "Plain requirement must reject item with custom display name");
+            }
+        }
+
+        // Enchanted requirement with PDC key/value
+        UpgradeRequirement pdcReq = new UpgradeRequirement(Material.DIAMOND, 16, "&aEnchanted Diamond", 0, "minionx:compressed", "diamond");
+        assertEquals("minionx:compressed", pdcReq.getPdcKey());
+        assertEquals("diamond", pdcReq.getPdcValue());
     }
 
     @Test

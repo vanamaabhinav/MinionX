@@ -222,6 +222,22 @@ public class UpgradeCostHelper {
                 try {
                     ItemStack template = req.getRecipe().createOutput();
                     if (item.getType() != template.getType()) return false;
+                    if (template.hasItemMeta() && item.hasItemMeta()) {
+                        org.bukkit.inventory.meta.ItemMeta tMeta = template.getItemMeta();
+                        org.bukkit.inventory.meta.ItemMeta iMeta = item.getItemMeta();
+                        if (tMeta != null && iMeta != null) {
+                            var tPdc = tMeta.getPersistentDataContainer();
+                            var iPdc = iMeta.getPersistentDataContainer();
+                            if (tPdc.has(CompressionManager.COMPRESSED_KEY, org.bukkit.persistence.PersistentDataType.STRING)
+                                    && iPdc.has(CompressionManager.COMPRESSED_KEY, org.bukkit.persistence.PersistentDataType.STRING)) {
+                                String tVal = tPdc.get(CompressionManager.COMPRESSED_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+                                String iVal = iPdc.get(CompressionManager.COMPRESSED_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+                                if (tVal != null && tVal.equalsIgnoreCase(iVal)) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
                     if (template.hasItemMeta() && template.getItemMeta() != null && template.getItemMeta().hasDisplayName()) {
                         String reqName = ChatColor.stripColor(template.getItemMeta().getDisplayName());
                         if (item.hasItemMeta() && item.getItemMeta() != null && item.getItemMeta().hasDisplayName()) {
@@ -235,18 +251,32 @@ public class UpgradeCostHelper {
             // Fallback for enchanted items
             if (item.getType() != req.getMaterial()) return false;
             try {
-                if (item.hasItemMeta() && item.getItemMeta() != null && item.getItemMeta().hasDisplayName()) {
-                    return item.getItemMeta().getDisplayName().contains("Enchanted");
+                if (item.hasItemMeta() && item.getItemMeta() != null) {
+                    if (item.getItemMeta().getPersistentDataContainer().has(CompressionManager.COMPRESSED_KEY, org.bukkit.persistence.PersistentDataType.STRING)) {
+                        return true;
+                    }
+                    if (item.getItemMeta().hasDisplayName()) {
+                        return item.getItemMeta().getDisplayName().contains("Enchanted");
+                    }
                 }
             } catch (Throwable ignored) {}
             return false;
         } else {
-            // Regular item: must match material and must NOT be an enchanted item
+            // Regular item: must match material and must NOT be an enchanted or custom item
             if (item.getType() != req.getMaterial()) return false;
             try {
-                if (item.hasItemMeta() && item.getItemMeta() != null && item.getItemMeta().hasDisplayName()) {
-                    String name = item.getItemMeta().getDisplayName();
-                    if (name.contains("Enchanted")) {
+                if (item.hasItemMeta() && item.getItemMeta() != null) {
+                    org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+                    if (meta.getPersistentDataContainer().has(CompressionManager.COMPRESSED_KEY, org.bukkit.persistence.PersistentDataType.STRING)) {
+                        return false;
+                    }
+                    if (meta.hasDisplayName()) {
+                        String name = meta.getDisplayName();
+                        if (name.contains("Enchanted")) {
+                            return false;
+                        }
+                    }
+                    if (meta.hasCustomModelData()) {
                         return false;
                     }
                 }

@@ -43,6 +43,22 @@ public class OfflineCalculatorTest {
     }
 
     @Test
+    @DisplayName("Auto-Smelter upgrade should convert Oak Log to Charcoal during offline simulation")
+    void testAutoSmelterOakToCharcoalOffline() {
+        MinionRegistry.load();
+        Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), null, 11, null);
+        minion.setCustomDefinitionId("oak");
+        minion.setUpgrade1(MinionUpgradeType.AUTO_SMELTER);
+
+        // Simulate 70 seconds offline
+        minion.setLastActionTime(System.currentTimeMillis() - 70_000L);
+
+        int produced = OfflineCalculator.processOfflineCatchup(minion);
+        assertTrue(produced > 0);
+        assertEquals(Material.CHARCOAL, minion.getInventory().get(0).getType());
+    }
+
+    @Test
     @DisplayName("Should cap offline duration to 168 hours by default when inactive duration exceeds 168 hours")
     void testOfflineCapping() {
         Minion minion = new Minion(UUID.randomUUID(), UUID.randomUUID(), MinionType.COBBLESTONE, 11, null);

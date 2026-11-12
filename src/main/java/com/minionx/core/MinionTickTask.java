@@ -1239,13 +1239,7 @@ public class MinionTickTask extends BukkitRunnable {
         for (ItemStack item : rolled) {
             ItemStack drop = item.clone();
             if (hasSmelter) {
-                if (drop.getType() == Material.COBBLESTONE) drop = new ItemStack(Material.STONE, drop.getAmount());
-                else if (drop.getType() == Material.RAW_IRON) drop = new ItemStack(Material.IRON_INGOT, drop.getAmount());
-                else if (drop.getType() == Material.RAW_GOLD) drop = new ItemStack(Material.GOLD_INGOT, drop.getAmount());
-                else if (drop.getType() == Material.RAW_COPPER) drop = new ItemStack(Material.COPPER_INGOT, drop.getAmount());
-                else if (drop.getType().name().endsWith("_LOG") || drop.getType().name().endsWith("_WOOD")) {
-                    drop = new ItemStack(Material.CHARCOAL, drop.getAmount());
-                }
+                drop = CompressionManager.applyAutoSmelt(drop);
             }
             finalDrops.add(drop);
         }
@@ -1363,11 +1357,7 @@ public class MinionTickTask extends BukkitRunnable {
         boolean hasSmelter = minion.hasUpgrade(MinionUpgradeType.AUTO_SMELTER)
                 || minion.hasUpgradeBehavior(CustomUpgrade.UpgradeBehavior.AUTO_SMELTER);
         if (hasSmelter) {
-            if (drop.getType() == Material.COBBLESTONE) return new ItemStack(Material.STONE, drop.getAmount());
-            if (drop.getType() == Material.RAW_IRON) return new ItemStack(Material.IRON_INGOT, drop.getAmount());
-            if (drop.getType().name().endsWith("_LOG") || drop.getType().name().endsWith("_WOOD")) {
-                return new ItemStack(Material.CHARCOAL, drop.getAmount());
-            }
+            return CompressionManager.applyAutoSmelt(drop);
         }
         return drop;
     }

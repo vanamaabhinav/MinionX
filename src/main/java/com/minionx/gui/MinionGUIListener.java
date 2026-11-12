@@ -270,7 +270,7 @@ public class MinionGUIListener implements Listener {
             MinionSkin oldSkin = minion.getSkin();
             minion.setSkinId(null);
             ItemStack skinItem = com.minionx.item.MinionItemFactory.createSkinItem(oldSkin);
-            player.getInventory().addItem(skinItem);
+            giveOrDrop(player, skinItem);
             com.minionx.visual.MinionVisual.spawnOrUpdate(minion);
             MinionGUI.open(player, minion);
             player.sendMessage(ColorUtil.getPrefix() + ColorUtil.color("&aRemoved &d" + oldSkin.getDisplayName() + " &afrom minion!"));
@@ -294,7 +294,7 @@ public class MinionGUIListener implements Listener {
             }
             MinionSkin oldSkin = minion.getSkin();
             ItemStack oldItem = com.minionx.item.MinionItemFactory.createSkinItem(oldSkin);
-            player.getInventory().addItem(oldItem);
+            giveOrDrop(player, oldItem);
         }
 
         minion.setSkinId(skinId);
@@ -455,7 +455,7 @@ public class MinionGUIListener implements Listener {
                 }
 
                 if (hopper != null) {
-                    player.getInventory().addItem(MinionItemFactory.createUpgradeItem(hopper));
+                    giveOrDrop(player, MinionItemFactory.createUpgradeItem(hopper));
                     player.sendMessage(ColorUtil.color("&aRemoved Automated Shipping hopper (&f" + hopper.getDisplayName() + "&a)!"));
                 }
                 player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
@@ -1238,7 +1238,7 @@ public class MinionGUIListener implements Listener {
 
             if (currentFuel.isPermanent()) {
                 minion.setFuel((CustomFuel) null);
-                player.getInventory().addItem(MinionItemFactory.createFuelItem(currentFuel));
+                giveOrDrop(player, MinionItemFactory.createFuelItem(currentFuel));
                 player.sendMessage(ColorUtil.color("&eRemoved " + currentFuel.getDisplayName() + " &efuel from minion."));
                 player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
                 MinionGUI.open(player, minion);
@@ -1256,7 +1256,7 @@ public class MinionGUIListener implements Listener {
                 player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 1.2f);
             } else {
                 minion.setFuel((CustomFuel) null);
-                player.getInventory().addItem(MinionItemFactory.createFuelItem(currentFuel));
+                giveOrDrop(player, MinionItemFactory.createFuelItem(currentFuel));
                 player.sendMessage(ColorUtil.color("&eRemoved " + currentFuel.getDisplayName() + " &efuel from minion."));
                 player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
             }
@@ -1324,7 +1324,7 @@ public class MinionGUIListener implements Listener {
         if (oldFuel == null) return;
 
         if (oldFuel.isPermanent()) {
-            player.getInventory().addItem(MinionItemFactory.createFuelItem(oldFuel));
+            giveOrDrop(player, MinionItemFactory.createFuelItem(oldFuel));
             player.sendMessage(ColorUtil.color("&eReturned previous " + oldFuel.getDisplayName() + " &eto your inventory."));
         } else {
             boolean destroyOnRemoval = MinionX.getInstance().getConfig()
@@ -1334,7 +1334,7 @@ public class MinionGUIListener implements Listener {
                 player.sendMessage(ColorUtil.color(template.replace("%fuel%", oldFuel.getDisplayName())));
                 player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 0.8f, 1.2f);
             } else {
-                player.getInventory().addItem(MinionItemFactory.createFuelItem(oldFuel));
+                giveOrDrop(player, MinionItemFactory.createFuelItem(oldFuel));
             }
         }
     }
@@ -1443,7 +1443,7 @@ public class MinionGUIListener implements Listener {
 
             CustomUpgrade previous = slotNum == 1 ? minion.getCustomUpgrade1() : minion.getCustomUpgrade2();
             if (previous != null) {
-                player.getInventory().addItem(MinionItemFactory.createUpgradeItem(previous));
+                giveOrDrop(player, MinionItemFactory.createUpgradeItem(previous));
                 player.sendMessage(ColorUtil.color("&eReturned previous " + previous.getDisplayName() + " &eto your inventory."));
             }
 
@@ -1469,7 +1469,7 @@ public class MinionGUIListener implements Listener {
             if (slotNum == 1) minion.setUpgrade1((CustomUpgrade) null);
             else minion.setUpgrade2((CustomUpgrade) null);
 
-            player.getInventory().addItem(MinionItemFactory.createUpgradeItem(current));
+            giveOrDrop(player, MinionItemFactory.createUpgradeItem(current));
             player.sendMessage(ColorUtil.color("&eRemoved " + current.getDisplayName() + "."));
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
             MinionGUI.open(player, minion);
@@ -1561,5 +1561,13 @@ public class MinionGUIListener implements Listener {
         return b == CustomUpgrade.UpgradeBehavior.AUTO_SMELTER
                 || b == CustomUpgrade.UpgradeBehavior.COMPACTOR
                 || b == CustomUpgrade.UpgradeBehavior.SUPER_COMPACTOR;
+    }
+
+    private void giveOrDrop(Player player, ItemStack item) {
+        if (player == null || item == null || item.getType() == Material.AIR) return;
+        HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+        for (ItemStack left : leftover.values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), left);
+        }
     }
 }

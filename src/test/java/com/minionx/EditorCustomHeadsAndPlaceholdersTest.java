@@ -224,7 +224,7 @@ public class EditorCustomHeadsAndPlaceholdersTest {
     @Test
     @DisplayName("Verify BonusDropEntry serialization preserves custom display name and custom model data")
     public void testBonusDropEntrySerialization() {
-        BonusDropEntry entry = new BonusDropEntry(Material.DIAMOND, 2, 0.20, "&bShining Diamond", 999, null);
+        BonusDropEntry entry = new BonusDropEntry(Material.DIAMOND, 2, 0.20, "&bShining Diamond", 999, "itemsadder:ruby");
         Map<String, Object> map = entry.toConfigMap();
 
         assertEquals("DIAMOND", map.get("material"));
@@ -232,5 +232,22 @@ public class EditorCustomHeadsAndPlaceholdersTest {
         assertEquals(0.20, map.get("chance"));
         assertEquals(com.minionx.util.ColorUtil.color("&bShining Diamond"), map.get("display-name"));
         assertEquals(999, map.get("custom-model-data"));
+        assertEquals("itemsadder:ruby", map.get("hook-id"));
+
+        // Adjusting amount must preserve metadata
+        BonusDropEntry amountUpdated = new BonusDropEntry(entry.getMaterial(), 5, entry.getChance(),
+                entry.getDisplayName(), entry.getCustomModelData(), entry.getHookId());
+        assertEquals(5, amountUpdated.getAmount());
+        assertEquals(entry.getDisplayName(), amountUpdated.getDisplayName());
+        assertEquals(999, amountUpdated.getCustomModelData());
+        assertEquals("itemsadder:ruby", amountUpdated.getHookId());
+
+        // Adjusting chance must preserve metadata
+        BonusDropEntry chanceUpdated = new BonusDropEntry(entry.getMaterial(), entry.getAmount(), 0.50,
+                entry.getDisplayName(), entry.getCustomModelData(), entry.getHookId());
+        assertEquals(0.50, chanceUpdated.getChance(), 0.001);
+        assertEquals(entry.getDisplayName(), chanceUpdated.getDisplayName());
+        assertEquals(999, chanceUpdated.getCustomModelData());
+        assertEquals("itemsadder:ruby", chanceUpdated.getHookId());
     }
 }

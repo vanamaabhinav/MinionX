@@ -1410,13 +1410,15 @@ public class MinionCreatorListener implements Listener {
                 } else if (event.isShiftClick()) {
                     int delta = event.isLeftClick() ? 1 : -1;
                     int newAmount = Math.max(1, Math.min(64, current.getAmount() + delta));
-                    BonusDropEntry updated = new BonusDropEntry(current.getMaterial(), newAmount, current.getChance());
+                    BonusDropEntry updated = new BonusDropEntry(current.getMaterial(), newAmount, current.getChance(),
+                            current.getDisplayName(), current.getCustomModelData(), current.getHookId());
                     session.setSpreadingItem(idx, updated);
                     player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
                 } else {
                     double delta = event.isLeftClick() ? 0.05 : -0.05;
                     double newChance = Math.max(0.01, Math.min(1.0, Math.round((current.getChance() + delta) * 100.0) / 100.0));
-                    BonusDropEntry updated = new BonusDropEntry(current.getMaterial(), current.getAmount(), newChance);
+                    BonusDropEntry updated = new BonusDropEntry(current.getMaterial(), current.getAmount(), newChance,
+                            current.getDisplayName(), current.getCustomModelData(), current.getHookId());
                     session.setSpreadingItem(idx, updated);
                     player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
                 }

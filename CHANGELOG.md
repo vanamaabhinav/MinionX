@@ -145,14 +145,30 @@ All notable changes to **MinionX** are documented in this file.
   - `MinionCreatorGUI`: Slots 12 and 13 display custom lore lines, active enchantments, and custom head texture status alongside slot instructions instead of overwriting the item's lore in the menu.
   - `UpgradeCreatorListener` & `UpgradeCreatorSession`: Slot 4 uses `applyIconFrom(cursor)` to preserve custom display name, lore, custom model data, and glow on upgrade items. Slots 20–24 use `BonusDropEntry.fromItemStack(cursor)` to preserve custom attributes on spreading bonus items.
 
+#### 16. Final Pre-Release Audit, Data Value Verification & Overflow Protection
+- **Persistent Data Value Tracking for Compressed Items (`CompressionManager.java`)**:
+  - Introduced canonical `CompressionManager.COMPRESSED_KEY = new NamespacedKey("minionx", "compressed")`.
+  - When `CompressionManager` builds compressed or enchanted items (via Super Compactor or recipes), the resulting `ItemStack` is stamped with this PDC tag and the recipe identifier (`minionx:compressed = "<recipe_id>"`).
+- **Strict Data Value Verification in Upgrade Requirements (`UpgradeRequirement.java` & `UpgradeCostHelper.java`)**:
+  - Enforced proper data value validation in `UpgradeRequirement.matches`:
+    - **Enchanted Requirements**: Match candidate items by PDC tag (`minionx:compressed`), recipe identifier, and custom model data.
+    - **Vanilla Requirements**: Strictly isolate against compressed items by rejecting any item carrying `minionx:compressed`, custom model data, or custom display names—preventing costly compressed resources (e.g. Enchanted Diamonds) from being consumed for low-tier vanilla upgrades.
+  - In `UpgradeCostHelper.java`, Tier 5+ auto-generated enchanted requirements now construct an explicit `UpgradeRequirement` carrying the recipe's PDC data value.
+- **GUI Full-Inventory Overflow Drop Protection (`MinionGUIListener.java`)**:
+  - Replaced bare `player.getInventory().addItem(...)` calls across all 9 retrieval and swap slots (skins, hoppers, fuels, and upgrades) with a unified `giveOrDrop` helper that drops leftover items naturally at the player's feet via `player.getWorld().dropItemNaturally(...)`, completely preventing item voiding when player inventories are full.
+- **Upgrade Creator Studio Spreading Metadata Retention (`MinionCreatorListener.java`)**:
+  - Preserved custom display names, custom model data, and external plugin hook IDs (`current.getDisplayName()`, `current.getCustomModelData()`, `current.getHookId()`) when adjusting quantities (+/- 1) or probabilities (+/- 5%) in Slots 20–24 of the Upgrade Creator Studio.
+- **Auto-Smelter Online vs. Offline Parity (`MinionTickTask.java` & `OfflineCalculator.java`)**:
+  - Centralized auto-smelting conversions in `CompressionManager.applyAutoSmelt(...)` across both online ticking and offline catchup simulation, ensuring uniform output for `COBBLESTONE` -> `STONE`, `RAW_*` -> ingots, `*_LOG`/`*_WOOD` -> `CHARCOAL`, `SAND` -> `GLASS`, `CLAY_BALL` -> `BRICK`, `CACTUS` -> `GREEN_DYE`, and `POTATO` -> `BAKED_POTATO`.
+
 ### Verification & Technical Metrics
-- **Test Suite**: 310 unit tests passed across 44 test classes (`100% pass rate`).
+- **Test Suite**: 311 unit tests passed across 44 test classes (`100% pass rate`).
 - **Compiler Checks**: Compiled with `javac --release 17 -proc:none -Xlint:all` (**0 warnings, 0 errors**).
 - **Documentation Checks**: Validated with `javadoc -Xdoclint:all,-missing` (**0 errors, 0 warnings**).
 - **Static Analysis**: Checked with zero IDE warnings (**0 unused imports, 0 unused private members**).
 - **Bytecode Verification**: Verified `Major Version 61.0` (Java 17 target).
 - **Artifact Versioning**: Bumped to `1.0.3` across `plugin.yml`, `pom.xml`, `README.md`, and test suites.
-- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar` (525,654 bytes).
+- **Production Artifacts**: Packaged `target/MinionX-1.0.3.jar` and `target/MinionX.jar`.
 
 ---
 
