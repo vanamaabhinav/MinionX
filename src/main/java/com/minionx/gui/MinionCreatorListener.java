@@ -1403,25 +1403,24 @@ public class MinionCreatorListener implements Listener {
                     return;
                 }
                 BonusDropEntry current = items.get(idx);
+                BonusDropEntry updated;
                 if (cursor != null && cursor.getType() != Material.AIR) {
-                    BonusDropEntry updated = BonusDropEntry.fromItemStack(cursor, current.getChance());
-                    session.setSpreadingItem(idx, updated);
+                    updated = BonusDropEntry.fromItemStack(cursor, current.getChance());
                     player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.7f, 1.3f);
                 } else if (event.isShiftClick()) {
                     int delta = event.isLeftClick() ? 1 : -1;
                     int newAmount = Math.max(1, Math.min(64, current.getAmount() + delta));
-                    BonusDropEntry updated = new BonusDropEntry(current.getMaterial(), newAmount, current.getChance(),
+                    updated = new BonusDropEntry(current.getMaterial(), newAmount, current.getChance(),
                             current.getDisplayName(), current.getCustomModelData(), current.getHookId());
-                    session.setSpreadingItem(idx, updated);
                     player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
                 } else {
                     double delta = event.isLeftClick() ? 0.05 : -0.05;
                     double newChance = Math.max(0.01, Math.min(1.0, Math.round((current.getChance() + delta) * 100.0) / 100.0));
-                    BonusDropEntry updated = new BonusDropEntry(current.getMaterial(), current.getAmount(), newChance,
+                    updated = new BonusDropEntry(current.getMaterial(), current.getAmount(), newChance,
                             current.getDisplayName(), current.getCustomModelData(), current.getHookId());
-                    session.setSpreadingItem(idx, updated);
                     player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
                 }
+                session.setSpreadingItem(idx, updated);
                 UpgradeCreatorGUI.open(player, session);
                 return;
             } else if (idx == items.size()) {

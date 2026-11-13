@@ -224,8 +224,8 @@ public class EditorCustomHeadsAndPlaceholdersTest {
     @Test
     @DisplayName("Verify BonusDropEntry serialization preserves custom display name and custom model data")
     public void testBonusDropEntrySerialization() {
-        BonusDropEntry entry = new BonusDropEntry(Material.DIAMOND, 2, 0.20, "&bShining Diamond", 999, "itemsadder:ruby");
-        Map<String, Object> map = entry.toConfigMap();
+        BonusDropEntry baseEntry = new BonusDropEntry(Material.DIAMOND, 2, 0.20, "&bShining Diamond", 999, "itemsadder:ruby");
+        Map<String, Object> map = baseEntry.toConfigMap();
 
         assertEquals("DIAMOND", map.get("material"));
         assertEquals(2, map.get("amount"));
@@ -235,18 +235,18 @@ public class EditorCustomHeadsAndPlaceholdersTest {
         assertEquals("itemsadder:ruby", map.get("hook-id"));
 
         // Adjusting amount must preserve metadata
-        BonusDropEntry amountUpdated = new BonusDropEntry(entry.getMaterial(), 5, entry.getChance(),
-                entry.getDisplayName(), entry.getCustomModelData(), entry.getHookId());
+        BonusDropEntry amountUpdated = new BonusDropEntry(baseEntry.getMaterial(), 5, baseEntry.getChance(),
+                baseEntry.getDisplayName(), baseEntry.getCustomModelData(), baseEntry.getHookId());
         assertEquals(5, amountUpdated.getAmount());
-        assertEquals(entry.getDisplayName(), amountUpdated.getDisplayName());
+        assertEquals(baseEntry.getDisplayName(), amountUpdated.getDisplayName());
         assertEquals(999, amountUpdated.getCustomModelData());
         assertEquals("itemsadder:ruby", amountUpdated.getHookId());
 
         // Adjusting chance must preserve metadata
-        BonusDropEntry chanceUpdated = new BonusDropEntry(entry.getMaterial(), entry.getAmount(), 0.50,
-                entry.getDisplayName(), entry.getCustomModelData(), entry.getHookId());
+        BonusDropEntry chanceUpdated = new BonusDropEntry(baseEntry.getMaterial(), baseEntry.getAmount(), 0.50,
+                baseEntry.getDisplayName(), baseEntry.getCustomModelData(), baseEntry.getHookId());
         assertEquals(0.50, chanceUpdated.getChance(), 0.001);
-        assertEquals(entry.getDisplayName(), chanceUpdated.getDisplayName());
+        assertEquals(baseEntry.getDisplayName(), chanceUpdated.getDisplayName());
         assertEquals(999, chanceUpdated.getCustomModelData());
         assertEquals("itemsadder:ruby", chanceUpdated.getHookId());
     }

@@ -2,7 +2,6 @@ package com.minionx.core;
 
 import com.minionx.MinionX;
 import com.minionx.api.*;
-import com.minionx.api.BonusDropEntry;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
