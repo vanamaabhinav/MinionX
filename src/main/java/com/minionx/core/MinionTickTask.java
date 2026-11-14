@@ -106,7 +106,7 @@ public class MinionTickTask extends BukkitRunnable {
         int inspected = 0;
         Iterator<ScheduledMinion> it = actionQueue.iterator();
         while (it.hasNext() && inspected < MAX_COMPACTION_ENTRIES_PER_TICK) {
-            if (inspected > 0 && System.nanoTime() - compStart >= MAX_COMPACTION_BUDGET_NANOS) {
+            if (inspected >= 20 && System.nanoTime() - compStart >= MAX_COMPACTION_BUDGET_NANOS) {
                 break;
             }
             inspected++;

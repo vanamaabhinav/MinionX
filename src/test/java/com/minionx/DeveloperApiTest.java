@@ -78,4 +78,34 @@ public class DeveloperApiTest {
             assertNotNull(MinionSkinRegistry.get("api_test_skin"));
         });
     }
+
+    @Test
+    @DisplayName("Plugin Manifest: Verify all internal permission nodes are explicitly declared")
+    void testPluginYmlPermissionsDeclared() {
+        java.io.InputStream in = getClass().getClassLoader().getResourceAsStream("plugin.yml");
+        assertNotNull(in, "plugin.yml resource should exist on classpath");
+
+        org.yaml.snakeyaml.Yaml yaml = new org.yaml.snakeyaml.Yaml();
+        java.util.Map<String, Object> data = yaml.load(in);
+        assertNotNull(data);
+
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> perms = (java.util.Map<String, Object>) data.get("permissions");
+        assertNotNull(perms, "permissions section must be present in plugin.yml");
+
+        String[] requiredPerms = {
+            "minionx.admin",
+            "minionx.use",
+            "minionx.place",
+            "minionx.storage",
+            "minionx.bypass.limit",
+            "minionx.bypass.protection",
+            "minionx.offline.unlimited",
+            "minionx.admin.bypass"
+        };
+
+        for (String perm : requiredPerms) {
+            assertTrue(perms.containsKey(perm), "plugin.yml missing required permission node: " + perm);
+        }
+    }
 }

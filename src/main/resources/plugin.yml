@@ -42,9 +42,21 @@ permissions:
   minionx.use:
     description: Allows players to interact with, place, and view minions
     default: true
+  minionx.place:
+    description: Allows placing minions (checked as a fallback when minionx.use is absent)
+    default: true
   minionx.storage:
     description: Allows players to open and access linked minion storage chests
     default: true
   minionx.bypass.limit:
     description: Allows bypassing the per-player minion placement limit
+    default: op
+  minionx.bypass.protection:
+    description: Allows bypassing claim/island protection checks when placing or managing minions
+    default: op
+  minionx.offline.unlimited:
+    description: Bypasses max offline simulation hours cap (allows unlimited catchup calculation)
+    default: op
+  minionx.admin.bypass:
+    description: Allows interacting with and releasing quarantined minion instances
     default: op
